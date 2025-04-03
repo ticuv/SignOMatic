@@ -1,0 +1,362 @@
+/* Import Fonts: "Luckiest Guy" for titles, Roboto for fallback */
+@import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@400;700&display=swap');
+
+:root {
+    /* RICK & MORTY Color Palette */
+    --rick-green: #97ce4c;
+    --morty-yellow: #f0e14a;
+    --portal-blue: #00b0c8;
+    --interdimensional-purple: #aa6bd1;
+    --slime-green: #c3ff5d;
+    --dark-matter: #1e1e2f;
+    --medium-dark: #2a2a3a;
+    --off-white: #f0f0e0;
+    --error-red: #ff4d4d;
+    --outline-black: #1a1a1a;
+    --glow-green: rgba(151, 206, 76, 0.7);
+    --glow-blue: rgba(0, 176, 200, 0.7);
+    --light-bg: #3a3a4a; /* Added for disabled button consistency */
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Roboto', sans-serif; /* Readable fallback */
+    background-color: var(--dark-matter);
+    color: var(--off-white);
+    line-height: 1.5;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 1.5rem 1rem;
+    /* Chaotic Background from R&M style */
+    background:
+        linear-gradient(135deg, rgba(151, 206, 76, 0.1) 25%, transparent 25%) -50px 0,
+        linear-gradient(225deg, rgba(170, 107, 209, 0.1) 25%, transparent 25%) -50px 0,
+        linear-gradient(315deg, rgba(0, 176, 200, 0.1) 25%, transparent 25%),
+        linear-gradient(45deg, rgba(240, 225, 74, 0.1) 25%, transparent 25%);
+    background-size: 100px 100px;
+    background-color: var(--dark-matter);
+    overflow-x: hidden;
+}
+
+.container {
+    background-color: rgba(42, 42, 58, 0.9);
+    border: 4px solid var(--outline-black);
+    border-radius: 10px; /* Squarish */
+    padding: 1.5rem;
+    max-width: 700px;
+    width: 95%;
+    text-align: center;
+    box-shadow: 5px 5px 0px var(--outline-black); /* R&M hard shadow */
+    margin-top: 1rem;
+    transform: rotate(-1.5deg); /* R&M tilt */
+    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* R&M bouncy */
+}
+.container:hover {
+     transform: rotate(0.5deg) scale(1.01); /* R&M Wobble */
+}
+
+/* Use Funky font for key elements */
+h1, h2, h3, .button-style, .upload-label, .radio-group label, #signSelector {
+    font-family: 'Luckiest Guy', cursive;
+    letter-spacing: 1px;
+}
+
+h1 {
+    /* Color from R&M green, adjust if needed for Ticuv */
+    color: var(--rick-green);
+    margin-bottom: 1.5rem;
+    font-size: 2.8rem;
+    /* Heavy Outline Text Shadow from R&M style */
+    text-shadow:
+       -2px -2px 0 var(--outline-black),
+        2px -2px 0 var(--outline-black),
+       -2px  2px 0 var(--outline-black),
+        2px  2px 0 var(--outline-black),
+        4px 4px 0 var(--interdimensional-purple);
+    /* R&M Glow Animation */
+    animation: pulse-glow-rick 4s infinite alternate;
+}
+
+@keyframes pulse-glow-rick { /* Keep R&M glow */
+    from { text-shadow: -2px -2px 0 var(--outline-black), 2px -2px 0 var(--outline-black), -2px 2px 0 var(--outline-black), 2px 2px 0 var(--outline-black), 4px 4px 0 var(--interdimensional-purple), 0 0 15px var(--glow-green); }
+    to { text-shadow: -2px -2px 0 var(--outline-black), 2px -2px 0 var(--outline-black), -2px 2px 0 var(--outline-black), 2px 2px 0 var(--outline-black), 4px 4px 0 var(--portal-blue), 0 0 25px var(--glow-blue); }
+}
+
+
+h2 { font-size: 1.8rem; color: var(--morty-yellow); margin-bottom: 1rem; text-shadow: 2px 2px 0 var(--outline-black);}
+h3 { font-size: 1.4rem; margin-top: 1.5rem; color: var(--portal-blue); text-shadow: 1px 1px 0 var(--outline-black);}
+
+p {
+    color: var(--off-white); /* R&M brighter paragraph */
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+.upload-section p { /* R&M upload text style */
+    font-style: italic;
+    color: var(--rick-green);
+    opacity: 0.8;
+}
+
+/* Section Styling - R&M Dashed */
+.upload-section, .controls-section {
+    margin-bottom: 1.5rem;
+    border: 3px dashed var(--interdimensional-purple);
+    padding: 1rem;
+    border-radius: 5px; /* Sharper */
+    background-color: rgba(0,0,0, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+}
+.upload-section.drag-over { /* R&M dragover */
+     border-color: var(--slime-green);
+     border-style: solid;
+     background-color: rgba(195, 255, 93, 0.1);
+     transform: scale(1.02);
+}
+
+/* Buttons & Labels - R&M Style */
+.button-style, .upload-label {
+    display: inline-block;
+    padding: 10px 20px;
+    border: 3px solid var(--outline-black);
+    border-radius: 5px; /* Squarish */
+    cursor: pointer;
+    font-size: 1.1rem;
+    background-color: var(--morty-yellow); /* R&M Yellow */
+    color: var(--outline-black);
+    transition: all 0.15s ease-out;
+    text-decoration: none;
+    margin: 0.5rem;
+    box-shadow: 3px 3px 0px var(--outline-black); /* R&M Hard shadow */
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
+}
+.button-style:hover, .upload-label:hover {
+    background-color: var(--rick-green); /* R&M Green hover */
+    box-shadow: 4px 4px 0px var(--outline-black);
+    transform: translate(-2px, -2px) rotate(1deg); /* R&M Jiggle */
+}
+ .button-style:active, .upload-label:active {
+    transform: translate(1px, 1px) rotate(0deg);
+    box-shadow: 1px 1px 0px var(--outline-black);
+ }
+
+
+#downloadButton {
+    background-color: var(--portal-blue); /* R&M Blue */
+    color: var(--off-white);
+    text-shadow: 1px 1px 0 var(--outline-black);
+}
+ #downloadButton:hover {
+    background-color: var(--interdimensional-purple); /* R&M Purple hover */
+    color: var(--off-white);
+ }
+ #downloadButton.disabled {
+     background-color: var(--light-bg); /* Use the defined variable */
+     border-color: #555;
+     color: #888;
+     cursor: crosshair; /* R&M cursor */
+     opacity: 0.7;
+     transform: none;
+     box-shadow: 2px 2px 0px #444;
+     pointer-events: none;
+     text-shadow: none;
+ }
+
+input[type="file"] { display: none; }
+
+/* Info & Error Messages - R&M Style */
+#imageInfo, #errorMessage {
+    margin-top: 1rem;
+    font-size: 1rem;
+    min-height: 1.5em;
+    font-weight: bold;
+    color: var(--morty-yellow); /* R&M Yellow */
+    transition: all 0.3s ease;
+    text-shadow: 1px 1px 0 var(--outline-black);
+}
+#imageInfo.success {
+    color: var(--slime-green); /* R&M Slime */
+}
+#errorMessage {
+    color: var(--error-red); /* R&M Red */
+    /* R&M Shake Animation - will be added by JS if needed */
+    /* animation: shake-rick 0.4s linear infinite; */
+}
+
+@keyframes shake-rick { /* Keep R&M shake */
+    0%, 100% { transform: translateX(0) rotate(0); }
+    25% { transform: translateX(-3px) rotate(-1deg); }
+    50% { transform: translateX(3px) rotate(1deg); }
+    75% { transform: translateX(-3px) rotate(-1deg); }
+}
+
+.hidden { display: none !important; }
+
+/* Preview Area - SQUARE */
+#previewArea {
+    margin: 1.5rem auto;
+    position: relative;
+    width: 300px;
+    height: 300px;
+    border: 5px solid var(--portal-blue); /* R&M thick border */
+    background-color: #000; /* R&M black bg */
+    overflow: hidden;
+    border-radius: 10px; /* BACK TO SQUARE-ISH */
+    box-shadow: 0 0 15px var(--glow-blue), inset 0 0 10px rgba(0,0,0,0.6); /* Keep glow */
+    animation: none; /* Remove portal swirl */
+    filter: none; /* Remove hue rotate */
+}
+#previewCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 6px; /* Match parent slightly inner */
+    object-fit: cover; /* Fill the square */
+}
+
+/* Radio Button Styling - R&M Style */
+.radio-group {
+     display: flex;
+     justify-content: center;
+     gap: 1rem;
+     flex-wrap: wrap;
+     margin-top: 1rem;
+}
+.radio-group input[type="radio"] { display: none; }
+
+.radio-group label {
+    display: inline-block;
+    padding: 8px 15px;
+    border: 3px solid var(--outline-black);
+    border-radius: 20px; /* R&M Pill shape */
+    cursor: pointer;
+    background-color: var(--interdimensional-purple); /* R&M Purple */
+    color: var(--off-white);
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    text-shadow: 1px 1px 0 var(--outline-black);
+    box-shadow: 2px 2px 0 var(--outline-black); /* R&M Shadow */
+}
+.radio-group input[type="radio"]:checked + label {
+    background-color: var(--rick-green); /* R&M Green selected */
+    color: var(--outline-black);
+    transform: scale(1.1);
+    box-shadow: 3px 3px 0 var(--outline-black);
+}
+ .radio-group label:hover {
+     background-color: var(--portal-blue); /* R&M Blue hover */
+     transform: translateY(-2px);
+     box-shadow: 3px 4px 0 var(--outline-black);
+ }
+ .radio-group input[type="radio"]:focus-visible + label {
+     outline: 3px dashed var(--morty-yellow); /* R&M focus */
+     outline-offset: 3px;
+ }
+
+/* Select Dropdown Styling - R&M Style */
+#signSelectorContainer {
+    margin-top: 1.5rem;
+}
+#signSelector {
+    padding: 10px 15px;
+    background-color: var(--medium-dark);
+    color: var(--rick-green); /* R&M Green text */
+    border: 3px solid var(--outline-black);
+    border-radius: 5px; /* R&M Square */
+    font-size: 1.1rem;
+    width: 85%;
+    max-width: 400px;
+    cursor: pointer;
+    appearance: none;
+    /* R&M Arrow */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2397ce4c'%3E%3Cpolygon points='8,12 4,6 12,6' stroke='%231a1a1a' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px 18px;
+    transition: all 0.2s ease;
+    box-shadow: 2px 2px 0 var(--outline-black); /* R&M Shadow */
+}
+#signSelector:hover {
+    border-color: var(--rick-green);
+    background-color: var(--light-bg); /* Use the defined variable */
+    box-shadow: 3px 3px 0 var(--outline-black);
+}
+#signSelector:focus {
+     outline: 3px dashed var(--morty-yellow); /* R&M Focus */
+     border-color: var(--rick-green);
+}
+
+/* Footer - R&M Style */
+footer {
+    margin-top: 2rem;
+    font-size: 0.9rem;
+    color: var(--morty-yellow); /* R&M Yellow */
+    opacity: 0.8;
+    transform: rotate(1deg); /* R&M Tilt */
+    text-shadow: 1px 1px 0 var(--outline-black);
+}
+footer a { /* Style the link if needed */
+    color: var(--rick-green);
+    text-decoration: underline dotted;
+}
+ footer a:hover {
+     color: var(--portal-blue);
+ }
+
+/* Loader Style - R&M Theme */
+#loader {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 60px;
+    height: 60px;
+    z-index: 1000;
+    transform: translate(-50%, -50%); /* Center loader properly */
+}
+#loader::before { /* R&M Portal swirl */
+    content: '';
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 5px solid transparent;
+    border-top-color: var(--portal-blue);
+    border-bottom-color: var(--rick-green);
+    animation: spin-rick 1.2s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+    box-shadow: 0 0 15px var(--glow-blue), 0 0 10px var(--glow-green) inset;
+}
+
+@keyframes spin-rick { /* Keep R&M Spin */
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.1); border-top-color: var(--rick-green); border-bottom-color: var(--portal-blue); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+
+/* Responsive Adjustments - R&M Style */
+@media (max-width: 600px) {
+    html { font-size: 14px; }
+    body { padding: 1rem 0.5rem; }
+     /* Straighten on mobile for usability */
+    .container { padding: 1rem; transform: rotate(0); width: 98%; }
+    .container:hover { transform: none; }
+    h1 { font-size: 2.2rem; }
+    h2 { font-size: 1.6rem; }
+    h3 { font-size: 1.2rem; }
+    .button-style, .upload-label { padding: 8px 15px; font-size: 1rem;}
+    #previewArea { width: 200px; height: 200px; } /* Smaller square */
+    .radio-group { gap: 0.5rem; }
+    .radio-group label { padding: 6px 12px; font-size: 0.9rem;}
+    #signSelector { width: 95%; font-size: 1rem; padding: 8px 12px;}
+}
