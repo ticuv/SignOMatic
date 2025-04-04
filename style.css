@@ -68,28 +68,26 @@ body {
 }
 
 /* Use Funky font for key elements */
-h1, h2, h3, .button-style, .upload-label, .radio-group label, #signSelector {
+h1, h2, h3, .button-style, .radio-group label, #signSelector, #tokenIdLabel {
     font-family: 'Luckiest Guy', cursive;
     letter-spacing: 1px;
 }
 
+
 h1 {
-    /* Color from R&M green, adjust if needed for Ticuv */
     color: var(--rick-green);
     margin-bottom: 1.5rem;
     font-size: 2.8rem;
-    /* Heavy Outline Text Shadow from R&M style */
     text-shadow:
        -2px -2px 0 var(--outline-black),
         2px -2px 0 var(--outline-black),
        -2px  2px 0 var(--outline-black),
         2px  2px 0 var(--outline-black),
         4px 4px 0 var(--interdimensional-purple);
-    /* R&M Glow Animation */
     animation: pulse-glow-rick 4s infinite alternate;
 }
 
-@keyframes pulse-glow-rick { /* Keep R&M glow */
+@keyframes pulse-glow-rick {
     from { text-shadow: -2px -2px 0 var(--outline-black), 2px -2px 0 var(--outline-black), -2px 2px 0 var(--outline-black), 2px 2px 0 var(--outline-black), 4px 4px 0 var(--interdimensional-purple), 0 0 15px var(--glow-green); }
     to { text-shadow: -2px -2px 0 var(--outline-black), 2px -2px 0 var(--outline-black), -2px 2px 0 var(--outline-black), 2px 2px 0 var(--outline-black), 4px 4px 0 var(--portal-blue), 0 0 25px var(--glow-blue); }
 }
@@ -99,74 +97,76 @@ h2 { font-size: 1.8rem; color: var(--morty-yellow); margin-bottom: 1rem; text-sh
 h3 { font-size: 1.4rem; margin-top: 1.5rem; color: var(--portal-blue); text-shadow: 1px 1px 0 var(--outline-black);}
 
 p {
-    color: var(--off-white); /* R&M brighter paragraph */
+    color: var(--off-white);
     margin-bottom: 1rem;
     font-size: 1rem;
 }
-.upload-section p { /* R&M upload text style */
-    font-style: italic;
-    color: var(--rick-green);
-    opacity: 0.8;
-}
 
 /* Section Styling - R&M Dashed */
-.upload-section, .controls-section {
+.nft-section, .controls-section { /* Use nft-section instead of upload-section */
     margin-bottom: 1.5rem;
     border: 3px dashed var(--interdimensional-purple);
     padding: 1rem;
-    border-radius: 5px; /* Sharper */
+    border-radius: 5px;
     background-color: rgba(0,0,0, 0.3);
     transition: all 0.3s ease;
     position: relative;
 }
-.upload-section.drag-over { /* R&M dragover */
-     border-color: var(--slime-green);
-     border-style: solid;
-     background-color: rgba(195, 255, 93, 0.1);
-     transform: scale(1.02);
-}
 
 /* Buttons & Labels - R&M Style */
-.button-style, .upload-label {
+.button-style {
     display: inline-block;
     padding: 10px 20px;
     border: 3px solid var(--outline-black);
-    border-radius: 5px; /* Squarish */
+    border-radius: 5px;
     cursor: pointer;
     font-size: 1.1rem;
-    background-color: var(--morty-yellow); /* R&M Yellow */
+    background-color: var(--morty-yellow);
     color: var(--outline-black);
     transition: all 0.15s ease-out;
     text-decoration: none;
     margin: 0.5rem;
-    box-shadow: 3px 3px 0px var(--outline-black); /* R&M Hard shadow */
+    box-shadow: 3px 3px 0px var(--outline-black);
     text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
 }
-.button-style:hover, .upload-label:hover {
-    background-color: var(--rick-green); /* R&M Green hover */
+.button-style:hover {
+    background-color: var(--rick-green);
     box-shadow: 4px 4px 0px var(--outline-black);
-    transform: translate(-2px, -2px) rotate(1deg); /* R&M Jiggle */
+    transform: translate(-2px, -2px) rotate(1deg);
 }
- .button-style:active, .upload-label:active {
+ .button-style:active {
     transform: translate(1px, 1px) rotate(0deg);
     box-shadow: 1px 1px 0px var(--outline-black);
  }
 
+/* Specific Button Styles */
+#loadNftButton {
+     background-color: var(--portal-blue);
+     color: var(--off-white);
+     margin-top: 1rem;
+}
+ #loadNftButton:hover {
+     background-color: var(--slime-green);
+     color: var(--outline-black);
+ }
 
 #downloadButton {
-    background-color: var(--portal-blue); /* R&M Blue */
-    color: var(--off-white);
-    text-shadow: 1px 1px 0 var(--outline-black);
+    background-color: var(--rick-green);
+    color: var(--outline-black);
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
 }
  #downloadButton:hover {
-    background-color: var(--interdimensional-purple); /* R&M Purple hover */
+    background-color: var(--interdimensional-purple);
     color: var(--off-white);
  }
+
+ /* General disabled style for buttons */
+ .button-style.disabled,
  #downloadButton.disabled {
-     background-color: var(--light-bg); /* Use the defined variable */
+     background-color: var(--light-bg);
      border-color: #555;
      color: #888;
-     cursor: crosshair; /* R&M cursor */
+     cursor: crosshair;
      opacity: 0.7;
      transform: none;
      box-shadow: 2px 2px 0px #444;
@@ -174,28 +174,57 @@ p {
      text-shadow: none;
  }
 
-input[type="file"] { display: none; }
+/* Token ID Input - R&M Style */
+#tokenIdInputContainer {
+     margin-top: 1rem;
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     gap: 0.5rem;
+}
+ #tokenIdLabel {
+     font-size: 1.2rem;
+     color: var(--morty-yellow);
+     text-shadow: 1px 1px 0 var(--outline-black);
+ }
+ #tokenIdInput {
+     padding: 8px 12px;
+     border: 3px solid var(--outline-black);
+     border-radius: 5px;
+     background-color: var(--medium-dark);
+     color: var(--off-white);
+     font-size: 1rem;
+     width: 150px;
+     text-align: center;
+     box-shadow: inset 2px 2px 0px var(--outline-black);
+     transition: all 0.2s ease;
+ }
+ #tokenIdInput:focus {
+     outline: 3px dashed var(--rick-green);
+     background-color: var(--light-bg);
+     box-shadow: inset 2px 2px 0px var(--outline-black), 0 0 10px var(--glow-green);
+ }
+
 
 /* Info & Error Messages - R&M Style */
-#imageInfo, #errorMessage {
+#nftStatus, #signApplyStatus, #errorMessage { /* Use new status IDs */
     margin-top: 1rem;
     font-size: 1rem;
     min-height: 1.5em;
     font-weight: bold;
-    color: var(--morty-yellow); /* R&M Yellow */
+    color: var(--morty-yellow);
     transition: all 0.3s ease;
     text-shadow: 1px 1px 0 var(--outline-black);
 }
-#imageInfo.success {
-    color: var(--slime-green); /* R&M Slime */
+#nftStatus.success, #signApplyStatus.success { /* Apply success style */
+    color: var(--slime-green);
 }
 #errorMessage {
-    color: var(--error-red); /* R&M Red */
-    /* R&M Shake Animation - will be added by JS if needed */
-    /* animation: shake-rick 0.4s linear infinite; */
+    color: var(--error-red);
+    /* animation applied by JS */
 }
 
-@keyframes shake-rick { /* Keep R&M shake */
+@keyframes shake-rick {
     0%, 100% { transform: translateX(0) rotate(0); }
     25% { transform: translateX(-3px) rotate(-1deg); }
     50% { transform: translateX(3px) rotate(1deg); }
@@ -210,20 +239,28 @@ input[type="file"] { display: none; }
     position: relative;
     width: 300px;
     height: 300px;
-    border: 5px solid var(--portal-blue); /* R&M thick border */
-    background-color: #000; /* R&M black bg */
+    border: 5px solid var(--portal-blue);
+    background-color: #000; /* Container background */
     overflow: hidden;
-    border-radius: 10px; /* BACK TO SQUARE-ISH */
-    box-shadow: 0 0 15px var(--glow-blue), inset 0 0 10px rgba(0,0,0,0.6); /* Keep glow */
-    animation: none; /* Remove portal swirl */
-    filter: none; /* Remove hue rotate */
+    border-radius: 10px;
+    box-shadow: 0 0 15px var(--glow-blue), inset 0 0 10px rgba(0,0,0,0.6);
+    animation: none;
+    filter: none;
 }
+#previewArea h3 { /* Style for the preview title */
+    font-size: 1.1rem;
+    color: var(--portal-blue);
+    margin-bottom: 0.5rem;
+    text-shadow: 1px 1px 0 var(--outline-black);
+    font-family: 'Luckiest Guy', cursive;
+ }
 #previewCanvas {
     display: block;
     width: 100%;
     height: 100%;
-    border-radius: 6px; /* Match parent slightly inner */
-    object-fit: cover; /* Fill the square */
+    border-radius: 6px;
+    object-fit: contain; /* Important for non-square NFTs */
+    background-color: var(--medium-dark); /* Canvas background */
 }
 
 /* Radio Button Styling - R&M Style */
@@ -240,30 +277,50 @@ input[type="file"] { display: none; }
     display: inline-block;
     padding: 8px 15px;
     border: 3px solid var(--outline-black);
-    border-radius: 20px; /* R&M Pill shape */
+    border-radius: 20px;
     cursor: pointer;
-    background-color: var(--interdimensional-purple); /* R&M Purple */
+    background-color: var(--interdimensional-purple);
     color: var(--off-white);
     transition: all 0.2s ease;
     font-size: 1rem;
     text-shadow: 1px 1px 0 var(--outline-black);
-    box-shadow: 2px 2px 0 var(--outline-black); /* R&M Shadow */
+    box-shadow: 2px 2px 0 var(--outline-black);
 }
 .radio-group input[type="radio"]:checked + label {
-    background-color: var(--rick-green); /* R&M Green selected */
+    background-color: var(--rick-green);
     color: var(--outline-black);
     transform: scale(1.1);
     box-shadow: 3px 3px 0 var(--outline-black);
 }
  .radio-group label:hover {
-     background-color: var(--portal-blue); /* R&M Blue hover */
+     background-color: var(--portal-blue);
      transform: translateY(-2px);
      box-shadow: 3px 4px 0 var(--outline-black);
  }
  .radio-group input[type="radio"]:focus-visible + label {
-     outline: 3px dashed var(--morty-yellow); /* R&M focus */
+     outline: 3px dashed var(--morty-yellow);
      outline-offset: 3px;
  }
+
+ /* Specific styles for sign category radios */
+ .sign-category-group p {
+     width: 100%;
+     margin-bottom: 0.5rem;
+     color: var(--off-white);
+     font-style: italic;
+ }
+ .sign-category-group label {
+     background-color: var(--morty-yellow);
+     color: var(--outline-black);
+ }
+ .sign-category-group input[type="radio"]:checked + label {
+     background-color: var(--rick-green);
+ }
+ .sign-category-group label:hover {
+      background-color: var(--portal-blue);
+      color: var(--off-white);
+ }
+
 
 /* Select Dropdown Styling - R&M Style */
 #signSelectorContainer {
@@ -272,42 +329,51 @@ input[type="file"] { display: none; }
 #signSelector {
     padding: 10px 15px;
     background-color: var(--medium-dark);
-    color: var(--rick-green); /* R&M Green text */
+    color: var(--rick-green);
     border: 3px solid var(--outline-black);
-    border-radius: 5px; /* R&M Square */
+    border-radius: 5px;
     font-size: 1.1rem;
     width: 85%;
     max-width: 400px;
     cursor: pointer;
     appearance: none;
-    /* R&M Arrow */
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2397ce4c'%3E%3Cpolygon points='8,12 4,6 12,6' stroke='%231a1a1a' stroke-width='1.5'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 10px center;
     background-size: 18px 18px;
     transition: all 0.2s ease;
-    box-shadow: 2px 2px 0 var(--outline-black); /* R&M Shadow */
+    box-shadow: 2px 2px 0 var(--outline-black);
 }
 #signSelector:hover {
     border-color: var(--rick-green);
-    background-color: var(--light-bg); /* Use the defined variable */
+    background-color: var(--light-bg);
     box-shadow: 3px 3px 0 var(--outline-black);
 }
 #signSelector:focus {
-     outline: 3px dashed var(--morty-yellow); /* R&M Focus */
+     outline: 3px dashed var(--morty-yellow);
      border-color: var(--rick-green);
 }
+#signSelector:disabled { /* Style when disabled */
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: var(--light-bg);
+    color: #888;
+    border-color: #555;
+    box-shadow: 1px 1px 0 var(--outline-black);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23888'%3E%3Cpolygon points='8,12 4,6 12,6' stroke='%231a1a1a' stroke-width='1.5'/%3E%3C/svg%3E");
+}
+
 
 /* Footer - R&M Style */
 footer {
     margin-top: 2rem;
     font-size: 0.9rem;
-    color: var(--morty-yellow); /* R&M Yellow */
+    color: var(--morty-yellow);
     opacity: 0.8;
-    transform: rotate(1deg); /* R&M Tilt */
+    transform: rotate(1deg);
     text-shadow: 1px 1px 0 var(--outline-black);
 }
-footer a { /* Style the link if needed */
+footer a {
     color: var(--rick-green);
     text-decoration: underline dotted;
 }
@@ -323,9 +389,9 @@ footer a { /* Style the link if needed */
     width: 60px;
     height: 60px;
     z-index: 1000;
-    transform: translate(-50%, -50%); /* Center loader properly */
+    transform: translate(-50%, -50%);
 }
-#loader::before { /* R&M Portal swirl */
+#loader::before {
     content: '';
     display: block;
     width: 100%;
@@ -338,7 +404,7 @@ footer a { /* Style the link if needed */
     box-shadow: 0 0 15px var(--glow-blue), 0 0 10px var(--glow-green) inset;
 }
 
-@keyframes spin-rick { /* Keep R&M Spin */
+@keyframes spin-rick {
     0% { transform: rotate(0deg) scale(1); }
     50% { transform: rotate(180deg) scale(1.1); border-top-color: var(--rick-green); border-bottom-color: var(--portal-blue); }
     100% { transform: rotate(360deg) scale(1); }
@@ -348,15 +414,15 @@ footer a { /* Style the link if needed */
 @media (max-width: 600px) {
     html { font-size: 14px; }
     body { padding: 1rem 0.5rem; }
-     /* Straighten on mobile for usability */
     .container { padding: 1rem; transform: rotate(0); width: 98%; }
     .container:hover { transform: none; }
     h1 { font-size: 2.2rem; }
     h2 { font-size: 1.6rem; }
     h3 { font-size: 1.2rem; }
-    .button-style, .upload-label { padding: 8px 15px; font-size: 1rem;}
-    #previewArea { width: 200px; height: 200px; } /* Smaller square */
+    .button-style { padding: 8px 15px; font-size: 1rem;}
+    #previewArea { width: 200px; height: 200px; }
     .radio-group { gap: 0.5rem; }
     .radio-group label { padding: 6px 12px; font-size: 0.9rem;}
     #signSelector { width: 95%; font-size: 1rem; padding: 8px 12px;}
+    #tokenIdInput { width: 100px; }
 }
