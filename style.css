@@ -1,8 +1,12 @@
-/* Import Fonts: "Luckiest Guy" for titles, Roboto for fallback */
+/* ======================================== */
+/*          style.css for SignOMatic        */
+/* ======================================== */
+
+/* Import Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@400;700&display=swap');
 
+/* RICK & MORTY Color Palette */
 :root {
-    /* RICK & MORTY Color Palette */
     --rick-green: #97ce4c;
     --morty-yellow: #f0e14a;
     --portal-blue: #00b0c8;
@@ -15,9 +19,13 @@
     --outline-black: #1a1a1a;
     --glow-green: rgba(151, 206, 76, 0.7);
     --glow-blue: rgba(0, 176, 200, 0.7);
-    --light-bg: #3a3a4a; /* Added for disabled button consistency */
+    --light-bg: #3a3a4a; /* For disabled elements */
+    --disabled-text: #888;
+    --disabled-border: #555;
+    --disabled-shadow: #444;
 }
 
+/* Global Resets */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -30,7 +38,7 @@ html {
 }
 
 body {
-    font-family: 'Roboto', sans-serif; /* Readable fallback */
+    font-family: 'Roboto', sans-serif;
     background-color: var(--dark-matter);
     color: var(--off-white);
     line-height: 1.5;
@@ -39,7 +47,6 @@ body {
     align-items: flex-start;
     min-height: 100vh;
     padding: 1.5rem 1rem;
-    /* Chaotic Background from R&M style */
     background:
         linear-gradient(135deg, rgba(151, 206, 76, 0.1) 25%, transparent 25%) -50px 0,
         linear-gradient(225deg, rgba(170, 107, 209, 0.1) 25%, transparent 25%) -50px 0,
@@ -50,40 +57,38 @@ body {
     overflow-x: hidden;
 }
 
+/* Container Styling */
 .container {
     background-color: rgba(42, 42, 58, 0.9);
     border: 4px solid var(--outline-black);
-    border-radius: 10px; /* Squarish */
+    border-radius: 10px;
     padding: 1.5rem;
     max-width: 700px;
     width: 95%;
     text-align: center;
-    box-shadow: 5px 5px 0px var(--outline-black); /* R&M hard shadow */
+    box-shadow: 5px 5px 0px var(--outline-black);
     margin-top: 1rem;
-    transform: rotate(-1.5deg); /* R&M tilt */
-    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* R&M bouncy */
+    transform: rotate(-1.5deg);
+    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
 }
 .container:hover {
-     transform: rotate(0.5deg) scale(1.01); /* R&M Wobble */
+     transform: rotate(0.5deg) scale(1.01);
 }
 
-/* Use Funky font for key elements */
+/* Typography */
 h1, h2, h3, .button-style, .radio-group label, #signSelector, #tokenIdLabel {
     font-family: 'Luckiest Guy', cursive;
     letter-spacing: 1px;
 }
-
 
 h1 {
     color: var(--rick-green);
     margin-bottom: 1.5rem;
     font-size: 2.8rem;
     text-shadow:
-       -2px -2px 0 var(--outline-black),
-        2px -2px 0 var(--outline-black),
-       -2px  2px 0 var(--outline-black),
-        2px  2px 0 var(--outline-black),
-        4px 4px 0 var(--interdimensional-purple);
+       -2px -2px 0 var(--outline-black), 2px -2px 0 var(--outline-black),
+       -2px  2px 0 var(--outline-black), 2px  2px 0 var(--outline-black),
+       4px 4px 0 var(--interdimensional-purple);
     animation: pulse-glow-rick 4s infinite alternate;
 }
 
@@ -91,7 +96,6 @@ h1 {
     from { text-shadow: -2px -2px 0 var(--outline-black), 2px -2px 0 var(--outline-black), -2px 2px 0 var(--outline-black), 2px 2px 0 var(--outline-black), 4px 4px 0 var(--interdimensional-purple), 0 0 15px var(--glow-green); }
     to { text-shadow: -2px -2px 0 var(--outline-black), 2px -2px 0 var(--outline-black), -2px 2px 0 var(--outline-black), 2px 2px 0 var(--outline-black), 4px 4px 0 var(--portal-blue), 0 0 25px var(--glow-blue); }
 }
-
 
 h2 { font-size: 1.8rem; color: var(--morty-yellow); margin-bottom: 1rem; text-shadow: 2px 2px 0 var(--outline-black);}
 h3 { font-size: 1.4rem; margin-top: 1.5rem; color: var(--portal-blue); text-shadow: 1px 1px 0 var(--outline-black);}
@@ -102,8 +106,8 @@ p {
     font-size: 1rem;
 }
 
-/* Section Styling - R&M Dashed */
-.nft-section, .controls-section { /* Use nft-section instead of upload-section */
+/* Section Styling */
+.nft-section, .sign-section {
     margin-bottom: 1.5rem;
     border: 3px dashed var(--interdimensional-purple);
     padding: 1rem;
@@ -113,7 +117,7 @@ p {
     position: relative;
 }
 
-/* Buttons & Labels - R&M Style */
+/* Buttons */
 .button-style {
     display: inline-block;
     padding: 10px 20px;
@@ -129,23 +133,22 @@ p {
     box-shadow: 3px 3px 0px var(--outline-black);
     text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
 }
-.button-style:hover {
+.button-style:hover:not(:disabled) {
     background-color: var(--rick-green);
     box-shadow: 4px 4px 0px var(--outline-black);
     transform: translate(-2px, -2px) rotate(1deg);
 }
- .button-style:active {
+ .button-style:active:not(:disabled) {
     transform: translate(1px, 1px) rotate(0deg);
     box-shadow: 1px 1px 0px var(--outline-black);
  }
 
-/* Specific Button Styles */
 #loadNftButton {
      background-color: var(--portal-blue);
      color: var(--off-white);
      margin-top: 1rem;
 }
- #loadNftButton:hover {
+ #loadNftButton:hover:not(:disabled) {
      background-color: var(--slime-green);
      color: var(--outline-black);
  }
@@ -155,26 +158,26 @@ p {
     color: var(--outline-black);
     text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
 }
- #downloadButton:hover {
+ #downloadButton:hover:not(:disabled) {
     background-color: var(--interdimensional-purple);
     color: var(--off-white);
  }
 
- /* General disabled style for buttons */
- .button-style.disabled,
- #downloadButton.disabled {
-     background-color: var(--light-bg);
-     border-color: #555;
-     color: #888;
-     cursor: crosshair;
-     opacity: 0.7;
-     transform: none;
-     box-shadow: 2px 2px 0px #444;
-     pointer-events: none;
-     text-shadow: none;
+ /* General Disabled Style for Buttons */
+ .button-style:disabled,
+ .button-style.disabled {
+     background-color: var(--light-bg) !important;
+     border-color: var(--disabled-border) !important;
+     color: var(--disabled-text) !important;
+     cursor: crosshair !important;
+     opacity: 0.7 !important;
+     transform: none !important;
+     box-shadow: 2px 2px 0px var(--disabled-shadow) !important;
+     pointer-events: none !important;
+     text-shadow: none !important;
  }
 
-/* Token ID Input - R&M Style */
+/* Token ID Input */
 #tokenIdInputContainer {
      margin-top: 1rem;
      display: flex;
@@ -204,24 +207,32 @@ p {
      background-color: var(--light-bg);
      box-shadow: inset 2px 2px 0px var(--outline-black), 0 0 10px var(--glow-green);
  }
+ #tokenIdInput:disabled {
+      background-color: var(--light-bg);
+      color: var(--disabled-text);
+      border-color: var(--disabled-border);
+      cursor: not-allowed;
+      opacity: 0.7;
+      box-shadow: inset 2px 2px 0px var(--disabled-shadow);
+  }
 
-
-/* Info & Error Messages - R&M Style */
-#nftStatus, #signApplyStatus, #errorMessage { /* Use new status IDs */
+/* Info & Error Messages */
+#statusMessage, #errorMessage {
     margin-top: 1rem;
     font-size: 1rem;
     min-height: 1.5em;
     font-weight: bold;
     color: var(--morty-yellow);
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, opacity 0.3s ease;
     text-shadow: 1px 1px 0 var(--outline-black);
+    word-wrap: break-word;
 }
-#nftStatus.success, #signApplyStatus.success { /* Apply success style */
+#statusMessage.success {
     color: var(--slime-green);
 }
 #errorMessage {
     color: var(--error-red);
-    /* animation applied by JS */
+    /* Animation applied via JS */
 }
 
 @keyframes shake-rick {
@@ -231,39 +242,31 @@ p {
     75% { transform: translateX(-3px) rotate(-1deg); }
 }
 
+/* Utility Classes */
 .hidden { display: none !important; }
 
-/* Preview Area - SQUARE */
+/* Preview Area */
 #previewArea {
     margin: 1.5rem auto;
     position: relative;
     width: 300px;
     height: 300px;
     border: 5px solid var(--portal-blue);
-    background-color: #000; /* Container background */
+    background-color: #000;
     overflow: hidden;
     border-radius: 10px;
     box-shadow: 0 0 15px var(--glow-blue), inset 0 0 10px rgba(0,0,0,0.6);
-    animation: none;
-    filter: none;
 }
-#previewArea h3 { /* Style for the preview title */
-    font-size: 1.1rem;
-    color: var(--portal-blue);
-    margin-bottom: 0.5rem;
-    text-shadow: 1px 1px 0 var(--outline-black);
-    font-family: 'Luckiest Guy', cursive;
- }
 #previewCanvas {
     display: block;
     width: 100%;
     height: 100%;
     border-radius: 6px;
-    object-fit: contain; /* Important for non-square NFTs */
-    background-color: var(--medium-dark); /* Canvas background */
+    object-fit: contain;
+    background-color: var(--medium-dark);
 }
 
-/* Radio Button Styling - R&M Style */
+/* Radio Buttons */
 .radio-group {
      display: flex;
      justify-content: center;
@@ -272,7 +275,6 @@ p {
      margin-top: 1rem;
 }
 .radio-group input[type="radio"] { display: none; }
-
 .radio-group label {
     display: inline-block;
     padding: 8px 15px;
@@ -292,7 +294,7 @@ p {
     transform: scale(1.1);
     box-shadow: 3px 3px 0 var(--outline-black);
 }
- .radio-group label:hover {
+ .radio-group label:hover:not(:disabled) { /* Check parent input state */
      background-color: var(--portal-blue);
      transform: translateY(-2px);
      box-shadow: 3px 4px 0 var(--outline-black);
@@ -301,28 +303,18 @@ p {
      outline: 3px dashed var(--morty-yellow);
      outline-offset: 3px;
  }
+  .radio-group input[type="radio"]:disabled + label {
+      background-color: var(--light-bg);
+      color: var(--disabled-text);
+      border-color: var(--disabled-border);
+      cursor: not-allowed;
+      opacity: 0.7;
+      transform: none;
+      box-shadow: 2px 2px 0 var(--disabled-shadow);
+      pointer-events: none;
+   }
 
- /* Specific styles for sign category radios */
- .sign-category-group p {
-     width: 100%;
-     margin-bottom: 0.5rem;
-     color: var(--off-white);
-     font-style: italic;
- }
- .sign-category-group label {
-     background-color: var(--morty-yellow);
-     color: var(--outline-black);
- }
- .sign-category-group input[type="radio"]:checked + label {
-     background-color: var(--rick-green);
- }
- .sign-category-group label:hover {
-      background-color: var(--portal-blue);
-      color: var(--off-white);
- }
-
-
-/* Select Dropdown Styling - R&M Style */
+/* Select Dropdown */
 #signSelectorContainer {
     margin-top: 1.5rem;
 }
@@ -344,27 +336,27 @@ p {
     transition: all 0.2s ease;
     box-shadow: 2px 2px 0 var(--outline-black);
 }
-#signSelector:hover {
+#signSelector:hover:not(:disabled) {
     border-color: var(--rick-green);
     background-color: var(--light-bg);
     box-shadow: 3px 3px 0 var(--outline-black);
 }
-#signSelector:focus {
+#signSelector:focus:not(:disabled) {
      outline: 3px dashed var(--morty-yellow);
      border-color: var(--rick-green);
 }
-#signSelector:disabled { /* Style when disabled */
-    opacity: 0.6;
-    cursor: not-allowed;
-    background-color: var(--light-bg);
-    color: #888;
-    border-color: #555;
-    box-shadow: 1px 1px 0 var(--outline-black);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23888'%3E%3Cpolygon points='8,12 4,6 12,6' stroke='%231a1a1a' stroke-width='1.5'/%3E%3C/svg%3E");
-}
+#signSelector:disabled {
+     background-color: var(--light-bg);
+     color: var(--disabled-text);
+     border-color: var(--disabled-border);
+     cursor: not-allowed;
+     opacity: 0.7;
+     box-shadow: 2px 2px 0 var(--disabled-shadow);
+     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23888888'%3E%3Cpolygon points='8,12 4,6 12,6' stroke='%23444444' stroke-width='1.5'/%3E%3C/svg%3E"); /* Dimmed arrow */
+     pointer-events: none;
+ }
 
-
-/* Footer - R&M Style */
+/* Footer */
 footer {
     margin-top: 2rem;
     font-size: 0.9rem;
@@ -381,7 +373,7 @@ footer a {
      color: var(--portal-blue);
  }
 
-/* Loader Style - R&M Theme */
+/* Loader */
 #loader {
     position: fixed;
     top: 50%;
@@ -410,11 +402,11 @@ footer a {
     100% { transform: rotate(360deg) scale(1); }
 }
 
-/* Responsive Adjustments - R&M Style */
+/* Responsive Adjustments */
 @media (max-width: 600px) {
     html { font-size: 14px; }
     body { padding: 1rem 0.5rem; }
-    .container { padding: 1rem; transform: rotate(0); width: 98%; }
+    .container { padding: 1rem; transform: rotate(0); width: 98%; margin-top: 0.5rem; }
     .container:hover { transform: none; }
     h1 { font-size: 2.2rem; }
     h2 { font-size: 1.6rem; }
