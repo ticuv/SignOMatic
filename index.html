@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Ticuv Title in R&M Style -->
-    <title>Ticuv's Sign-O-Matic (Probably His Tech Anyway)</title>
+    <title>Ticuv's NFT Sign-O-Matic (NFT Input Only)</title>
+    <!-- Include ethers.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
     <!-- Link to the external CSS file -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -13,58 +14,70 @@
     <div id="loader" class="hidden"></div>
 
     <div class="container">
-        <!-- Ticuv Title -->
         <h1>Ticuv's Dimensional Sign-O-Matic</h1>
-        <!-- Updated Intro Text with Ticuv -->
-        <p>Alright, genius, upload your stupid 2048x2048 image. Let's see Ticuv's magic... or whatever.</p>
+        <p>Pick the NFT dimension, shove in the Token ID, and let's make some 'art'!</p>
 
-        <div id="uploadSection" class="upload-section">
-            <!-- Updated Heading -->
-            <h2>Step 1: GET THE IMAGE IN HERE!</h2>
-            <!-- Updated Button Text -->
-            <label for="imageUpload" class="upload-label">Choose File, SCHWACKO!</label>
-            <input type="file" id="imageUpload" accept=".jpg, .jpeg, .png">
-            <!-- Updated Drag & Drop Text -->
-            <p>Or just... *uurp*... drag it here, like a caveman.</p>
-            <!-- Updated Info Text -->
-            <div id="imageInfo">Waiting for your pathetic image...</div>
-            <div id="errorMessage" class="hidden"></div>
-        </div>
-
-         <!-- Preview Area - SQUARE -->
-         <div id="previewArea" class="hidden">
-            <canvas id="previewCanvas" width="300" height="300"></canvas>
-         </div>
-
-        <div id="controlsSection" class="controls-section hidden">
-            <!-- Updated Heading -->
-            <h2>Step 2: WHICH *burp* DIMENSION?!</h2>
-            <div class="radio-group">
-                <!-- Keep IDs/Values same for JS -->
-                <input type="radio" id="categoryGHN" name="category" value="GHN">
+        <!-- NFT Selection Section -->
+        <div id="nftSelectionSection" class="nft-section"> <!-- Class updated from upload-section -->
+             <h2>Step 1: WHICH *burp* DIMENSION?!</h2>
+            <div class="radio-group nft-category-group"> <!-- Changed name attribute -->
+                <input type="radio" id="categoryGHN" name="nftCategory" value="GHN">
                 <label for="categoryGHN">GHN Garbage Heap</label>
 
-                <input type="radio" id="categoryAHC" name="category" value="AHC">
+                <input type="radio" id="categoryAHC" name="nftCategory" value="AHC">
                 <label for="categoryAHC">AHC Clown Fiesta</label>
             </div>
 
+             <!-- Token ID Input Area (Initially Hidden) -->
+             <div id="tokenIdInputContainer" class="hidden">
+                 <h2>Step 2: Gimme the NFT ID, Nerd!</h2>
+                 <label id="tokenIdLabel" for="tokenIdInput">Token ID:</label>
+                 <input type="number" id="tokenIdInput" placeholder="e.g., 1114">
+                 <button id="loadNftButton" class="button-style">Load NFT Glagnar!</button>
+             </div>
+             <!-- Status for NFT Loading -->
+             <div id="nftStatus">Select a dimension above...</div> <!-- Changed ID from imageInfo -->
+             <!-- Shared Error Message Area -->
+             <div id="errorMessage" class="hidden"></div>
+        </div>
+
+
+         <!-- Preview Area - SQUARE (Shared) -->
+         <div id="previewArea" class="hidden">
+            <h3>NFT Preview</h3> <!-- Updated title -->
+            <canvas id="previewCanvas" width="300" height="300"></canvas>
+         </div>
+
+        <!-- Sign Controls Section (Shared, Initially Hidden) -->
+        <div id="controlsSection" class="controls-section hidden">
+            <h2>Step 3: WHICH *burp* SIGN?!</h2> <!-- Updated Step -->
+             <!-- Category radios for signs -->
+             <div class="radio-group sign-category-group"> <!-- Different name attribute -->
+                <p>Which dimension's signs you wanna slap on?</p>
+                <input type="radio" id="signCategoryGHN" name="signCategory" value="GHN">
+                <label for="signCategoryGHN">GHN Signs</label>
+
+                <input type="radio" id="signCategoryAHC" name="signCategory" value="AHC">
+                <label for="signCategoryAHC">AHC Signs</label>
+            </div>
+
+            <!-- Sign Selector Dropdown (Initially Hidden within Controls Section) -->
             <div id="signSelectorContainer" class="hidden">
-                 <!-- ID for dynamic text update -->
-                 <h3 id="signPrompt">Step 3: Pick a sign, you glorious pixel sponge!</h3>
+                 <h3 id="signPrompt">Step 4: Pick a sign, you glorious pixel sponge!</h3> <!-- Updated Step -->
                 <select id="signSelector">
                     <!-- Options populated by JS -->
                 </select>
             </div>
+             <!-- Status for Sign Application -->
+            <div id="signApplyStatus">Select sign dimension above...</div> <!-- New status element -->
         </div>
 
-         <!-- Updated Download Button Text -->
+         <!-- Download Button (Shared, Initially Hidden) -->
          <button id="downloadButton" class="button-style hidden disabled">Download This Beauty!</button>
 
-         <!-- Hidden Canvas for FINAL composition -->
+         <!-- Hidden Canvas for FINAL composition (Shared) -->
          <canvas id="finalCanvas" width="2048" height="2048" style="display: none;"></canvas>
 
-
-         <!-- Ticuv Footer with R&M Vibe -->
          <footer>Invented by Ticuv (probably). Don't mess it up, you plumbus!</footer>
     </div>
 
