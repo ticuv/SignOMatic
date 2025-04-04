@@ -146,7 +146,7 @@
              console.error("Share modal elements missing!");
              return;
          }
-         const tweetText = `Just generated my sign with Sign-O-Matic by @ticu_v at https://signs.ticuv.art!`;
+         const tweetText = `Just generated my sign with Sign-O-Matic by @ticu_v at`;
          const associatedUrl = "https://signs.ticuv.art"; // Replace with actual URL if deployed
          const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(associatedUrl)}`;
          twitterShareButton.href = twitterUrl;
