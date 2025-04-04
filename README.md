@@ -8,7 +8,6 @@ Get Schwifty with your NFTs! This tool lets you easily overlay cool, pre-defined
 Load your NFT by Token ID, pick a sign, preview it, and download the high-resolution (2048x2048px) signed version, ready to show off!
 
 ![Sign-O-Matic Screenshot](placeholder-link-to-your-screenshot.png)
-*(Replace `placeholder-link-to-your-screenshot.png` with a direct link to an actual screenshot of the app)*
 
 ## ✨ Features
 
