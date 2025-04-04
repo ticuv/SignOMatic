@@ -3,85 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ticuv's NFT Sign-O-Matic (NFT Input Only)</title>
-    <!-- Include ethers.js -->
-    <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
-    <!-- Link to the external CSS file -->
+    <title>Ticuv's NFT Sign-O-Matic (Get Your NFT Junk Here)</title>
+
+    <!-- Link to External CSS -->
     <link rel="stylesheet" href="style.css">
+
+    <!-- Include ethers.js (Keep this here, needed before our script) -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
+
 </head>
 <body>
     <!-- Loader Element -->
     <div id="loader" class="hidden"></div>
 
     <div class="container">
-        <h1>Ticuv's Dimensional Sign-O-Matic</h1>
-        <p>Pick the NFT dimension, shove in the Token ID, and let's make some 'art'!</p>
+        <!-- Title -->
+        <h1>Ticuv's NFT Sign-O-Matic</h1>
+        <p>Alright, pick your poison - GHN or AHC - then shove in the Token ID. Don't screw it up.</p>
 
         <!-- NFT Selection Section -->
-        <div id="nftSelectionSection" class="nft-section"> <!-- Class updated from upload-section -->
-             <h2>Step 1: WHICH *burp* DIMENSION?!</h2>
-            <div class="radio-group nft-category-group"> <!-- Changed name attribute -->
-                <input type="radio" id="categoryGHN" name="nftCategory" value="GHN">
+        <div id="nftSelectionSection" class="nft-section">
+            <h2>Step 1: WHICH *burp* DIMENSION?!</h2>
+            <div class="radio-group">
+                <input type="radio" id="categoryGHN" name="category" value="GHN">
                 <label for="categoryGHN">GHN Garbage Heap</label>
 
-                <input type="radio" id="categoryAHC" name="nftCategory" value="AHC">
+                <input type="radio" id="categoryAHC" name="category" value="AHC">
                 <label for="categoryAHC">AHC Clown Fiesta</label>
             </div>
 
-             <!-- Token ID Input Area (Initially Hidden) -->
+             <!-- Token ID Input Area -->
              <div id="tokenIdInputContainer" class="hidden">
                  <h2>Step 2: Gimme the NFT ID, Nerd!</h2>
                  <label id="tokenIdLabel" for="tokenIdInput">Token ID:</label>
-                 <input type="number" id="tokenIdInput" placeholder="e.g., 1114">
-                 <button id="loadNftButton" class="button-style">Load NFT Glagnar!</button>
+                 <input type="number" id="tokenIdInput" placeholder="e.g., 1114" disabled> <!-- Start disabled -->
+                 <button id="loadNftButton" class="button-style disabled" disabled>Load NFT Glagnar!</button> <!-- Start disabled -->
              </div>
-             <!-- Status for NFT Loading -->
-             <div id="nftStatus">Select a dimension above...</div> <!-- Changed ID from imageInfo -->
-             <!-- Shared Error Message Area -->
-             <div id="errorMessage" class="hidden"></div>
+
+            <!-- Status & Error Messages -->
+            <div id="statusMessage">Select a dimension above...</div>
+            <div id="errorMessage" class="hidden"></div> <!-- Crucial for JS errors -->
         </div>
 
-
-         <!-- Preview Area - SQUARE (Shared) -->
+         <!-- Preview Area -->
          <div id="previewArea" class="hidden">
-            <h3>NFT Preview</h3> <!-- Updated title -->
             <canvas id="previewCanvas" width="300" height="300"></canvas>
          </div>
 
-        <!-- Sign Controls Section (Shared, Initially Hidden) -->
-        <div id="controlsSection" class="controls-section hidden">
-            <h2>Step 3: WHICH *burp* SIGN?!</h2> <!-- Updated Step -->
-             <!-- Category radios for signs -->
-             <div class="radio-group sign-category-group"> <!-- Different name attribute -->
-                <p>Which dimension's signs you wanna slap on?</p>
-                <input type="radio" id="signCategoryGHN" name="signCategory" value="GHN">
-                <label for="signCategoryGHN">GHN Signs</label>
-
-                <input type="radio" id="signCategoryAHC" name="signCategory" value="AHC">
-                <label for="signCategoryAHC">AHC Signs</label>
-            </div>
-
-            <!-- Sign Selector Dropdown (Initially Hidden within Controls Section) -->
-            <div id="signSelectorContainer" class="hidden">
-                 <h3 id="signPrompt">Step 4: Pick a sign, you glorious pixel sponge!</h3> <!-- Updated Step -->
-                <select id="signSelector">
+        <!-- Sign Selection Section -->
+        <div id="signSection" class="sign-section hidden">
+            <div id="signSelectorContainer">
+                 <h3 id="signPrompt">Step 3: Pick a sign overlay, quick!</h3>
+                <select id="signSelector" disabled> <!-- Start disabled -->
                     <!-- Options populated by JS -->
                 </select>
             </div>
-             <!-- Status for Sign Application -->
-            <div id="signApplyStatus">Select sign dimension above...</div> <!-- New status element -->
         </div>
 
-         <!-- Download Button (Shared, Initially Hidden) -->
-         <button id="downloadButton" class="button-style hidden disabled">Download This Beauty!</button>
+         <!-- Download Button -->
+         <button id="downloadButton" class="button-style hidden disabled" disabled>Download Your Masterpiece!</button>
 
-         <!-- Hidden Canvas for FINAL composition (Shared) -->
+         <!-- Hidden Canvas for FINAL composition -->
          <canvas id="finalCanvas" width="2048" height="2048" style="display: none;"></canvas>
 
-         <footer>Invented by Ticuv (probably). Don't mess it up, you plumbus!</footer>
+         <!-- Footer -->
+         <footer>Built because Ticuv was bored (probably). Don't break it, plumbus-licker!</footer>
     </div>
 
-    <!-- Link to the external JavaScript file -->
-    <script src="script.js"></script>
+    <!-- Link to External JavaScript (defer ensures HTML is parsed first) -->
+    <script src="script.js" defer></script>
+
 </body>
 </html>
