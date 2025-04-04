@@ -146,9 +146,13 @@
              console.error("Share modal elements missing!");
              return;
          }
-         const tweetText = `Just generated my sign with Sign-O-Matic by @ticu_v at`;
-         const associatedUrl = "https://signs.ticuv.art"; // Replace with actual URL if deployed
+         // --- MODIFICARE AICI ---
+         const tweetText = `Just generated my sign with Sign-O-Matic by @ticu_v at `; // Textul modificat conform cerinței
+         // --- SFÂRȘIT MODIFICARE ---
+
+         const associatedUrl = "https://signs.ticuv.art"; // URL-ul care va fi atașat tweet-ului (poate fi diferit de text)
          const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(associatedUrl)}`;
+
          twitterShareButton.href = twitterUrl;
          const randomSubIndex = Math.floor(Math.random() * comicSubMessages.length);
          shareSubMessage.innerText = comicSubMessages[randomSubIndex];
