@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ticuv's SignOMatic (TEST V8 - Rebuilt)</title>
+    <!-- CHANGE Title to reflect new features -->
+    <title>Ticuv's SignOMatic (V8.3 - Interactive)</title>
 
     <!-- Include ethers.js FIRST -->
     <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
-    <!-- Include Clipboard.js SECOND (needed for copy buttons) -->
+    <!-- Include Clipboard.js SECOND -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
 
     <!-- Link to External CSS -->
@@ -37,6 +38,11 @@
 
         <div id="previewArea" class="hidden">
             <canvas id="previewCanvas" width="300" height="300"></canvas>
+            <!-- ADDED: Text Overlay Container and Interactive Text -->
+            <div id="textOverlayContainer">
+                 <div id="interactiveText" contenteditable="false">Your Text Here</div>
+            </div>
+            <!-- END ADDED -->
         </div>
 
         <div id="signSection" class="sign-section hidden">
@@ -44,6 +50,31 @@
                 <h3 id="signPrompt">Step 3: Pick a sign overlay, quick!</h3>
                 <select id="signSelector" disabled></select>
             </div>
+
+            <!-- ADDED: Text Color Selector -->
+            <div id="textColorSelectorContainer" class="hidden">
+                 <h3 id="textColorPrompt">Step 4: Sign Color? Make it pop!</h3>
+                 <div id="textColorRadioGroup" class="color-radio-group">
+                     <input type="radio" id="colorWhite" name="textColor" value="#FFFFFF" checked><label for="colorWhite">White</label>
+                     <input type="radio" id="colorBlack" name="textColor" value="#1a1a1a"><label for="colorBlack">Black</label>
+                     <input type="radio" id="colorYellow" name="textColor" value="#f0e14a"><label for="colorYellow">Yellow</label>
+                     <input type="radio" id="colorGreen" name="textColor" value="#97ce4c"><label for="colorGreen">Green</label>
+                     <input type="radio" id="colorBlue" name="textColor" value="#00b0c8"><label for="colorBlue">Blue</label>
+                     <input type="radio" id="colorPurple" name="textColor" value="#aa6bd1"><label for="colorPurple">Purple</label>
+                 </div>
+             </div>
+            <!-- END ADDED -->
+
+            <!-- ADDED: Text Input Section -->
+             <div id="textInputSection" class="hidden">
+                 <h3>Step 5: Add Text (Optional)</h3>
+                 <input type="text" id="textInput" placeholder="Enter text...">
+                 <button id="addTextButton" class="button-style">Add/Update Text</button>
+                 <button id="removeTextButton" class="button-style">Remove Text</button>
+                 <p style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--morty-yellow);">Click and drag the text on the preview above to move it.</p>
+             </div>
+            <!-- END ADDED -->
+
             <button id="generateButton" class="button-style hidden disabled" disabled>Generate</button>
         </div>
 
@@ -53,13 +84,13 @@
         <footer>Built because Ticuv was bored (probably). Don't break it, plumbus-licker!</footer>
     </div>
 
-    <!-- Modal Structure -->
+    <!-- Modal Structure (Keep as is) -->
     <div id="shareModalOverlay" class="modal-overlay hidden"></div>
     <div id="shareModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
         <button id="closeShareModal" class="modal-close-button" aria-label="Close">×</button>
         <h3 id="shareModalTitle" class="modal-title">Download Started!</h3>
         <p id="shareMessage">Love your new sign? Share it on X and tag @ticu_v – we’d love to see it!</p>
-        <p id="shareSubMessage" class="modal-submessage"></p> <!-- Comic text goes here -->
+        <p id="shareSubMessage" class="modal-submessage"></p>
         <div class="modal-share-group">
             <a id="twitterShareButton" href="#" target="_blank" rel="noopener noreferrer" class="button-style modal-share-button">
                 Share on X
@@ -86,7 +117,7 @@
         </div>
     </div>
 
-    <!-- Link to External JavaScript (place at the end) -->
+    <!-- Link to External JavaScript -->
     <script src="script.js"></script>
 
 </body>
