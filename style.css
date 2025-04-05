@@ -1,5 +1,5 @@
 /* ======================================== */
-/*          CSS Styles (Combined)           */
+/*          CSS Styles (External V8.3)      */
 /* ======================================== */
 
 /* Import Fonts */
@@ -22,6 +22,9 @@
     --disabled-text: #888;
     --disabled-border: #555;
     --disabled-shadow: #444;
+    /* ADDED from text4.txt */
+    --text-white: #ffffff;
+    --text-black: #1a1a1a;
 }
 
 * {
@@ -72,7 +75,8 @@ body {
     transform: rotate(0.5deg) scale(1.01);
 }
 
-h1, h2, h3, .button-style, .radio-group label, #signSelector, #tokenIdLabel {
+/* ADDED interactiveText, textColorPrompt to Luckiest Guy font */
+h1, h2, h3, .button-style, .radio-group label, #signSelector, #tokenIdLabel, #textColorPrompt, #interactiveText {
     font-family: 'Luckiest Guy', cursive;
     letter-spacing: 1px;
 }
@@ -260,12 +264,12 @@ p {
 
 #previewArea {
     margin: 1.5rem auto;
-    position: relative;
+    position: relative; /* Important for absolute positioning inside */
     width: 300px;
     height: 300px;
     border: 5px solid var(--portal-blue);
     background-color: #000;
-    overflow: hidden;
+    overflow: hidden; /* Needed if text goes outside mask bounds visually */
     border-radius: 10px;
     box-shadow: 0 0 15px var(--glow-blue), inset 0 0 10px rgba(0,0,0,0.6);
 }
@@ -278,6 +282,46 @@ p {
     object-fit: contain;
     background-color: var(--medium-dark);
 }
+
+/* --- ADDED: Preview Area and Text Overlay --- */
+#textOverlayContainer {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; /* Allows clicks to pass through to canvas unless over text */
+    overflow: hidden; /* Ensures text visually clipped by mask */
+    -webkit-mask-image: none; /* Initially no mask */
+    mask-image: none;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-position: center; mask-position: center;
+    -webkit-mask-size: contain; mask-size: contain; /* Or 'cover' or specific size */
+}
+
+#interactiveText {
+    position: absolute; /* Positioned within the overlay container */
+    top: 50%; left: 50%; /* Initial position (centered) */
+    transform: translate(-50%, -50%) rotate(0deg) scale(1); /* Centering transform */
+    display: none; /* Hidden initially */
+    cursor: move; /* Indicates draggable */
+    padding: 5px;
+    min-width: 30px; /* Prevent collapsing */
+    border: 1px dashed rgba(255, 255, 255, 0.3); /* Subtle visible border */
+    text-align: center;
+    background-color: rgba(0,0,0,0.1); /* Slight background for visibility */
+    color: var(--text-white); /* Default text color */
+    font-size: 20px; /* Default font size */
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.7);
+    pointer-events: auto; /* Allows interaction with the text itself */
+    white-space: nowrap; /* Prevent text wrapping */
+    user-select: none; /* Prevent text selection during drag */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+}
+
+#interactiveText:focus {
+    outline: 1px dotted var(--rick-green); /* Outline when focused (if contenteditable) */
+}
+/* --- END ADDED: Preview Area and Text Overlay --- */
+
 
 .radio-group {
     display: flex;
@@ -379,6 +423,39 @@ p {
     pointer-events: none;
 }
 
+
+/* --- ADDED: Styles for Sign Color Selector --- */
+#textColorSelectorContainer { margin-top: 1.5rem; padding-top: 1rem; border-top: 2px dashed var(--portal-blue); }
+#textColorPrompt { /* Reuse h3 style */ font-size: 1.4rem; margin-top: 0; margin-bottom: 1rem; color: var(--portal-blue); text-shadow: 1px 1px 0 var(--outline-black);}
+.color-radio-group { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; }
+.color-radio-group input[type="radio"] { display: none; }
+.color-radio-group label { display: flex; align-items: center; justify-content: center; width: 60px; height: 40px; border: 3px solid var(--outline-black); border-radius: 8px; cursor: pointer; transition: all 0.2s ease; font-size: 0.9rem; font-weight: bold; box-shadow: 2px 2px 0 var(--outline-black); text-shadow: 1px 1px 1px rgba(0,0,0,0.5); }
+/* Specific color styles */
+.color-radio-group label[for="colorWhite"] { background-color: var(--text-white); color: var(--text-black); }
+.color-radio-group label[for="colorBlack"] { background-color: var(--text-black); color: var(--text-white); }
+.color-radio-group label[for="colorYellow"] { background-color: var(--morty-yellow); color: var(--text-black); }
+.color-radio-group label[for="colorGreen"] { background-color: var(--rick-green); color: var(--text-black); }
+.color-radio-group label[for="colorBlue"] { background-color: var(--portal-blue); color: var(--text-white); }
+.color-radio-group label[for="colorPurple"] { background-color: var(--interdimensional-purple); color: var(--text-white); }
+.color-radio-group input[type="radio"]:checked + label { transform: scale(1.15); box-shadow: 4px 4px 0 var(--outline-black); outline: 3px solid var(--rick-green); outline-offset: 2px; }
+.color-radio-group label:hover:not(.disabled) { transform: translateY(-2px) scale(1.05); box-shadow: 3px 4px 0 var(--outline-black); }
+.color-radio-group input[type="radio"]:focus-visible + label { outline: 3px dashed var(--morty-yellow); outline-offset: 3px; }
+.color-radio-group input[type="radio"]:disabled + label { background-color: var(--light-bg) !important; color: var(--disabled-text) !important; border-color: var(--disabled-border); cursor: not-allowed; opacity: 0.7; transform: none; box-shadow: 2px 2px 0 var(--disabled-shadow); pointer-events: none; text-shadow: none; }
+/* --- END ADDED: Sign Color Selector Styles --- */
+
+
+/* --- ADDED: Styles for Text Input Section --- */
+#textInputSection { margin-top: 1rem; padding-top: 1rem; border-top: 2px dashed var(--interdimensional-purple); }
+#textInputSection h3 { margin-top: 0; margin-bottom: 0.5rem; color: var(--interdimensional-purple); }
+#textInput { padding: 8px 12px; border: 3px solid var(--outline-black); border-radius: 5px; background-color: var(--medium-dark); color: var(--off-white); font-size: 0.9rem; margin-right: 5px; box-shadow: inset 1px 1px 0px var(--outline-black); }
+#textInput:focus { outline: 2px dashed var(--rick-green); background-color: var(--light-bg); }
+#addTextButton { background-color: var(--interdimensional-purple); color: var(--off-white); padding: 8px 15px; font-size: 0.9rem; }
+#addTextButton:hover:not(:disabled) { background-color: var(--portal-blue); }
+#removeTextButton { background-color: var(--error-red); color: var(--off-white); padding: 8px 15px; font-size: 0.9rem; }
+#removeTextButton:hover:not(:disabled) { background-color: #cc3d3d; }
+/* --- END ADDED: Text Input Section --- */
+
+
 footer {
     margin-top: 2rem;
     font-size: 0.9rem;
@@ -426,6 +503,7 @@ footer a:hover {
     100% { transform: rotate(360deg) scale(1); }
 }
 
+/* --- Modal styles remain unchanged --- */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -644,6 +722,7 @@ footer a:hover {
     background-color: var(--slime-green);
     color: var(--outline-black);
 }
+/* --- End Modal Styles --- */
 
 /* Responsive Styles */
 @media (max-width: 600px) {
@@ -653,13 +732,24 @@ footer a:hover {
     .container:hover { transform: none; }
     h1 { font-size: 2.2rem; }
     h2 { font-size: 1.6rem; }
-    h3 { font-size: 1.2rem; }
+    /* ADDED textColorPrompt */
+    h3, #textColorPrompt { font-size: 1.2rem; }
     .button-style { padding: 8px 15px; font-size: 1rem; }
     #previewArea { width: 200px; height: 200px; }
-    .radio-group { gap: 0.5rem; }
+    /* ADDED color-radio-group */
+    .radio-group, .color-radio-group { gap: 0.5rem; }
     .radio-group label { padding: 6px 12px; font-size: 0.9rem;}
     #signSelector { width: 95%; font-size: 1rem; padding: 8px 12px;}
     #tokenIdInput { width: 100px; }
+    /* ADDED color-radio-group label */
+    .color-radio-group label { width: 50px; height: 35px; font-size: 0.8rem; }
+    /* ADDED interactiveText */
+    #interactiveText { font-size: 16px; /* Adjust for mobile */ }
+    /* ADDED Text Input Section */
+    #textInputSection h3 { font-size: 1.1rem; }
+    #textInput { font-size: 0.8rem; }
+    #addTextButton, #removeTextButton { font-size: 0.8rem; padding: 6px 12px;}
+    /* END ADDED */
     .modal { padding: 1.5rem 1rem; width: 95%; }
     .modal-title { font-size: 1.5rem; }
     .modal p { font-size: 1rem; }
