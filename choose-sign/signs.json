@@ -2,7 +2,7 @@
   "githubUser": "ticuv",
   "githubRepo": "SignOMatic",
   "githubBranch": "main",
-  "imageBasePath": "images",
+  "imageBasePath": "choose-sign/images",
   "categories": {
     "AHC": [
       {
@@ -10,7 +10,7 @@
         "fileName": "delist.png"
       },
       {
-        "name": "AHC - Duko",  
+        "name": "AHC - Duko",
         "fileName": "duko.png"
       }
     ],
