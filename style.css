@@ -1,3 +1,65 @@
+/* ============================================= */
+/* --- @font-face Definitions (Self-Hosted) --- */
+/* ============================================= */
+
+/* Luckiest Guy */
+@font-face {
+  font-family: 'Luckiest Guy'; /* Nume standard */
+  font-style: normal;
+  font-weight: 400; /* Regular */
+  font-display: swap;
+  src: url('./assets/fonts/luckiestguy-webfont.woff2') format('woff2'); /* Nume din screenshot */
+}
+
+/* Roboto - Regular */
+@font-face {
+  font-family: 'Roboto'; /* Nume standard */
+  font-style: normal;
+  font-weight: 400; /* Regular */
+  font-display: swap;
+  src: url('./assets/fonts/Roboto-Regular-webfont.woff2') format('woff2'); /* Nume din screenshot */
+}
+
+/* Roboto - Bold */
+@font-face {
+  font-family: 'Roboto'; /* Nume standard */
+  font-style: normal;
+  font-weight: 700; /* Bold */
+  font-display: swap;
+  src: url('./assets/fonts/Roboto-Bold-webfont.woff2') format('woff2'); /* Nume din screenshot */
+}
+
+/* Courier Prime - Regular */
+@font-face {
+  font-family: 'Courier Prime'; /* Nume standard */
+  font-style: normal;
+  font-weight: 400; /* Regular */
+  font-display: swap;
+  src: url('./assets/fonts/CourierPrime-Regular.woff2') format('woff2'); /* Nume din screenshot */
+}
+
+/* Courier Prime - Italic */
+@font-face {
+  font-family: 'Courier Prime'; /* Nume standard */
+  font-style: italic;
+  font-weight: 400; /* Regular Italic */
+  font-display: swap;
+  src: url('./assets/fonts/CourierPrime-Italic.woff2') format('woff2'); /* Nume din screenshot */
+}
+
+/* Special Elite - Regular */
+@font-face {
+  font-family: 'Special Elite'; /* Nume standard */
+  font-style: normal;
+  font-weight: 400; /* Regular */
+  font-display: swap;
+  src: url('./assets/fonts/SpecialElite-webfont.woff2') format('woff2'); /* Nume din screenshot */
+}
+
+/* ======================================= */
+/* --- Restul CSS-ului tău începe aici --- */
+/* ======================================= */
+
 /* Variabile CSS */
 :root {
   --rick-green: #97ce4c; --morty-yellow: #f0e14a; --portal-blue: #00b0c8;
@@ -10,7 +72,9 @@
 /* Stiluri Generale */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: 'Roboto', sans-serif; background-color: var(--dark-matter); color: white;
+  /* Folosește numele standard 'Roboto', definit în @font-face */
+  font-family: 'Roboto', sans-serif;
+  background-color: var(--dark-matter); color: white;
   overflow: hidden; position: relative; min-height: 100vh;
   transition: background-color 0.3s ease, cursor 0.1s linear, filter 0.2s ease, font-family 0.3s ease;
 }
@@ -20,14 +84,22 @@ body.filter-invert{filter:invert(1);background-color:#fff}body.filter-blur{filte
 body.filter-pixelate::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px); background-size: 5px 5px; z-index: 9990; pointer-events: none; opacity: 0.5; }
 
 /* Titlu */
-h1 { font-family: 'Luckiest Guy', cursive; font-size: 3rem; color: var(--rick-green); text-shadow: 2px 2px 0 var(--interdimensional-purple); text-align: center; margin-top: 40px; animation: pulse-title 2s ease-in-out infinite; user-select: none; transition: color 0.2s ease, font-size 0.2s ease, transform 0.2s ease, text-shadow 0.2s ease, filter 0.2s ease, font-family 0.3s ease; z-index: 10; position: relative; }
+h1 {
+  /* Folosește numele standard 'Luckiest Guy', definit în @font-face */
+  font-family: 'Luckiest Guy', cursive;
+  font-size: 3rem; color: var(--rick-green); text-shadow: 2px 2px 0 var(--interdimensional-purple); text-align: center; margin-top: 40px; animation: pulse-title 2s ease-in-out infinite; user-select: none; transition: color 0.2s ease, font-size 0.2s ease, transform 0.2s ease, text-shadow 0.2s ease, filter 0.2s ease, font-family 0.3s ease; z-index: 10; position: relative;
+}
 @keyframes pulse-title { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15) rotate(3deg); color: var(--slime-green); } }
 
 /* Layout */
 .center-stage { text-align: center; margin-top: 20px; padding-bottom: 150px; transition: transform 0.3s ease; }
 
 /* Butoane */
-.btn { font-family:'Luckiest Guy',cursive;padding:15px 30px;font-size:1.2rem;border:2px solid var(--outline-black);border-radius:12px;margin:10px;cursor:pointer;box-shadow:4px 4px 0 var(--outline-black);transition:all .15s ease;text-transform:uppercase;user-select:none }
+.btn {
+  /* Folosește numele standard 'Luckiest Guy', definit în @font-face */
+  font-family: 'Luckiest Guy', cursive;
+  padding:15px 30px;font-size:1.2rem;border:2px solid var(--outline-black);border-radius:12px;margin:10px;cursor:pointer;box-shadow:4px 4px 0 var(--outline-black);transition:all .15s ease;text-transform:uppercase;user-select:none
+}
 .btn:hover{transform:scale(1.05) rotate(1deg);filter:brightness(1.1)}
 .btn:active{transform:scale(.97) translateY(3px);box-shadow:1px 1px 0 var(--outline-black);filter:brightness(.9)}
 .btn-do-not { background-color: var(--dumb-red); color: white; animation: shake 0.15s infinite alternate; transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, filter 0.2s ease, font-family 0.3s ease; }
@@ -36,9 +108,13 @@ h1 { font-family: 'Luckiest Guy', cursive; font-size: 3rem; color: var(--rick-gr
 .btn-gallery{background-color:var(--rick-green);color:#000; transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, filter 0.2s ease, font-family 0.3s ease; }
 
 /* Text & Mesaje */
-.crazy-text{color:var(--morty-yellow);font-weight:700;margin-top:10px;font-size:1.1rem; transition: color 0.3s ease, font-family 0.3s ease; }
-.message-box{margin:25px auto;max-width:500px;background-color:rgba(255,255,255,.05);padding:15px;border:2px dashed var(--slime-green);font-size:1rem;color:var(--dumb-pink);font-style:italic;min-height:40px;transition:all .2s ease, font-family 0.3s ease; overflow-wrap:break-word;white-space:normal; font-family: 'Roboto', sans-serif;}
-.console-log { font-family:monospace;font-size:.8rem;color:#aaa;margin:15px auto;width:90%;max-width:600px;height:80px;background-color:rgba(0,0,0,.4);border:1px solid var(--portal-blue);overflow-y:scroll;text-align:left;padding:8px;white-space:pre-wrap;z-index:5;position:relative;transition: transform 0.3s ease, font-family 0.3s ease, visibility 0.3s ease; }
+.crazy-text{color:var(--morty-yellow);font-weight:700;margin-top:10px;font-size:1.1rem; transition: color 0.3s ease, font-family 0.3s ease; } /* Implicit folosește fontul din body ('Roboto') */
+.message-box{margin:25px auto;max-width:500px;background-color:rgba(255,255,255,.05);padding:15px;border:2px dashed var(--slime-green);font-size:1rem;color:var(--dumb-pink);font-style:italic;min-height:40px;transition:all .2s ease, font-family 0.3s ease; overflow-wrap:break-word;white-space:normal; font-family: 'Roboto', sans-serif;} /* Explicit 'Roboto' */
+.console-log {
+  /* Folosește numele standard 'Courier Prime', definit în @font-face */
+  font-family: 'Courier Prime', monospace;
+  font-size:.8rem;color:#aaa;margin:15px auto;width:90%;max-width:600px;height:80px;background-color:rgba(0,0,0,.4);border:1px solid var(--portal-blue);overflow-y:scroll;text-align:left;padding:8px;white-space:pre-wrap;z-index:5;position:relative;transition: transform 0.3s ease, font-family 0.3s ease, visibility 0.3s ease;
+}
 .console-log::-webkit-scrollbar { width: 8px; }
 .console-log::-webkit-scrollbar-track { background: rgba(0,0,0,.2); }
 .console-log::-webkit-scrollbar-thumb { background-color: var(--portal-blue); border-radius: 4px; border: 2px solid rgba(0,0,0,.2); }
@@ -49,7 +125,11 @@ h1 { font-family: 'Luckiest Guy', cursive; font-size: 3rem; color: var(--rick-gr
 @keyframes floaty{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-25px) rotate(4deg)}}
 
 /* Afișaj Scor */
-#scoreDisplay { position:fixed;top:10px;right:15px;font-family:'Luckiest Guy',cursive;font-size:1.8rem;color:var(--score-color);text-shadow:2px 2px 0 var(--outline-black);z-index:1000;user-select:none;transition:transform .2s ease,color .3s ease,opacity .5s ease, filter 0.2s ease, font-size 0.2s ease, font-family 0.3s ease, visibility 0.3s ease; opacity:0;pointer-events:none }
+#scoreDisplay {
+  /* Folosește numele standard 'Luckiest Guy', definit în @font-face */
+  font-family:'Luckiest Guy',cursive;
+  position:fixed;top:10px;right:15px;font-size:1.8rem;color:var(--score-color);text-shadow:2px 2px 0 var(--outline-black);z-index:1000;user-select:none;transition:transform .2s ease,color .3s ease,opacity .5s ease, filter 0.2s ease, font-size 0.2s ease, font-family 0.3s ease, visibility 0.3s ease; opacity:0;pointer-events:none
+}
 #scoreDisplay.visible { opacity: 1; pointer-events: auto; }
 #scoreDisplay.score-pulse{transform:scale(1.35) rotate(5deg);color:#fff}
 #scoreDisplay.score-penalty{transform:scale(.80) rotate(-10deg);color:var(--dumb-red)}
@@ -80,20 +160,24 @@ h1 { font-family: 'Luckiest Guy', cursive; font-size: 3rem; color: var(--rick-gr
 
 
 /* Popup-uri False */
-.fake-error{ position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.8);background-color:#ccc;color:#000;border:3px outset #eee;padding:20px 30px;font-family:'Times New Roman',serif;z-index:9000;box-shadow:5px 5px 15px rgba(0,0,0,.5);opacity:0;transition:opacity .2s ease,transform .2s ease;text-align:left;max-width:300px}
+.fake-error{ position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.8);background-color:#ccc;color:#000;border:3px outset #eee;padding:20px 30px;font-family:'Times New Roman',serif;z-index:9000;box-shadow:5px 5px 15px rgba(0,0,0,.5);opacity:0;transition:opacity .2s ease,transform .2s ease;text-align:left;max-width:300px} /* Times New Roman - font de sistem */
 .fake-error.visible{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .fake-error-title{font-weight:700;margin-bottom:10px}
 .fake-error-button{text-align:center;margin-top:15px}
 .fake-error-button button{padding:3px 10px}
 
-.fake-warning-popup{ position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.7); background-color: #FFFFE0; color: #000; border: 3px double #FFA500; padding: 25px 35px; font-family: 'Comic Sans MS', cursive, sans-serif; z-index: 9001; box-shadow: 8px 8px 20px rgba(0,0,0,.6); opacity: 0; transition: opacity .25s ease, transform .25s ease; text-align: center; max-width: 350px; }
+.fake-warning-popup{ position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.7); background-color: #FFFFE0; color: #000; border: 3px double #FFA500; padding: 25px 35px; font-family: 'Comic Sans MS', cursive, sans-serif; z-index: 9001; box-shadow: 8px 8px 20px rgba(0,0,0,.6); opacity: 0; transition: opacity .25s ease, transform .25s ease; text-align: center; max-width: 350px; } /* Comic Sans MS - font de sistem/fallback */
 .fake-warning-popup.visible { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
 .fake-warning-title { font-weight: bold; font-size: 1.3em; color: #CC0000; margin-bottom: 15px; }
-.fake-warning-popup button { padding: 5px 15px; margin-top: 20px; font-family: 'Comic Sans MS', cursive; font-size: 1.1em; background: #FFCC00; border: 2px outset #ccc; cursor: pointer; }
+.fake-warning-popup button { padding: 5px 15px; margin-top: 20px; font-family: 'Comic Sans MS', cursive; font-size: 1.1em; background: #FFCC00; border: 2px outset #ccc; cursor: pointer; } /* Comic Sans MS - font de sistem/fallback */
 .fake-warning-popup button:active { border-style: inset; }
 
 /* Text Status Fals */
-.fake-status-text { position: fixed; bottom: 5px; right: 5px; font-family: 'Courier Prime', monospace; font-size: 0.75rem; color: var(--portal-blue); background-color: rgba(0,0,0,0.5); padding: 3px 8px; border: 1px solid var(--portal-blue); border-radius: 4px; z-index: 499; opacity: 0; transition: opacity 0.4s ease; user-select: none; pointer-events: none; }
+.fake-status-text {
+  /* Folosește numele standard 'Courier Prime', definit în @font-face */
+  font-family: 'Courier Prime', monospace;
+  position: fixed; bottom: 5px; right: 5px; font-size: 0.75rem; color: var(--portal-blue); background-color: rgba(0,0,0,0.5); padding: 3px 8px; border: 1px solid var(--portal-blue); border-radius: 4px; z-index: 499; opacity: 0; transition: opacity 0.4s ease; user-select: none; pointer-events: none;
+}
 .fake-status-text.visible { opacity: 0.8; }
 
 /* Butonul Made by ticuv */
@@ -109,6 +193,7 @@ h1 { font-family: 'Luckiest Guy', cursive; font-size: 3rem; color: var(--rick-gr
     border-color: var(--outline-black);
     box-shadow: 3px 3px 0 var(--outline-black);
     transform: rotate(-2deg);
+    /* Folosește fontul implicit al butoanelor ('Luckiest Guy') */
 }
 #madeByBtn:hover {
     transform: scale(1.08) rotate(0deg);
@@ -118,7 +203,9 @@ h1 { font-family: 'Luckiest Guy', cursive; font-size: 3rem; color: var(--rick-gr
 .funky-popup {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.7) rotate(5deg);
     background-color: var(--dark-matter); color: var(--rick-green); border: 4px dashed var(--portal-blue);
-    border-radius: 15px 0 15px 0; padding: 30px 40px; font-family: 'Comic Sans MS', cursive, sans-serif;
+    border-radius: 15px 0 15px 0; padding: 30px 40px;
+    /* Comic Sans MS - font de sistem/fallback */
+    font-family: 'Comic Sans MS', cursive, sans-serif;
     z-index: 9500; box-shadow: 8px 8px 0px var(--interdimensional-purple), inset 0 0 15px rgba(0, 200, 220, 0.3);
     opacity: 0; transition: opacity .3s ease, transform .3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
     pointer-events: none; text-align: center; max-width: 450px; width: 90%; visibility: hidden;
@@ -126,15 +213,46 @@ h1 { font-family: 'Luckiest Guy', cursive; font-size: 3rem; color: var(--rick-gr
 .funky-popup.visible {
     opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-1deg); pointer-events: auto; visibility: visible;
 }
-.funky-popup h2 { font-family: 'Luckiest Guy', cursive; color: var(--morty-yellow); font-size: 2rem; margin-bottom: 20px; text-shadow: 2px 2px 0 var(--dumb-red); }
+.funky-popup h2 {
+  /* Folosește numele standard 'Luckiest Guy', definit în @font-face */
+  font-family: 'Luckiest Guy', cursive;
+  color: var(--morty-yellow); font-size: 2rem; margin-bottom: 20px; text-shadow: 2px 2px 0 var(--dumb-red);
+}
 .funky-popup p { margin-bottom: 15px; font-size: 1.1rem; color: white; }
-.funky-popup a, .funky-popup .popup-link-btn { display: inline-block; padding: 10px 20px; background-color: var(--slime-green); color: var(--outline-black); border: 2px solid var(--outline-black); border-radius: 8px; text-decoration: none; font-family: 'Luckiest Guy', cursive; font-size: 1.1rem; margin: 10px 5px; box-shadow: 3px 3px 0 var(--outline-black); transition: all 0.15s ease; cursor: pointer; }
+.funky-popup a, .funky-popup .popup-link-btn {
+  display: inline-block; padding: 10px 20px; background-color: var(--slime-green); color: var(--outline-black); border: 2px solid var(--outline-black); border-radius: 8px; text-decoration: none;
+  /* Folosește numele standard 'Luckiest Guy', definit în @font-face */
+  font-family: 'Luckiest Guy', cursive;
+  font-size: 1.1rem; margin: 10px 5px; box-shadow: 3px 3px 0 var(--outline-black); transition: all 0.15s ease; cursor: pointer;
+}
 .funky-popup a:hover, .funky-popup .popup-link-btn:hover { transform: scale(1.05) rotate(2deg); background-color: var(--morty-yellow); }
 .funky-popup a:active, .funky-popup .popup-link-btn:active { transform: scale(.97) translateY(2px); box-shadow: 1px 1px 0 var(--outline-black); }
 .funky-popup .coffee-section { margin-top: 25px; padding-top: 15px; border-top: 2px dashed var(--portal-blue); }
-.funky-popup .coffee-section h3 { font-family: 'Luckiest Guy', cursive; color: var(--dumb-pink); margin-bottom: 15px; font-size: 1.4rem; }
-.funky-popup .address-line { font-family: 'Courier Prime', monospace; font-size: 0.9rem; margin-bottom: 10px; word-wrap: break-word; color: #eee; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.2); padding: 5px 8px; border-radius: 4px; }
+.funky-popup .coffee-section h3 {
+  /* Folosește numele standard 'Luckiest Guy', definit în @font-face */
+  font-family: 'Luckiest Guy', cursive;
+  color: var(--dumb-pink); margin-bottom: 15px; font-size: 1.4rem;
+}
+.funky-popup .address-line {
+  /* Folosește numele standard 'Courier Prime', definit în @font-face */
+  font-family: 'Courier Prime', monospace;
+  font-size: 0.9rem; margin-bottom: 10px; word-wrap: break-word; color: #eee; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.2); padding: 5px 8px; border-radius: 4px;
+}
 .funky-popup .address-line span { flex-grow: 1; margin-right: 10px; text-align: left; }
-.funky-popup .copy-btn { padding: 3px 8px; font-size: 0.7rem; font-family: 'Roboto', sans-serif; background-color: var(--portal-blue); color: white; border: 1px solid var(--outline-black); border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease; white-space: nowrap; }
+.funky-popup .copy-btn {
+  padding: 3px 8px; font-size: 0.7rem;
+  /* Folosește numele standard 'Roboto', definit în @font-face */
+  font-family: 'Roboto', sans-serif;
+  background-color: var(--portal-blue); color: white; border: 1px solid var(--outline-black); border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease; white-space: nowrap;
+}
 .funky-popup .copy-btn:hover { background-color: var(--rick-green); color: black; }
-.funky-popup #closeMadeByPopup { margin-top: 25px; background-color: var(--dumb-red); color: white; }
+.funky-popup #closeMadeByPopup {
+  margin-top: 25px; background-color: var(--dumb-red); color: white;
+  /* Folosește fontul implicit al butoanelor ('Luckiest Guy') */
+}
+
+/* --- Notă despre Fonturi Neincluse în @font-face --- */
+/* 'Comic Sans MS' și 'Times New Roman' nu sunt definite în @font-face. */
+/* Browserul va încerca să folosească versiunea instalată pe sistemul utilizatorului. */
+/* Dacă nu sunt instalate, va folosi următorul font din listă (cursive, sans-serif, serif). */
+/* Acest lucru poate duce la variații vizuale între utilizatori/dispozitive. */
