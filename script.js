@@ -1,706 +1,193 @@
-// SignOMatic/script.js
-// Script principal pentru Landing Page Haotică
+// --- Obținere Elemente ---
+const doNotClick = document.getElementById("doNotClickBtn");
+const realOptions = document.getElementById("realOptions");
+const crazyTextEl = document.getElementById("crazyText");
+const createSignBtn = document.getElementById("createSignBtn");
+const galleryBtn = document.getElementById("galleryBtn");
+const msgBox = document.getElementById("messageBox");
+const consoleOut = document.getElementById("consoleOutput");
+const bodyEl = document.body;
+const titleEl = document.querySelector('h1');
+const alienEl = document.getElementById('alienImage');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const jumpscareVisualEl = document.getElementById('jumpscareVisual');
+const imageFlashOverlay = document.getElementById("imageFlashOverlay");
+const loadingBarContainer = document.getElementById("fakeLoadingBarContainer");
+const loadingBarProgress = document.getElementById("fakeLoadingBarProgress");
+const centerStage = document.getElementById("centerStage");
+const rootEl = document.documentElement;
+const madeByBtn = document.getElementById('madeByBtn');
+const madeByPopup = document.getElementById('madeByPopup');
+const closeMadeByPopup = document.getElementById('closeMadeByPopup');
+const copyBtns = document.querySelectorAll('.copy-btn');
 
-// --- Global State & Config ---
+// --- Stare Joc ---
 let clickCount = 0;
+const phrases = [ "Don't.", "Seriously, what part of 'Don't' is confusing?", "Your cursor is hovering. I see it. Stop.", "Okay, last chance saloon. Back away slowly.", "FINE! YOU BROKE IT! HAPPY NOW?! RUUUUUUN!" ];
+const MAX_CLICKS_BEFORE_UNLOCK = 5;
 let score = 0;
 let audioContext;
-let originalAlienSrc = 'assets/images/img_alien_original.gif'; // Hardcodat initial, poate fi suprascris
-let originalTitle;
-let originalFaviconHref;
-let gameData = {}; // Stochează data.json
-let effectConfig = {}; // Stochează effects_config.json
-const effectCooldowns = {}; // { effectName: lastClickCount }
-let domElements = {}; // Cache pentru elemente DOM
-let copyFeedbackTimeout; // Timeout pentru mesajul 'Copied!'
-let activeTimeouts = []; // Array to keep track of timeouts for cleanup
+let originalAlienSrc = 'https://ticuv.github.io/SignOMatic/assets/images/alien.png'; // Path absolut corect
+let originalTitle = document.title;
+const AVAILABLE_FONTS = ["'Roboto', sans-serif", "'Luckiest Guy', cursive", "'Comic Sans MS', cursive", "'Courier Prime', monospace", "'Special Elite', cursive", "serif", "sans-serif", "monospace", "cursive"];
 
-// --- Constante ---
-const MAX_CLICKS_BEFORE_UNLOCK = 5;
-const SOLANA_ADDRESS = "2Vv3QHAJxZvViaY1HaWvJ5kbnNeUdN1MrZcRYog4ezHE"; // Adresele pot fi mutate in data.json eventual
-const ETHEREUM_ADDRESS = "0xbD0dDE4175d8e854306a09dE4c184392b33a6d9C";
-const X_PROFILE_URL = "https://twitter.com/ticuv_"; // Asigură-te că e corect
+// --- Stare Cooldown ---
+const effectCooldowns = {};
+const MAJOR_EFFECT_COOLDOWN_CLICKS = 15;
+const FILTER_EFFECT_COOLDOWN_CLICKS = 8;
 
-// --- DOM Element Getters ---
-function cacheDOMElements() {
-    domElements = {
-        doNotClickBtn: document.getElementById("doNotClickBtn"),
-        realOptions: document.getElementById("realOptions"),
-        crazyTextEl: document.getElementById("crazyText"),
-        createSignBtn: document.getElementById("createSignBtn"), // Butonul de navigare din pagina haotica
-        galleryBtn: document.getElementById("galleryBtn"),   // Butonul de navigare din pagina haotica
-        messageBox: document.getElementById("messageBox"),
-        consoleOutput: document.getElementById("consoleOutput"),
-        bodyEl: document.body,
-        titleEl: document.querySelector('h1'),
-        alienImage: document.getElementById('alienImage'),
-        scoreDisplay: document.getElementById('scoreDisplay'),
-        jumpscareVisualEl: document.getElementById('jumpscareVisual'),
-        imageFlashOverlay: document.getElementById("imageFlashOverlay"),
-        loadingBarContainer: document.getElementById("fakeLoadingBarContainer"),
-        loadingBarProgress: document.getElementById("fakeLoadingBarProgress"),
-        centerStage: document.getElementById("centerStage"),
-        rootEl: document.documentElement,
-        favicon: document.getElementById('favicon'),
-        dynamicTextOverlay: document.getElementById('dynamicTextOverlay'),
-        attribution: document.getElementById('attribution'),
-        supportModalOverlay: document.getElementById('supportModalOverlay'),
-        supportModal: document.getElementById('supportModal'),
-        closeModalBtn: document.getElementById('closeModalBtn'),
-        twitterShareButton: document.getElementById('twitterShareButton'), // Redenumit din followXBtn in HTML? Daca nu, ajusteaza ID-ul
-        buyCoffeeBtn: document.getElementById('buyCoffeeBtn'),
-        cryptoOptions: document.getElementById('cryptoOptions'),
-        solanaBtn: document.getElementById('solanaBtn'),
-        ethereumBtn: document.getElementById('ethereumBtn'),
-        addressDisplay: document.getElementById('addressDisplay'),
-        cryptoAddressInput: document.getElementById('cryptoAddressInput'),
-        copyAddressBtn: document.getElementById('copyAddressBtn'),
-        copyFeedback: document.getElementById('copyFeedback'),
-        shareModalTitle: document.getElementById('shareModalTitle'), // Adaugat pentru text modal
-        shareMessage: document.getElementById('shareMessage')     // Adaugat pentru text modal
-    };
-    // Preia valorile initiale DUPA ce elementele sunt garantat in DOM
-    if (domElements.alienImage) originalAlienSrc = domElements.alienImage.src;
-    originalTitle = document.title;
-    if (domElements.favicon) originalFaviconHref = domElements.favicon.href;
-
-    // Verificare elemente esentiale
-     Object.keys(domElements).forEach(key => {
-         if (!domElements[key] && key !== 'jumpscareVisualEl' && key !== 'imageFlashOverlay' /* Permit lipsa unor overlay-uri */) {
-             // Permitem si lipsa elementelor modale initial, le verificam in functiile lor
-             const modalElements = ['supportModalOverlay', 'supportModal', 'closeModalBtn', 'twitterShareButton', 'buyCoffeeBtn', 'cryptoOptions', 'solanaBtn', 'ethereumBtn', 'addressDisplay', 'cryptoAddressInput', 'copyAddressBtn', 'copyFeedback', 'shareModalTitle', 'shareMessage'];
-             if(!modalElements.includes(key)) {
-                 console.warn(`Warning: DOM element '${key}' not found during caching.`);
-                 // Poate afisa eroare critica doar pt elemente absolut necesare
-                 if(['doNotClickBtn', 'messageBox', 'consoleOutput', 'bodyEl', 'titleEl'].includes(key)) {
-                     console.error(`CRITICAL ERROR: Essential element '${key}' is missing!`);
-                     // Potential stop execution or show UI error
-                 }
-             }
-         }
-     });
-}
+// URL de bază pentru asset-uri (corect pentru GitHub Pages)
+const GITHUB_PAGES_ASSET_BASE_URL = 'https://ticuv.github.io/SignOMatic/assets/';
 
 // --- Funcții Utilitare ---
-function updateConsole(message) {
-    if (!domElements.consoleOutput) return;
-    // Evita erori daca innerText e null/undefined
-    domElements.consoleOutput.innerText = (domElements.consoleOutput.innerText || '') + message + "\n";
-    const lines = domElements.consoleOutput.innerText.split("\n");
-    if (lines.length > 150) {
-        domElements.consoleOutput.innerText = lines.slice(lines.length - 150).join("\n");
-    }
-    domElements.consoleOutput.scrollTop = domElements.consoleOutput.scrollHeight;
-}
+function updateConsole(message) { consoleOut.innerText+=message+"\n";const e=consoleOut.innerText.split("\n");e.length>100&&(consoleOut.innerText=e.slice(e.length-100).join("\n")),consoleOut.scrollTop=consoleOut.scrollHeight}
+function updateScoreDisplay() { scoreDisplay.innerText = `Score: ${score}`; }
+function addScore(change) { score += change; updateScoreDisplay(); scoreDisplay.classList.remove('score-pulse', 'score-penalty'); void scoreDisplay.offsetWidth; if (change > 0) { scoreDisplay.classList.add('score-pulse'); } else if (change < 0) { scoreDisplay.classList.add('score-penalty'); } setTimeout(() => { scoreDisplay.classList.remove('score-pulse', 'score-penalty'); }, 350); }
+function getRandomWord() { const words = ["the", "be", "to", "of", "and", "a", "in", "that", "have", "I", "it", "for", "not", "on", "with", "he", "as", "you", "do", "at", "brain", "rot", "meme", "skibidi", "sigma", "click", "button", "chaos", "dimension", "why", "random", "gyatt", "rizz", "game", "banana", "toilet", "sus", "among", "based", "cringe", "noob", "pro", "hack", "glitch", "pixel", "score", "what", "is", "happening", "sign", "create", "gallery", "ticuv", "error", "warning", "system", "file", "delete", "yes", "no", "maybe", "run", "stop", "wait", "go", "red", "blue", "green", "acid", "trip", "explode", "kaboom", "ohio", "fanum", "tax", "uwu", "bruh", "yeet", "vibe", "meta", "doom", "real?", "fake?", "jinx", "huh?", "font", "color", "style", "css", "js", "html", "debug", "compile", "render"]; return words[Math.floor(Math.random() * words.length)]; }
+function getRandomColor() { return `hsl(${Math.random() * 360}, ${Math.random()*70+30}%, ${Math.random() * 50 + 25}%)`; }
 
-function updateScoreDisplay() {
-    if (!domElements.scoreDisplay) return;
-    domElements.scoreDisplay.innerText = `Score: ${score}`;
-}
+// --- Funcții Efecte (Toate funcțiile din codul original) ---
+function playSimpleSound(frequency = 440, duration = 0.1, type = 'sine', volume = 0.3) { if (typeof audioContext === 'undefined') { return; } if (!audioContext) { return; } try { const oscillator = audioContext.createOscillator(); const gainNode = audioContext.createGain(); oscillator.type = type; oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime); gainNode.gain.setValueAtTime(volume, audioContext.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration); oscillator.connect(gainNode); gainNode.connect(audioContext.destination); oscillator.start(audioContext.currentTime); oscillator.stop(audioContext.currentTime + duration); } catch (e) { updateConsole(">> Audio Error: " + e.message); } }
+function shakePage(intensity = 8, duration = 180) { if (!bodyEl) return; bodyEl.style.setProperty('--shake-intensity', `${intensity}px`); const animationName = `screenShake-${Date.now()}`; bodyEl.style.animation = `${animationName} ${duration}ms ease-in-out`; setTimeout(() => { if (bodyEl.style.animation.includes(animationName) || bodyEl.style.animation.includes('screenShake')) { bodyEl.style.animation = ''; } }, duration); }
+function createFallingEmoji() { const emojis = ['💀','😂','🔥','💯','✨','💩','👻','👽','👾','🤖','🧠','🍌','🍕','🍔','🍟','🚽','👀','🤔','🤯','💥','❓','❗','💸','📈','📉','☢️','☣️','✔️','❌','📢','🔔','⚠️','🪿','🖱️','💾','💿','❤️‍🔥','🫠','💥','💣','🧱','🧯','💸','🐸','🐢','🌵','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍁','🍂','🍃']; const emoji = document.createElement('span'); emoji.innerText = emojis[Math.floor(Math.random() * emojis.length)]; emoji.style.position = 'fixed'; emoji.style.left = `${Math.random() * 100}vw`; emoji.style.top = `-60px`; emoji.style.fontSize = `${Math.random() * 3.5 + 2}rem`; emoji.style.userSelect = 'none'; emoji.style.zIndex = `${Math.floor(Math.random() * 500) + 1000}`; emoji.style.pointerEvents = 'none'; emoji.style.filter = `hue-rotate(${Math.random()*360}deg) drop-shadow(2px 2px 3px rgba(0,0,0,0.5))`; const fallDuration = Math.random() * 1.5 + 1.2; emoji.style.animation = `fall ${fallDuration}s linear forwards`; document.body.appendChild(emoji); setTimeout(() => emoji.remove(), fallDuration * 1000 + 500); }
+function changeBackgroundColor() { const randomColor = getRandomColor(); updateConsole(`   -> Changing background color to ${randomColor}`); bodyEl.style.backgroundColor = randomColor; }
+function flashMessageBox() { const originalColor = getComputedStyle(msgBox).borderColor; msgBox.style.transition = 'all 0.04s ease-in-out'; const flashColor = `hsl(${Math.random() * 360}, 100%, 75%)`; msgBox.style.borderColor = flashColor; msgBox.style.transform = 'scale(1.12) rotate(2.5deg)'; setTimeout(() => { msgBox.style.borderColor = originalColor; msgBox.style.transform = 'scale(1) rotate(0deg)'; }, 40); setTimeout(() => { msgBox.style.borderColor = flashColor; msgBox.style.transform = 'scale(1.12) rotate(-2.5deg)'; setTimeout(() => { msgBox.style.borderColor = originalColor; msgBox.style.transform = 'scale(1) rotate(0deg)'; }, 40); }, 100); }
+function changeElementStyle(element, property, values) { if (!element) return; const randomValue = values[Math.floor(Math.random() * values.length)]; element.style[property] = randomValue; }
+function toggleBodyFilter(filterClass) { updateConsole(`   -> Applying filter: ${filterClass}`); bodyEl.classList.add(filterClass); }
+const asciiArt = [ "`(o o) / \n ( V )\\ \n /---\\", "<(^.^<) \n (> ^.^)>", "[ Z A P ! ]", "ERROR 418:\nI'm a teapot", " /\\_/\\ \n( o.o ) \n > ^ <", "Loading...\n | | | |\n @ @ @ @", "YOU CLICKED\nTHE BUTTON", "WHY THO???", "BRAIN.EXE\nNOT FOUND", "SKIBIDI\nBOP BOP\nYES YES", "SIGMA\nDETECTED", "GYATT LEVEL:\nOVER 9000", "ERROR:\nEXPLOSION\nIMMINENT?"];
+function displayAsciiArt() { const art = asciiArt[Math.floor(Math.random() * asciiArt.length)]; updateConsole(`   -> Displaying ASCII Art.`); msgBox.innerText = art; msgBox.style.fontFamily = 'monospace'; msgBox.style.whiteSpace = 'pre'; msgBox.style.fontSize = '1.4rem'; msgBox.style.textAlign = 'center'; msgBox.style.fontStyle = 'normal'; msgBox.style.color = 'var(--slime-green)'; }
+function toggleGlitchEffect(element, intensity = 4) { if (!element) return; updateConsole(`   -> Applying glitch to ${element.id || element.tagName} (Intensity: ${intensity})`); element.style.setProperty('--glitch-x', `${intensity*1.8}px`); element.style.setProperty('--glitch-y', `${intensity * 1.5}px`); element.classList.add('glitch-effect'); }
+function makeElementFly(element) { if (!element || element.classList.contains('fly-animation')) return; updateConsole(`   -> Making ${element.id || element.tagName} fly! WHOOSH!`); element.classList.add('fly-animation'); setTimeout(() => { if(element) element.classList.remove('fly-animation'); }, 1800 + 100); }
+function triggerVisualJumpscare() { const imageUrl = GITHUB_PAGES_ASSET_BASE_URL + 'images/scare.png'; const soundUrl = GITHUB_PAGES_ASSET_BASE_URL + 'sounds/scream.mp3'; const duration = 3000 + Math.random() * 1000; updateConsole("!!! VISUAL JUMPSCARE TRIGGERED (Longer + Scream) !!!"); console.warn("Jumpscare Image Triggered!"); jumpscareVisualEl.style.backgroundImage = `url('${imageUrl}')`; jumpscareVisualEl.classList.add('visible'); try { const audio = new Audio(soundUrl); audio.volume = 0.9; audio.play().catch(e => updateConsole(" >> Failed to play scream sound: " + e.message)); } catch (e) { updateConsole(" >> Error creating Audio object for scream sound: " + e.message); triggerAuditoryJumpscare(0.95); } bodyEl.style.transition = 'background-color 0.05s ease'; bodyEl.style.backgroundColor = '#900'; setTimeout(() => { bodyEl.style.backgroundColor = getComputedStyle(bodyEl).getPropertyValue('--dark-matter'); }, 50); setTimeout(() => { jumpscareVisualEl.classList.remove('visible'); updateConsole("   -> Jumpscare visual faded."); }, duration); if (Math.random() < 0.8) { const penalty = Math.floor(Math.random() * 76 + 25); updateConsole(`   -> Lost ${penalty} points from maximum shock!`); addScore(-penalty); } }
+function triggerAuditoryJumpscare(volume = 0.75) { updateConsole("!!! AUDITORY JUMPSCARE TRIGGERED !!!"); console.warn("Auditory Jumpscare Triggered!"); playSimpleSound(Math.random() * 200 + 40, 0.5 + Math.random() * 0.4, 'square', volume * 1.3); setTimeout(() => playSimpleSound(Math.random() * 1500 + 800, 0.25 + Math.random() * 0.15, 'sawtooth', volume * 1.1), 30); }
+function changeCursor() { const cursors = ['wait', 'crosshair', 'pointer', 'help', 'grab', 'not-allowed', 'zoom-in', 'zoom-out', 'none', 'progress', 'cell', 'text', 'vertical-text', 'alias', 'copy', 'move', 'no-drop', 'all-scroll', 'col-resize', 'row-resize', 'n-resize', 'e-resize', 's-resize', 'w-resize', 'ne-resize', 'nw-resize', 'se-resize', 'sw-resize', 'ew-resize', 'ns-resize', 'nesw-resize', 'nwse-resize', 'context-menu']; const randomCursor = cursors[Math.floor(Math.random() * cursors.length)]; updateConsole(`   -> Changing cursor to: ${randomCursor}`); bodyEl.style.cursor = randomCursor; }
+function scrambleText(element) { if (!element || !element.innerText || element.classList.contains('text-scrambled')) return; const originalText = element.innerText; updateConsole(`   -> Scrambling text in ${element.id || element.tagName}`); element.classList.add('text-scrambled'); const chars = originalText.split(''); for (let i = chars.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [chars[i], chars[j]] = [chars[j], chars[i]]; } element.innerText = chars.join(''); setTimeout(() => { if (element && element.classList.contains('text-scrambled')) { element.innerText = originalText; element.classList.remove('text-scrambled'); updateConsole(`   -> Unscrambled ${element.id || element.tagName}`); } }, 700 + Math.random() * 500); }
+function showFakeError() { updateConsole("   -> Displaying Fake Error Message"); console.error("Fake System Error Displayed!"); const errorEl = document.createElement('div'); errorEl.className = 'fake-error'; const titles = ["Critical Stop", "Dimension Error", "Sanity Check Failed", "System Warning", "Brain Leak", "Meme Overflow", "Rizz Levels Unstable"]; const messages = ["Operation failed due to unexpected button clicks.", "Cannot compute chaos level. Abort?", "Your reality license has expired. Please click OK to panic.", "Stack overflow in fun-dimension.exe.", "Error: Too much brain rot detected.", "Skibidi Rizz calculation failed.", "Ohio dimension not responding."]; errorEl.innerHTML = `<div class="fake-error-title">${titles[Math.floor(Math.random()*titles.length)]}</div><div>${messages[Math.floor(Math.random()*messages.length)]}</div><div class="fake-error-button"><button>OK?</button></div>`; errorEl.querySelector('button').onclick = () => { updateConsole("   -> Fake error 'OK?' clicked. Or was it?"); playSimpleSound(Math.random() * 600 + 600, 0.05, 'triangle'); errorEl.style.opacity = '0'; errorEl.style.transform = 'translate(-50%, -50%) scale(0.6) rotate(25deg)'; setTimeout(() => errorEl.remove(), 200); addScore(Math.random() > 0.4 ? Math.floor(Math.random()*16)+5 : -Math.floor(Math.random()*11)-5); }; document.body.appendChild(errorEl); void errorEl.offsetWidth; errorEl.classList.add('visible'); setTimeout(() => { if (document.body.contains(errorEl)) { errorEl.style.opacity = '0'; errorEl.style.transform = 'translate(-50%, -50%) scale(0.6) rotate(-25deg)'; setTimeout(() => errorEl.remove(), 200); updateConsole("   -> Fake error auto-closed. Probably."); } }, 2200 + Math.random() * 1300); }
+function spawnCrazyButton() { const btn = document.createElement('button'); const messages = ["+?", "-?", "Click?", "Risk?", "Reward!", "???", "Void", "Don't!", "Do It!", "YES", "NO", "Maybe", "Error", "Meme?", "Rot?", "Again!", "Skibidi?", "Sigma?", "Rizz?", "Sign?", "Corrupt?", "Kaboom?", "Font?", "Color?", "Hide?", "Sound?"]; const points = Math.random() > 0.45 ? (Math.floor(Math.random()*46)+15) : -(Math.floor(Math.random()*36)+10); const message = messages[Math.floor(Math.random() * messages.length)]; btn.innerText = message; btn.className = 'btn crazy-spawned-button'; btn.style.left = `${Math.random() * 88 + 4}vw`; btn.style.top = `${Math.random() * 88 + 4}vh`; btn.style.backgroundColor = `hsl(${Math.random() * 360}, ${Math.random() * 50 + 50}%, ${Math.random() * 50 + 35}%)`; btn.style.transform = `rotate(${Math.random() * 120 - 60}deg) scale(${Math.random() * 0.7 + 0.6})`; btn.style.filter = `blur(${Math.random()*2}px) hue-rotate(${Math.random()*60-30}deg)`; btn.onclick = (e) => { e.stopPropagation(); const actionText = points > 0 ? `Gained ${points} points!` : `Lost ${Math.abs(points)} points!`; msgBox.innerText = `You clicked "${message}"! ${actionText}`; addScore(points); playSimpleSound(points > 0 ? Math.random()*500+1500 : Math.random()*100+50, 0.18, points > 0 ? 'triangle' : 'sawtooth', 0.45); btn.remove(); }; document.body.appendChild(btn); setTimeout(() => { if (document.body.contains(btn)) { btn.style.transition = 'opacity 0.25s ease, transform 0.25s ease'; btn.style.opacity = '0'; btn.style.transform += ' scale(2) rotate(90deg)'; setTimeout(() => btn.remove(), 250); } }, Math.random() * 1800 + 1000); }
+function flashRandomImage() { const images = [ GITHUB_PAGES_ASSET_BASE_URL + 'images/banana.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/brainrot.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/toilet.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/face.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/tv%20error.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/pizza.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/chicken.png', ]; const randomImg = images[Math.floor(Math.random() * images.length)]; updateConsole(`   -> Flashing image: ${randomImg.split('/').pop()}`); imageFlashOverlay.style.backgroundImage = `url('${randomImg}')`; imageFlashOverlay.classList.add('visible'); playSimpleSound(Math.random() * 300 + 900, 0.08, 'square', 0.25); setTimeout(() => { imageFlashOverlay.classList.remove('visible'); }, 80 + Math.random() * 120); }
+function distortElementText(element) { if (!element || element.classList.contains('element-distorted')) return; updateConsole(`   -> Distorting ${element.id || element.tagName}`); element.classList.add('element-distorted'); setTimeout(() => { if (element) element.classList.remove('element-distorted'); }, 500 + Math.random() * 600); }
+function shiftElementLayout(element) { if (!element || element.classList.contains('layout-shifted')) return; updateConsole(`   -> Shifting layout of ${element.id || element.tagName}`); const shiftX = Math.random() * 130 - 65; const shiftY = Math.random() * 90 - 45; const shiftRot = Math.random() * 30 - 15; element.style.setProperty('--shift-x', `${shiftX}px`); element.style.setProperty('--shift-y', `${shiftY}px`); element.style.setProperty('--shift-rot', `${shiftRot}deg`); element.classList.add('layout-shifted'); setTimeout(() => { if (element) { element.classList.remove('layout-shifted'); element.style.transform = ''; } }, 650 + Math.random() * 550); }
+function playMemeSound() { const sounds = [ GITHUB_PAGES_ASSET_BASE_URL + 'sounds/poweful-dark-vine-boom-sfx_130bpm_A%23_minor.wav', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/scream.mp3', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/windows-error-sound.wav', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/chicken_wk5y8jIL.mp3', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/wrong-answer_F%23_major.wav', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/glitch-processing-error-betacut-1-00-01.mp3', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/button-202966.mp3', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/in-game-level-uptype-2-230567.mp3' ]; const randomSound = sounds[Math.floor(Math.random() * sounds.length)]; updateConsole(`   -> Playing sound: ${randomSound.split('/').pop()}`); try { const audio = new Audio(randomSound); audio.volume = 0.5 + Math.random() * 0.3; audio.play().catch(e => updateConsole(" >> Failed to play sound: " + e.message)); } catch (e) { updateConsole(" >> Error creating Audio object for sound: " + e.message); } }
+function generateWordSalad() { updateConsole("   -> Generating Word Salad..."); let salad = ""; const len = Math.floor(Math.random() * 25) + 10; for (let i = 0; i < len; i++) { salad += getRandomWord() + " "; } const endChars = ["?", "!", ".", "...", "???", "!!", "WTF", ":)", ":(", "💀", "🔥"]; msgBox.innerText = salad.trim() + endChars[Math.floor(Math.random()*endChars.length)]; msgBox.style.fontFamily = "'Comic Sans MS', cursive, sans-serif"; msgBox.style.fontWeight = 'bold'; msgBox.style.fontStyle = 'normal'; msgBox.style.textAlign = 'left'; msgBox.style.color = `hsl(${Math.random() * 360}, 100%, 80%)`; }
+function simulateMouseInvert() { updateConsole("   -> Mouse Input Reversed? Maybe?"); msgBox.innerText = "CRITICAL ERROR: Mouse input polarity reversed! Good luck clicking! (not really)"; bodyEl.style.cursor = 'not-allowed'; setTimeout(() => { if (bodyEl.style.cursor === 'not-allowed') { bodyEl.style.cursor = 'auto'; updateConsole("   -> Mouse polarity restored. I think."); } }, 1800 + Math.random() * 1800); }
+function showFakeLoadingBar() { if (loadingBarContainer.classList.contains('visible')) return; updateConsole("   -> Displaying Fake Loading Bar..."); loadingBarContainer.classList.add('visible'); loadingBarProgress.style.width = '0%'; loadingBarProgress.style.transition = 'none'; loadingBarProgress.style.backgroundColor = 'var(--slime-green)'; let progress = 0; const intervalTime = 90 + Math.random() * 130; const interval = setInterval(() => { const jump = Math.random() * 12 + 3; progress += jump; if (progress >= 100) { progress = 100; loadingBarProgress.style.transition = `width ${0.1 + Math.random() * 0.15}s linear`; loadingBarProgress.style.width = `${progress}%`; clearInterval(interval); updateConsole("   -> Fake Loading Complete... probably loaded more chaos."); setTimeout(() => { loadingBarContainer.classList.remove('visible'); setTimeout(() => { loadingBarProgress.style.width = '0%'; loadingBarProgress.style.transition = 'none';}, 300); }, 400 + Math.random() * 400); if (Math.random() > 0.35) addScore(Math.floor(Math.random()*21)+10); } else { loadingBarProgress.style.transition = `width ${intervalTime / 1000 * (0.8 + Math.random()*0.4)}s linear`; loadingBarProgress.style.width = `${progress}%`; } if (progress < 95 && Math.random() < 0.04) { clearInterval(interval); updateConsole("   -> LOADING FAILED! RETREATING... OR NOT."); console.warn("Fake loading bar failed!"); loadingBarProgress.style.backgroundColor = 'var(--dumb-red)'; setTimeout(() => { loadingBarContainer.classList.remove('visible'); setTimeout(() => { loadingBarProgress.style.width = '0%'; loadingBarProgress.style.backgroundColor = 'var(--slime-green)'; loadingBarProgress.style.transition = 'none'; }, 300); addScore(-Math.floor(Math.random()*16)-5); }, 700 + Math.random() * 500); } }, intervalTime); }
+function toggleButtonClickability() { let targetButton = doNotClick; let targetName = "DO NOT CLICK"; if (realOptions.style.display === 'block' && Math.random() < 0.25) { targetButton = Math.random() < 0.5 ? createSignBtn : galleryBtn; targetName = targetButton.id === 'createSignBtn' ? "Create Sign" : "Gallery"; } if (!targetButton || targetButton.classList.contains('button-unclickable')) return; updateConsole(`   -> Button jammed! (${targetName}) Dimensional interference?`); const originalText = targetButton.innerText; targetButton.classList.add('button-unclickable'); const jammedTexts = ["JAMMED", "NOPE", "DEFECT", "???", ":(", "ERROR", "NOT NOW", "BUSY", "LOCKED", "DENIED", "WAIT"]; targetButton.innerText = jammedTexts[Math.floor(Math.random() * jammedTexts.length)]; setTimeout(() => { if (!targetButton) return; targetButton.classList.remove('button-unclickable'); const currentTextUpper = targetButton.innerText.toUpperCase(); let wasJammedText = false; for(const jammed of jammedTexts){ if(currentTextUpper === jammed) { wasJammedText = true; break;}} if (wasJammedText) { targetButton.innerText = originalText; } updateConsole(`   -> Button unjammed! (${targetName}) For now?`); playSimpleSound(600, 0.15, 'sine', 0.3); }, 1100 + Math.random() * 1600); }
+function displayExplosionWarning() { updateConsole("!!! CRITICAL WARNING ISSUED !!!"); console.warn("!!! DEVICE EXPLOSION IMMINENT WARNING DISPLAYED !!!"); msgBox.innerText = "WARNING! CONTINUED INTERACTION DETECTED! UNSTABLE ENERGY SPIKE! DEVICE MAY EXPLODE IN T-MINUS... CLICKING AGAIN IS ILL-ADVISED!"; msgBox.style.fontFamily = "'Luckiest Guy', cursive"; msgBox.style.color = 'var(--dumb-red)'; msgBox.style.fontWeight = 'bold'; msgBox.style.fontSize = '1.5rem'; msgBox.style.textAlign = 'center'; msgBox.style.fontStyle = 'normal'; msgBox.style.border = '4px solid var(--dumb-red)'; msgBox.style.textShadow = '1px 1px 2px black'; shakePage(15, 1500); playSimpleSound(50, 1.5, 'sawtooth', 0.8); setTimeout(showFakeExplosionPopup, 1800 + Math.random() * 1000); }
+function showFakeExplosionPopup() { if (document.querySelector('.fake-warning-popup')) return; updateConsole("   -> Displaying Fake 'Just Kidding' Popup"); const popupEl = document.createElement('div'); popupEl.className = 'fake-warning-popup'; popupEl.innerHTML = `<div class="fake-warning-title">Just Kidding!</div><div>Your device is perfectly fine! Probably. That was just a simulation to test your reaction. Or was it? Keep clicking to find out... or don't. It's your funeral... metaphorically speaking.</div><button id="fakeWarningOk">Okay...? 🤔</button>`; popupEl.querySelector('#fakeWarningOk').onclick = () => { updateConsole("   -> Fake warning 'Okay...?' clicked. Confusion++. "); playSimpleSound(Math.random() * 400 + 800, 0.08, 'triangle', 0.5); popupEl.style.opacity = '0'; popupEl.style.transform = 'translate(-50%, -50%) scale(0.5) rotate(-30deg)'; setTimeout(() => popupEl.remove(), 250); addScore(Math.random() > 0.2 ? Math.floor(Math.random()*21)+5 : -Math.floor(Math.random()*16)-5); }; document.body.appendChild(popupEl); void popupEl.offsetWidth; popupEl.classList.add('visible'); playSimpleSound(1200, 0.3, 'sine', 0.4); setTimeout(() => { if (document.body.contains(popupEl)) { popupEl.style.opacity = '0'; popupEl.style.transform = 'translate(-50%, -50%) scale(0.5) rotate(30deg)'; setTimeout(() => popupEl.remove(), 250); updateConsole("   -> Fake warning auto-closed. The mystery remains."); } }, 4500 + Math.random() * 2500); }
+function changePageTitle() { const titles = ["BRAIN ROT SIMULATOR", "CLICK FASTER!", "ERROR 404: SANITY NOT FOUND", "Skibidi Sign Creator?", "Are you Sigma?", "Ohio Official Website", "ticuv was here", "My CPU is Melting", "WHY?", "Just One More Click...", "Score: ???", "Dimension C-137", "Loading Memes...", "Do Not Click This Tab", originalTitle ]; const newTitle = titles[Math.floor(Math.random() * titles.length)]; updateConsole(`   -> Changing page title to: ${newTitle}`); document.title = newTitle; }
+function changeAlienImageTemporarily() { const alienImages = [ GITHUB_PAGES_ASSET_BASE_URL + 'images/glitch.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/eye.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/circle.png', originalAlienSrc ]; const newSrc = alienImages[Math.floor(Math.random() * alienImages.length)]; if (alienEl && alienEl.src !== newSrc) { updateConsole(`   -> Changing alien image temporarily.`); alienEl.src = newSrc; setTimeout(() => { if (alienEl && alienEl.src === newSrc && newSrc !== originalAlienSrc) { alienEl.src = originalAlienSrc; updateConsole(`   -> Restored original alien image.`); } }, 1500 + Math.random() * 2000); } }
+function fillConsoleWithGibberish() { updateConsole("   -> Injecting console gibberish..."); const gibberishChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?@#$%^&*()[]{}/\\|;:<>.,`~ "; let gibberish = ">> SYSTEM OVERLOAD: KERNEL PANIC IMMINENT! <<\n"; const lines = Math.floor(Math.random() * 8) + 4; for (let i=0; i<lines; i++) { const lineLen = Math.floor(Math.random() * 60) + 10; for (let j=0; j<lineLen; j++) { gibberish += gibberishChars.charAt(Math.floor(Math.random() * gibberishChars.length)); } gibberish += "\n"; } consoleOut.innerText += gibberish; consoleOut.scrollTop = consoleOut.scrollHeight; playSimpleSound(Math.random() * 100 + 20, 0.8, 'square', 0.2); }
+function changeRootColorVar() { const colorVars = ['--rick-green', '--morty-yellow', '--portal-blue', '--interdimensional-purple', '--slime-green', '--dark-matter', '--outline-black', '--dumb-red', '--dumb-pink', '--score-color']; const varToChange = colorVars[Math.floor(Math.random() * colorVars.length)]; const newValue = getRandomColor(); updateConsole(`   -> Changing CSS variable ${varToChange} to ${newValue}`); rootEl.style.setProperty(varToChange, newValue); setTimeout(() => { if (Math.random() < 0.3) { const varToReset = colorVars[Math.floor(Math.random() * colorVars.length)]; let resetVal = '#ffffff'; if (varToReset === '--dark-matter') resetVal = '#1e1e2f'; else if (varToReset === '--rick-green') resetVal = '#97ce4c'; else if (varToReset === '--morty-yellow' || varToReset === '--score-color') resetVal = '#f0e14a'; if(resetVal) { updateConsole(`   -> Resetting CSS variable ${varToReset} to default (${resetVal})`); rootEl.style.setProperty(varToReset, resetVal); } } }, 1500 + Math.random() * 2000); }
+function randomizeElementFont(element) { if (!element) return; const randomFont = AVAILABLE_FONTS[Math.floor(Math.random() * AVAILABLE_FONTS.length)]; updateConsole(`   -> Changing font for ${element.id || element.tagName} to ${randomFont}`); element.style.fontFamily = randomFont; }
+function toggleElementVisibility(element) { if (!element) return; const isHidden = element.classList.contains('hidden-by-chaos'); if (isHidden) { element.classList.remove('hidden-by-chaos'); updateConsole(`   -> Making ${element.id || element.tagName} visible again.`); playSimpleSound(700, 0.05, 'sine', 0.2); } else { element.classList.add('hidden-by-chaos'); updateConsole(`   -> Hiding ${element.id || element.tagName}... poof!`); playSimpleSound(300, 0.1, 'square', 0.2); setTimeout(() => { if (element && element.classList.contains('hidden-by-chaos') && Math.random() < 0.6) { element.classList.remove('hidden-by-chaos'); updateConsole(`   -> ${element.id || element.tagName} auto-reappeared.`); playSimpleSound(750, 0.05, 'sine', 0.2); } }, 1800 + Math.random() * 2500); } }
+function logBrowserGibberish() { updateConsole(`   -> Logging nonsense to browser dev console (F12)...`); const type = Math.random(); const messages = ["Ignoring user input.", "Calculating skibidi factor...", "Reality matrix unstable.", "Memory leak detected... or is it?", "Segmentation fault (core dumped)... just kidding.", "TODO: Fix everything.", { data: getRandomWord(), value: Math.random() * 1000 }, ["Array", "of", "random", getRandomWord(), 42] ]; const msg = messages[Math.floor(Math.random() * messages.length)]; if (type < 0.4) { console.log("CHAOS LOG:", msg); } else if (type < 0.7) { console.warn("POTENTIAL ISSUE:", msg); } else { console.error("DEFINITELY AN ERROR:", msg); } if (Math.random() < 0.2) { console.table([{ word1: getRandomWord(), word2: getRandomWord(), value: Math.random() }, { word1: getRandomWord(), word2: getRandomWord(), value: Math.random() }]); } }
+function multiSoundChaos() { updateConsole("   -> Multi-sound chaos!"); const numSounds = Math.floor(Math.random() * 4) + 2; for (let i = 0; i < numSounds; i++) { setTimeout(() => { playSimpleSound( Math.random() * 1500 + 50, Math.random() * 0.4 + 0.1, ['sine', 'square', 'sawtooth', 'triangle'][Math.floor(Math.random() * 4)], Math.random() * 0.25 + 0.05 ); }, Math.random() * 150); } }
+function addFakeStatusText() { document.querySelectorAll('.fake-status-text').forEach(el => el.remove()); updateConsole("   -> Adding fake status text..."); const statusEl = document.createElement('div'); statusEl.className = 'fake-status-text'; const statuses = [ `System Status: ${getRandomWord().toUpperCase()}`, `Brain Rot Level: ${Math.floor(Math.random()*100)}%`, `Chaos Sync: ${Math.random().toFixed(4)}`, `Rizz Calibration: PENDING`, `Dimension: ${getRandomWord()}-${Math.floor(Math.random()*900+100)}`, `WARNING: ${getRandomWord()} detected`, `ticuv_connection: ${Math.random() < 0.5 ? 'STABLE' : 'DROPPED'}` ]; statusEl.innerText = statuses[Math.floor(Math.random() * statuses.length)]; document.body.appendChild(statusEl); void statusEl.offsetWidth; statusEl.classList.add('visible'); setTimeout(() => { statusEl.style.opacity = '0'; setTimeout(() => statusEl.remove(), 400); }, 2000 + Math.random() * 3000); }
+function changeCrazyText() { if (!crazyTextEl) return; updateConsole("   -> Changing 'crazy text' content..."); const texts = [ "Brain waves nominal... wait, no.", "Engage MAXIMUM RIZZ!", "Skibidi levels approaching critical!", "Is this real life?", "More clicks required for... something.", "Sanity optional.", "Do you feel it yet?", "The button compels you.", "Ohio network online.", `Current objective: ${getRandomWord()}` ]; crazyTextEl.innerText = texts[Math.floor(Math.random() * texts.length)]; }
 
-function addScore(change) {
-    score = Math.max(0, score + change); // Prevent negative score
-    updateScoreDisplay();
-    if (!domElements.scoreDisplay) return;
-    domElements.scoreDisplay.classList.remove('score-pulse', 'score-penalty');
-    void domElements.scoreDisplay.offsetWidth;
-    if (change > 0) domElements.scoreDisplay.classList.add('score-pulse');
-    else if (change < 0) domElements.scoreDisplay.classList.add('score-penalty');
-    // Folosim un timeout gestionat
-    registerTimeout(() => {
-        if (domElements.scoreDisplay) {
-           domElements.scoreDisplay.classList.remove('score-pulse', 'score-penalty');
-        }
-    }, 350);
-}
+// --- Funcție Curățare (Îmbunătățită) ---
+function cleanupPersistentEffects() { updateConsole(">> Cleaning up previous persistent effects..."); const filterClasses = ['filter-invert', 'filter-blur', 'filter-sepia', 'filter-contrast', 'filter-hue', 'filter-pixelate']; filterClasses.forEach(cls => bodyEl.classList.remove(cls)); const glitchTargets = [titleEl, doNotClick, alienEl, msgBox, scoreDisplay, createSignBtn, galleryBtn, consoleOut, crazyTextEl]; glitchTargets.forEach(el => { if (el) el.classList.remove('glitch-effect'); }); const distortedTargets = [titleEl, msgBox, doNotClick, alienEl, scoreDisplay, createSignBtn, galleryBtn, consoleOut, crazyTextEl]; distortedTargets.forEach(el => { if (el) el.classList.remove('element-distorted'); }); const shiftedTargets = [titleEl, centerStage, consoleOut, msgBox, alienEl, scoreDisplay, realOptions]; shiftedTargets.forEach(el => { if (el) { el.classList.remove('layout-shifted'); el.style.transform = ''; } }); document.querySelectorAll('.hidden-by-chaos').forEach(el => { el.classList.remove('hidden-by-chaos'); }); const fontTargets = [bodyEl, titleEl, doNotClick, createSignBtn, galleryBtn, msgBox, consoleOut, scoreDisplay, crazyTextEl]; fontTargets.forEach(el => { if (el) { const defaultFont = el.id === 'consoleOutput' ? 'monospace' : (el.tagName === 'H1' || el.id === 'scoreDisplay' || el.classList.contains('btn')) ? "'Luckiest Guy', cursive" : "'Roboto', sans-serif"; if (el.style.fontFamily && el.style.fontFamily !== defaultFont) { el.style.fontFamily = ''; } } }); if (msgBox && (msgBox.style.fontFamily.includes('monospace') || msgBox.style.fontFamily.includes('Comic Sans MS') || msgBox.style.fontFamily.includes('Luckiest Guy'))) { msgBox.style.fontFamily = "'Roboto', sans-serif"; msgBox.style.whiteSpace = 'normal'; msgBox.style.fontSize = '1rem'; msgBox.style.textAlign = ''; msgBox.style.fontWeight = 'normal'; msgBox.style.fontStyle = 'italic'; msgBox.style.color = 'var(--dumb-pink)'; msgBox.style.border = '2px dashed var(--slime-green)'; msgBox.style.textShadow = 'none'; } if (bodyEl.style.cursor !== 'auto' && bodyEl.style.cursor !== '') { bodyEl.style.cursor = 'auto'; } if (alienEl && alienEl.src !== originalAlienSrc) { alienEl.src = originalAlienSrc; } document.querySelectorAll('.fake-error, .fake-warning-popup, .crazy-spawned-button, .fake-status-text').forEach(el => el.remove()); if (Math.random() < 0.05) { rootEl.style.cssText = ''; } }
 
-function getRandomInRange(min, max) { return Math.random() * (max - min) + min; }
-function getRandomIntInRange(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-function getRandomElement(arr) { if (!arr || arr.length === 0) return null; return arr[Math.floor(Math.random() * arr.length)]; }
-function getRandomWord() { return getRandomElement(gameData.words || ['random']); }
-function getRandomColor() { return `hsl(${getRandomInRange(0, 360)}, ${getRandomInRange(30, 100)}%, ${getRandomInRange(25, 75)}%)`; }
-function getElement(targetId) { return domElements[targetId] || document.getElementById(targetId); } // Foloseste cache daca e disponibil
-
-// Helper pentru gestionarea timeout-urilor (util pentru cleanup)
-function registerTimeout(callback, delay) {
-    const timeoutId = setTimeout(() => {
-        callback();
-        // Elimina timeout-ul din lista dupa executie
-        activeTimeouts = activeTimeouts.filter(id => id !== timeoutId);
-    }, delay);
-    activeTimeouts.push(timeoutId);
-    return timeoutId; // Returneaza ID-ul in caz ca e nevoie sa fie anulat manual
-}
-
-function clearAllActiveTimeouts() {
-    activeTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
-    activeTimeouts = [];
-    // console.log("Cleared active timeouts."); // Optional debug log
-}
-
-// --- Audio ---
-function initAudioContext() {
-    if (!audioContext && (window.AudioContext || window.webkitAudioContext)) {
-        try {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioContext.state === 'suspended') {
-                audioContext.resume().then(() => { updateConsole(">> AudioContext Resumed."); })
-                 .catch(e => updateConsole(`>> AudioContext Resume failed: ${e.message}`));
-            }
-            updateConsole(">> AudioContext Initialized.");
-        } catch (e) {
-            updateConsole(">> Warning: Could not create AudioContext: " + e.message);
-            audioContext = null;
-        }
-    }
-}
-
-function playSimpleSound({ frequency = 440, duration = 0.1, type = 'sine', volume = 0.3 }) {
-    if (!audioContext || audioContext.state === 'suspended') return; // Nu reda daca contextul nu e gata/activ
-    try {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        oscillator.type = type;
-        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-        gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration); // Ramp to very small value
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + duration + 0.05); // Stop slightly after ramp
-    } catch (e) { updateConsole(">> Audio Error: " + e.message); }
-}
-
-// --- Funcții Modal (Adaptate pentru Pagina Principală) ---
-function openSupportModal() {
-    const modalOverlay = getElement('supportModalOverlay');
-    const modal = getElement('supportModal');
-    const cryptoOpts = getElement('cryptoOptions');
-    const addressDisp = getElement('addressDisplay');
-    const addressInput = getElement('cryptoAddressInput');
-    const feedbackEl = getElement('copyFeedback');
-    const modalTitleEl = getElement('shareModalTitle');
-    const shareMessageEl = getElement('shareMessage');
-    const twitterButton = getElement('twitterShareButton');
-
-    if (!modal || !modalOverlay) { console.error("Support Modal elements missing!"); return; }
-
-    // Reset
-    if (cryptoOpts) cryptoOpts.style.display = 'none';
-    if (addressDisp) addressDisp.style.display = 'none';
-    if (addressInput) addressInput.value = '';
-    if (feedbackEl) feedbackEl.textContent = '';
-    clearTimeout(copyFeedbackTimeout);
-
-    // Setează Texte (Engleză)
-    if(modalTitleEl) modalTitleEl.textContent = "Enjoying the Chaos?";
-    if(shareMessageEl) shareMessageEl.textContent = "If you like this weird experiment, consider sharing it or supporting its creator!";
-
-    const currentPageUrl = window.location.href;
-    const tweetText = `Check out this chaotic sign creator by @ticu_v ! `;
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(currentPageUrl)}`;
-    if(twitterButton) twitterButton.href = twitterUrl;
-
-    modalOverlay.style.display = 'flex';
-    modal.style.display = 'block'; // Sau 'flex' daca CSS-ul foloseste asta
-    requestAnimationFrame(() => { // For transition
-        modalOverlay.classList.add('visible');
-        modal.classList.add('visible');
-    });
-    updateConsole(">> Support modal opened.");
-    playSimpleSound({ frequency: 500, duration: 0.05, type: 'sine', volume: 0.3 });
-}
-
-function closeSupportModal() {
-    const modalOverlay = getElement('supportModalOverlay');
-    const modal = getElement('supportModal');
-    if (!modal || !modalOverlay) return;
-    modalOverlay.classList.remove('visible');
-    modal.classList.remove('visible');
-    registerTimeout(() => { // Use managed timeout
-        modalOverlay.style.display = 'none';
-        modal.style.display = 'none';
-        updateConsole(">> Support modal closed.");
-    }, 300);
-    playSimpleSound({ frequency: 400, duration: 0.05, type: 'sine', volume: 0.2 });
-}
-
-function displayCryptoAddress(type) {
-    const addressInput = getElement('cryptoAddressInput');
-    const addressDisp = getElement('addressDisplay');
-    const feedbackEl = getElement('copyFeedback');
-    if (!addressInput || !addressDisp || !feedbackEl) return;
-    const address = (type === 'SOL') ? SOLANA_ADDRESS : ETHEREUM_ADDRESS;
-    addressInput.value = address;
-    addressDisp.style.display = 'block';
-    feedbackEl.textContent = '';
-    clearTimeout(copyFeedbackTimeout);
-    updateConsole(`>> Displaying ${type} address.`);
-    playSimpleSound({ frequency: 600, duration: 0.04, type: 'triangle', volume: 0.25 });
-}
-
-function copyAddressToClipboard() {
-    const addressInput = getElement('cryptoAddressInput');
-    const feedbackEl = getElement('copyFeedback');
-    const copyBtn = getElement('copyAddressBtn'); // Get button for feedback styling
-    if (!addressInput || !feedbackEl) return;
-    const address = addressInput.value;
-
-    if (!navigator.clipboard) { // Fallback
-        try {
-            addressInput.select();
-            document.execCommand('copy');
-            feedbackEl.textContent = 'Address copied (fallback)!';
-            if(copyBtn) copyBtn.textContent = 'Copied!';
-            updateConsole(">> Address copied (fallback).");
-        } catch (err) {
-            feedbackEl.textContent = 'Copy failed!';
-             if(copyBtn) copyBtn.textContent = 'Error!';
-            updateConsole(">> ERROR: Fallback copy failed."); console.error(err);
-        }
-    } else { // Modern API
-        navigator.clipboard.writeText(address).then(() => {
-            feedbackEl.textContent = 'Address copied!';
-             if(copyBtn) copyBtn.textContent = 'Copied!';
-            updateConsole(">> Address copied.");
-            playSimpleSound({ frequency: 1200, duration: 0.1, type: 'triangle', volume: 0.3 });
-        }).catch(err => {
-            feedbackEl.textContent = 'Copy failed!';
-             if(copyBtn) copyBtn.textContent = 'Error!';
-            updateConsole(">> ERROR: Could not copy address."); console.error(err);
-            playSimpleSound({ frequency: 200, duration: 0.2, type: 'square', volume: 0.3 });
-        });
-    }
-    clearTimeout(copyFeedbackTimeout);
-    copyFeedbackTimeout = registerTimeout(() => { // Use managed timeout
-        if (feedbackEl) feedbackEl.textContent = '';
-        if(copyBtn) copyBtn.textContent = 'Copy Address'; // Reset button text
-    }, 3000);
-}
-
-// --- Efectele Haotice (Definiții Funcții - Prescurtat, trebuie extinse) ---
-// Adauga TOATE functiile effect_... definite anterior aici
-// Exemplu:
-function effect_SmallShake({ intensity = 5, duration = 100 }) {
-    if (!domElements.bodyEl) return;
-    domElements.bodyEl.style.setProperty('--shake-intensity', `${intensity}px`);
-    const animationName = `screenShake-${Date.now()}`;
-    domElements.bodyEl.style.animation = `${animationName} ${duration}ms ease-in-out`;
-    registerTimeout(() => { // Folosim timeout gestionat
-        if (domElements.bodyEl && domElements.bodyEl.style.animation.includes(animationName)) {
-            domElements.bodyEl.style.animation = '';
-        }
-    }, duration);
-}
-
-function effect_FlashMsgBox() {
-     const msgBox = domElements.messageBox;
-     if (!msgBox) return;
-     const originalBorderStyle = msgBox.style.border; // Salveaza stilul complet
-     msgBox.style.transition = 'all 0.04s ease-in-out';
-     const flashColor = `hsl(${getRandomInRange(0, 360)}, 100%, 75%)`;
-     msgBox.style.border = `3px dashed ${flashColor}`; // Ajusteaza grosimea/stilul daca vrei
-     msgBox.style.transform = 'scale(1.12) rotate(2.5deg)';
-     registerTimeout(() => {
-         msgBox.style.border = originalBorderStyle || '2px dashed var(--slime-green)'; // Revine la original sau default
-         msgBox.style.transform = 'scale(1) rotate(0deg)';
-         registerTimeout(() => {
-            msgBox.style.border = `3px dashed ${flashColor}`;
-            msgBox.style.transform = 'scale(1.12) rotate(-2.5deg)';
-            registerTimeout(() => {
-                 msgBox.style.border = originalBorderStyle || '2px dashed var(--slime-green)';
-                 msgBox.style.transform = 'scale(1) rotate(0deg)';
-            }, 40);
-         }, 60);
-     }, 40);
-}
-
-function effect_ChangeElementStyle({ targetId, property, values, valuesKey }) {
-    const element = getElement(targetId);
-    if (!element) return;
-    let valuePool = values || gameData[valuesKey] || [];
-     if (valuesKey === 'randomHexColors') {
-        valuePool = [getRandomColor(), '#FF1111', '#11FF11', '#1111FF', '#FFFF11', '#FF11FF', '#11FFFF', '#FFFFFF', '#222222', '#FF8800', '#8800FF'];
-    } else if (valuesKey === 'buttonTexts') {
-         valuePool = ["CLICK", "WHY?", "ROT", "BRAIN", "???", "YES", "NO", "GO", "STOP", "HELP", "MORE", "LESS", "404", "SKIBIDI", "SIGMA", "SIGN?", "OHIO", "EXPLODE?", "FAKE?", "FONT?", "COLOR?", "{word}"];
-     } else if (valuesKey === 'fonts') {
-         valuePool = gameData.fonts || [];
-     }
-
-    let randomValue = getRandomElement(valuePool);
-    if (typeof randomValue === 'string' && randomValue.includes('{word}')) {
-        randomValue = randomValue.replace('{word}', getRandomWord().toUpperCase());
-    }
-
-    if (randomValue !== null) {
-        updateConsole(`   -> Setting ${element.id || element.tagName} ${property} to ${randomValue}`);
-        element.style[property] = randomValue;
-    }
-}
-// ... !!! Adaugă definițiile COMPLETE pentru TOATE celelalte funcții effect_... AICI !!! ...
-// (effect_RandomSound, effect_ChangeCursor, effect_SingleEmoji, effect_EmojiRain,
-//  effect_CrazyButton, effect_ChangeBgColor, effect_ScrambleText, effect_DistortElement,
-//  effect_ShiftElementLayout, effect_WordSalad, effect_PlayMemeSound, etc...)
-// Asigură-te că folosești `registerTimeout` în loc de `setTimeout` unde e cazul.
+// --- Catalog Efecte (Extins Masiv & Categorizat pentru Cooldown) ---
+const effectsCatalog = [
+    { name: "SmallShake", func: shakePage, params: () => [Math.random() * 8 + 3, Math.random() * 120 + 40] }, { name: "RandomSound", func: playSimpleSound, params: () => [Math.random() * 1800 + 40, Math.random() * 0.12 + 0.02, ['sine', 'triangle', 'square'][Math.floor(Math.random()*3)]] }, { name: "FlashMsgBox", func: flashMessageBox, params: () => [] }, { name: "ChangeButtonColor", func: changeElementStyle, params: () => [doNotClick, 'backgroundColor', ['#FF1111', '#11FF11', '#1111FF', '#FFFF11', '#FF11FF', '#11FFFF', '#FFFFFF', '#222222', '#FF8800', '#8800FF']] }, { name: "RandomizeButtonText", func: changeElementStyle, params: () => [doNotClick, 'innerText', ["CLICK", "WHY?", "ROT", "BRAIN", "???", "YES", "NO", "GO", "STOP", "HELP", "MORE", "LESS", "404", "SKIBIDI", "SIGMA", "SIGN?", "OHIO", "EXPLODE?", "FAKE?", "FONT?", "COLOR?"]]}, { name: "ChangeCursor", func: changeCursor, params: () => [] }, { name: "TinyGlitchButton", func: toggleGlitchEffect, params: () => [doNotClick, Math.random() * 4 + 2] }, { name: "SingleEmoji", func: createFallingEmoji, params: () => [], count: () => 1 }, { name: "RandomizeScoreColor", func: changeElementStyle, params: () => [scoreDisplay, 'color', ['#FF1111', '#11FF11', '#1111FF', '#FFFF11', '#FF11FF', '#11FFFF', '#FFFFFF', '#FF8800', '#8800FF', '#000000', 'var(--score-color)']]}, { name: "RandomizeTitleColor", func: changeElementStyle, params: () => [titleEl, 'color', ['#FF1111', '#11FF11', '#1111FF', '#FFFF11', '#FF11FF', '#11FFFF', '#FFFFFF', '#FF8800', '#8800FF', 'var(--rick-green)']]}, { name: "MultiSound", func: multiSoundChaos, params: () => [] }, { name: "ChangeCrazyText", func: changeCrazyText, params: () => [] }, { name: "EmojiRain", func: createFallingEmoji, params: () => [], count: () => Math.floor(Math.random() * 25 + 10) }, { name: "CrazyButton", func: spawnCrazyButton, params: () => [] }, { name: "ChangeBgColor", func: changeBackgroundColor, params: () => [] }, { name: "ScrambleTitle", func: scrambleText, params: () => [titleEl]}, { name: "DistortTitle", func: distortElementText, params: () => [titleEl] }, { name: "ShiftLayoutCenter", func: shiftElementLayout, params: () => [centerStage] }, { name: "WordSalad", func: generateWordSalad, params: () => [] }, { name: "PlayMemeSound", func: playMemeSound, params: () => [] }, { name: "LoudSquareSound", func: playSimpleSound, params: () => [Math.random() * 350 + 30, Math.random() * 0.6 + 0.3, 'square', 0.7] }, { name: "GlitchTitle", func: toggleGlitchEffect, params: () => [titleEl, Math.random() * 7 + 5] }, { name: "DistortMessageBox", func: distortElementText, params: () => [msgBox] }, { name: "ShiftLayoutConsole", func: shiftElementLayout, params: () => [consoleOut] }, { name: "GlitchScore", func: toggleGlitchEffect, params: () => [scoreDisplay, Math.random() * 6 + 3] }, { name: "ChangePageTitle", func: changePageTitle, params: () => [] }, { name: "ChangeAlienImage", func: changeAlienImageTemporarily, params: () => [] }, { name: "ConsoleGibberish", func: fillConsoleWithGibberish, params: () => [] }, { name: "RandomizeScoreSize", func: changeElementStyle, params: () => [scoreDisplay, 'fontSize', ['1rem', '1.5rem', '2.5rem', '3rem', '0.5rem', '4rem']]}, { name: "ChangeCSSVar", func: changeRootColorVar, params: () => [] }, { name: "RandomFontConsole", func: randomizeElementFont, params: () => [consoleOut] }, { name: "RandomFontMsgBox", func: randomizeElementFont, params: () => [msgBox] }, { name: "HideAlien", func: toggleElementVisibility, params: () => [alienEl] }, { name: "HideConsole", func: toggleElementVisibility, params: () => [consoleOut] }, { name: "LogBrowserGibberish", func: logBrowserGibberish, params: () => [] }, { name: "AddFakeStatus", func: addFakeStatusText, params: () => [] }, { name: "MultiCrazyButtons", func: spawnCrazyButton, params: () => [], count: () => Math.floor(Math.random() * 5 + 3) }, { name: "FlyAlien", func: makeElementFly, params: () => [alienEl] }, { name: "DisplayAscii", func: displayAsciiArt, params: () => [] }, { name: "BigScoreBonus", func: () => { const bonus = Math.floor(Math.random() * 71) + 30; updateConsole(`   -> !!! BRAIN BONUS: +${bonus} !!!`); addScore(bonus); playSimpleSound(1800, 0.4, 'triangle', 0.5); }, params: () => [] }, { name: "ToggleButtonClick", func: toggleButtonClickability, params: () => [] }, { name: "FlashRandomImage", func: flashRandomImage, params: () => [] }, { name: "IntenseGlitchAlien", func: toggleGlitchEffect, params: () => [alienEl, Math.random() * 10 + 8] }, { name: "ScrambleMessageBox", func: scrambleText, params: () => [msgBox] }, { name: "ShiftLayoutAlien", func: shiftElementLayout, params: () => [alienEl] }, { name: "FlyScore", func: makeElementFly, params: () => [scoreDisplay] }, { name: "RandomFontTitle", func: randomizeElementFont, params: () => [titleEl] }, { name: "RandomFontButton", func: randomizeElementFont, params: () => [doNotClick] }, { name: "HideScore", func: toggleElementVisibility, params: () => [scoreDisplay] }, { name: "Pixelate", func: toggleBodyFilter, params: () => ['filter-pixelate'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "BlurPage", func: toggleBodyFilter, params: () => ['filter-blur'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "HueRotate", func: toggleBodyFilter, params: () => ['filter-hue'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "ContrastBoost", func: toggleBodyFilter, params: () => ['filter-contrast'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "InvertColors", func: toggleBodyFilter, params: () => ['filter-invert'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "SepiaTone", func: toggleBodyFilter, params: () => ['filter-sepia'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "AuditoryJumpscare", func: triggerAuditoryJumpscare, params: () => [0.85 + Math.random() * 0.4], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "VisualJumpscare", func: triggerVisualJumpscare, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "FakeError", func: showFakeError, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "ExplosionWarning", func: displayExplosionWarning, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "FakeLoadingBar", func: showFakeLoadingBar, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "SimulateMouseInvert", func: simulateMouseInvert, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "MASSIVEScoreBonus", func: () => { const bonus = Math.floor(Math.random() * 251) + 100; updateConsole(`   -> !!! PEAK ROT BONUS: +${bonus} !!!`); addScore(bonus); playSimpleSound(2500, 0.8, 'triangle', 0.7); shakePage(18,500);}, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "MASSIVEScorePenalty", func: () => { const penalty = Math.floor(Math.random() * 151) + 50; updateConsole(`   -> !!! CRINGE OVERLOAD PENALTY: -${penalty} !!!`); addScore(-penalty); playSimpleSound(60, 1.0, 'sawtooth', 0.8); shakePage(20, 600);}, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "ULTIMATE_GLITCH", func: () => { updateConsole("!!! ULTIMATE GLITCH PROTOCOL !!!"); console.error("!!! ULTIMATE GLITCH TRIGGERED !!!"); toggleGlitchEffect(titleEl, 15); toggleGlitchEffect(doNotClick, 12); toggleGlitchEffect(msgBox, 14); toggleGlitchEffect(alienEl, 16); toggleGlitchEffect(scoreDisplay, 13); toggleGlitchEffect(createSignBtn, 10); toggleGlitchEffect(galleryBtn, 11); toggleGlitchEffect(consoleOut, 13); }, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "FLY_EVERYTHING", func: () => { updateConsole("!!! EVACUATE! EVERYTHING IS FLYING !!!"); console.warn("!!! FLY EVERYTHING TRIGGERED !!!"); makeElementFly(titleEl); makeElementFly(alienEl); makeElementFly(msgBox); makeElementFly(doNotClick); makeElementFly(scoreDisplay); makeElementFly(createSignBtn); makeElementFly(galleryBtn); makeElementFly(consoleOut); }, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }
+];
 
 
-// --- Funcția Principală de Declanșare Efecte ---
-function triggerRandomEffects() {
-    cleanupPersistentEffects(); // Curăță întâi
+// --- Funcție Declanșare (Include Cooldowns) ---
+function triggerRandomEffectRevised() { cleanupPersistentEffects(); const numEffects = Math.floor(Math.random() * 7) + 3; updateConsole(`>> Triggering ${numEffects} BRAIN ROT effect(s)... (Click ${clickCount})`); const triggeredNames = new Set(); const commonEnd = 12; const mediumEnd = commonEnd + 24; const rareEnd = mediumEnd + 13; const filterEnd = rareEnd + 6; const maxRotEnd = filterEnd + 10; const disruptiveEffects = ['FakeError', 'ExplosionWarning', 'SimulateMouseInvert', 'FLY_EVERYTHING', 'ULTIMATE_GLITCH', 'VisualJumpscare', 'AuditoryJumpscare', 'FakeLoadingBar']; for (let i = 0; i < numEffects; i++) { let chosenEffect = null; let attempts = 0; const MAX_PICK_ATTEMPTS = 8; while (!chosenEffect && attempts < MAX_PICK_ATTEMPTS) { attempts++; let candidateEffect = null; const randChance = Math.random(); if (randChance < 0.35) { candidateEffect = effectsCatalog[Math.floor(Math.random() * commonEnd)]; } else if (randChance < 0.70) { candidateEffect = effectsCatalog[Math.floor(Math.random() * (mediumEnd - commonEnd)) + commonEnd]; } else if (randChance < 0.90) { candidateEffect = effectsCatalog[Math.floor(Math.random() * (rareEnd - mediumEnd)) + mediumEnd]; } else if (randChance < 0.95) { candidateEffect = effectsCatalog[Math.floor(Math.random() * (filterEnd - rareEnd)) + rareEnd]; } else { candidateEffect = effectsCatalog[Math.floor(Math.random() * (maxRotEnd - filterEnd)) + filterEnd]; } if (!candidateEffect) { candidateEffect = effectsCatalog[Math.floor(Math.random() * effectsCatalog.length)]; } const cooldownDuration = candidateEffect.cooldown; let isOnCooldown = false; if (cooldownDuration && effectCooldowns[candidateEffect.name]) { const clicksSinceLast = clickCount - effectCooldowns[candidateEffect.name]; if (clicksSinceLast < cooldownDuration) { isOnCooldown = true; } } if (isOnCooldown) { continue; } const isDisruptive = disruptiveEffects.includes(candidateEffect.name); const alreadyTriggeredThisBurst = triggeredNames.has(candidateEffect.name); const popupActive = (candidateEffect.name === 'FakeError' || candidateEffect.name === 'ExplosionWarning') && (document.querySelector('.fake-error') || document.querySelector('.fake-warning-popup')); if (isDisruptive && alreadyTriggeredThisBurst && Math.random() < 0.9) { continue; } if (popupActive) { continue; } const isFilter = candidateEffect.cooldown === FILTER_EFFECT_COOLDOWN_CLICKS; let filterAlreadyApplied = false; if(isFilter) { triggeredNames.forEach(name => { const existingEffect = effectsCatalog.find(e => e.name === name); if(existingEffect && existingEffect.cooldown === FILTER_EFFECT_COOLDOWN_CLICKS) { filterAlreadyApplied = true; } }); } if (filterAlreadyApplied && Math.random() < 0.7) { continue; } chosenEffect = candidateEffect; } if (!chosenEffect) { updateConsole(` -> Failed to pick valid effect ${i+1}/${numEffects} (cooldowns/duplicates?), skipping.`); continue; } triggeredNames.add(chosenEffect.name); const params = chosenEffect.params(); updateConsole(` -> Effect ${i+1}/${numEffects}: ${chosenEffect.name}`); try { if (chosenEffect.count) { const count = chosenEffect.count(); for (let j = 0; j < count; j++) { setTimeout(() => { if(typeof chosenEffect.func === 'function') { chosenEffect.func(...params); } else { updateConsole(`>> ERROR: effect.func is not a function for ${chosenEffect.name}`); } }, Math.random() * (30 + count * 2)); } } else { if(typeof chosenEffect.func === 'function') { chosenEffect.func(...params); } else { updateConsole(`>> ERROR: effect.func is not a function for ${chosenEffect.name}`); } } if (chosenEffect.cooldown) { effectCooldowns[chosenEffect.name] = clickCount; } } catch (e) { updateConsole(`>> ERROR executing effect ${chosenEffect.name}: ${e.message} `); console.error(`Effect Error (${chosenEffect.name}):`, e); } } addScore(1); }
 
-    const settings = effectConfig.effectSettings || {};
-    const minEffects = settings.minEffectsPerClick || 3;
-    const maxEffects = settings.maxEffectsPerClick || 9;
-    const numEffects = getRandomIntInRange(minEffects, maxEffects);
-
-    updateConsole(`>> Triggering ${numEffects} BRAIN ROT effect(s)... (Click ${clickCount})`);
-
-    const triggeredNames = new Set();
-    const allEffects = effectConfig.effects || {};
-    const effectNames = Object.keys(allEffects);
-    if (effectNames.length === 0) {
-        updateConsole(">> ERROR: No effects defined in config!");
-        return;
-    }
-    const totalWeight = effectNames.reduce((sum, name) => sum + (allEffects[name].weight || 0), 0);
-    if (totalWeight <= 0) {
-         updateConsole(">> ERROR: Total effect weight is zero!");
-         return; // Evita impartirea la zero sau bucla infinita
-    }
+// --- Inițializare Audio Context ---
+function initAudioContext() { if (!audioContext && (window.AudioContext || window.webkitAudioContext)) { try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); if (audioContext.state === 'suspended') { audioContext.resume().then(() => { updateConsole(">> AudioContext Resumed."); }).catch(e => updateConsole(`>> AudioContext Resume failed: ${e.message}`)); } updateConsole(">> AudioContext Initialized."); } catch (e) { updateConsole(">> Warning: Could not create AudioContext: " + e.message); audioContext = null; } } }
 
 
-    const disruptiveEffects = settings.disruptiveEffects || [];
-    const popupEffects = settings.popupEffects || [];
-
-    let effectsToTrigger = []; // Stochează efectele alese
-
-    for (let i = 0; i < numEffects; i++) {
-        let chosenEffectName = null;
-        let attempts = 0;
-        const MAX_PICK_ATTEMPTS = 20; // Mărit numărul de încercări
-
-        while (!chosenEffectName && attempts < MAX_PICK_ATTEMPTS) {
-            attempts++;
-            let rand = Math.random() * totalWeight;
-            let cumulativeWeight = 0;
-            let candidateName = null;
-
-            for (const name of effectNames) {
-                cumulativeWeight += (allEffects[name].weight || 0);
-                if (rand <= cumulativeWeight) { // Folosim <= pentru a include si ultima sansa
-                    candidateName = name;
-                    break;
-                }
-            }
-             if (!candidateName) candidateName = getRandomElement(effectNames); // Fallback mai robust
-
-            const candidateEffect = allEffects[candidateName];
-            if (!candidateEffect) continue;
-
-            // --- Verificare Cooldown ---
-            const cooldownKey = candidateEffect.cooldownKey;
-            const cooldownDuration = cooldownKey ? (settings[cooldownKey] || settings.defaultCooldown || 0) : (candidateEffect.cooldown || settings.defaultCooldown || 0);
-            let isOnCooldown = false;
-            if (cooldownDuration > 0 && effectCooldowns[candidateName]) {
-                const clicksSinceLast = clickCount - effectCooldowns[candidateName];
-                if (clicksSinceLast < cooldownDuration) isOnCooldown = true;
-            }
-            if (isOnCooldown) continue; // Sari la următoarea încercare
-
-            // --- Verificare Repetitie / Stacking ---
-            const isDisruptive = disruptiveEffects.includes(candidateName);
-            const isPopup = popupEffects.includes(candidateName);
-            const isFilter = !!candidateEffect.filterClass;
-
-            // Verifica daca efectul (sau unul similar disruptiv/popup) e deja in *lista curenta* de declansat
-            let alreadyTriggeredThisBurst = false;
-            effectsToTrigger.forEach(effName => {
-                 if (effName === candidateName) alreadyTriggeredThisBurst = true;
-                 if (isDisruptive && disruptiveEffects.includes(effName)) alreadyTriggeredThisBurst = true; // Evita 2 disruptive diferite
-                 if (isPopup && popupEffects.includes(effName)) alreadyTriggeredThisBurst = true; // Evita 2 popupuri diferite
-                 if (isFilter && allEffects[effName]?.filterClass) alreadyTriggeredThisBurst = true; // Evita 2 filtre diferite
-             });
-
-             // Verifica si elementele active din DOM (pentru popup-uri)
-             const popupActiveDOM = isPopup && (document.querySelector('.fake-error.visible') || document.querySelector('.fake-warning-popup.visible'));
-
-            // Sanse mari sa sarim peste duplicate disruptive/popup/filter in acelasi burst
-            if (alreadyTriggeredThisBurst && Math.random() < 0.85) continue;
-            if (popupActiveDOM) continue; // Nu adauga popup daca unul e deja vizibil
-
-            // Daca a trecut toate verificarile
-            chosenEffectName = candidateName;
-
-        } // End while
-
-        if (chosenEffectName) {
-            effectsToTrigger.push(chosenEffectName); // Adauga in lista de executat
-        } else {
-            // updateConsole(` -> Failed to pick valid effect ${i+1}/${numEffects}, skipping slot.`);
-        }
-
-    } // End for (selectare efecte)
-
-    // --- Executa Efectele Alese ---
-     updateConsole(` -> Executing: ${effectsToTrigger.join(', ') || 'None'}`);
-     effectsToTrigger.forEach((effectName, index) => {
-         const effectData = allEffects[effectName];
-         const functionName = `effect_${effectName}`; // Numele funcției JS corespunzătoare
-
-         // Verifică dacă funcția există
-         if (typeof window[functionName] === 'function') {
-            // Construieste parametrii din config JSON
-            let params = {};
-            if (effectData.params) {
-                 Object.keys(effectData.params).forEach(key => {
-                     const value = effectData.params[key];
-                     if (Array.isArray(value) && value.length === 2 && typeof value[0] === 'number') {
-                        params[key] = getRandomInRange(value[0], value[1]); // Range numeric
-                     } else if (Array.isArray(value)) {
-                        params[key] = getRandomElement(value); // Array de opțiuni
-                     } else {
-                        params[key] = value; // Valoare literală
-                     }
-                 });
-             }
-             // Adauga target/targets/filterClass/etc direct din obiectul effectData
-             ['target', 'targets', 'filterClass', 'count'].forEach(prop => {
-                 if(effectData[prop]) params[prop] = effectData[prop];
-             });
-             // Ajustează count dacă e range
-             if (params.count && Array.isArray(params.count)) {
-                 params.count = getRandomIntInRange(params.count[0], params.count[1]);
-             }
-
-             // Execută funcția
-             try {
-                 // Introdu o mică întârziere variabilă între efecte pentru a nu fi toate perfect sincrone
-                 registerTimeout(() => {
-                     window[functionName](params);
-                     // Setează cooldown DUPĂ execuție
-                     const cooldownKey = effectData.cooldownKey;
-                     const cooldownDuration = cooldownKey ? (settings[cooldownKey] || settings.defaultCooldown || 0) : (effectData.cooldown || settings.defaultCooldown || 0);
-                     if (cooldownDuration > 0) {
-                         effectCooldowns[effectName] = clickCount;
-                     }
-                 }, index * getRandomIntInRange(10, 50)); // Stagger
-
-             } catch (e) {
-                 updateConsole(`>> ERROR executing effect ${effectName}: ${e.message}`);
-                 console.error(`Effect Error (${effectName}):`, e);
-             }
-         } else {
-             updateConsole(`>> WARNING: Effect function ${functionName} not found!`);
-         }
-     });
-
-    addScore(1); // Adaugă scorul de bază
-}
-
-
-// --- Funcția de Curățare ---
-function cleanupPersistentEffects() {
-    updateConsole(">> Cleaning up previous persistent effects...");
-    clearAllActiveTimeouts(); // Anulează timeout-urile vechi neexecutate
-
-    // Filtre Body
-    const filterClasses = ['filter-invert', 'filter-blur', 'filter-sepia', 'filter-contrast', 'filter-hue', 'filter-pixelate', 'bg-flicker'];
-    filterClasses.forEach(cls => domElements.bodyEl?.classList.remove(cls));
-    if (domElements.bodyEl) domElements.bodyEl.style.backgroundImage = '';
-
-    // Transformări și Efecte Vizuale Elemente
-    const transformTargets = [domElements.titleEl, domElements.doNotClickBtn, domElements.alienImage, domElements.messageBox, domElements.scoreDisplay, domElements.createSignBtn, domElements.galleryBtn, domElements.consoleOutput, domElements.crazyTextEl, domElements.centerStage, domElements.realOptions];
-    transformTargets.forEach(el => {
-        if (el) {
-            el.classList.remove('glitch-effect', 'element-distorted', 'layout-shifted');
-            if(el.style.transform) el.style.transform = ''; // Reset doar daca a fost setat inline
-        }
-    });
-
-    // Elemente Ascunse
-    document.querySelectorAll('.hidden-by-chaos').forEach(el => {
-        el.classList.remove('hidden-by-chaos');
-    });
-
-    // Stiluri Specifice Text/Border (Resetare simplificată)
-    const styledElements = [domElements.messageBox, domElements.consoleOutput, domElements.titleEl];
-     styledElements.forEach(el => {
-        if(el) {
-            el.classList.remove('border-style-random', 'text-spacing-wide', 'text-spacing-narrow', 'text-reversed', 'text-weird-case');
-            // Reseteaza stilurile inline adaugate de aceste clase daca e necesar
-            el.style.removeProperty('--random-border-style');
-            el.style.removeProperty('--random-border-width');
-            el.style.removeProperty('--random-border-color');
-            if (el.style.letterSpacing) el.style.letterSpacing = '';
-            if (el.style.wordSpacing) el.style.wordSpacing = '';
-            if (el.style.direction) el.style.direction = '';
-            if (el.style.unicodeBidi) el.style.unicodeBidi = '';
-            // Resetare font/stil mesaj box daca a fost modificat specific
-            if (el === domElements.messageBox && el.style.fontFamily !== "'Roboto', sans-serif") {
-                el.style.fontFamily = "'Roboto', sans-serif";
-                el.style.fontStyle = 'italic';
-                el.style.fontWeight = 'normal';
-                el.style.color = 'var(--dumb-pink)';
-                el.style.border = '2px dashed var(--slime-green)';
-                 updateConsole("   - Resetting msgBox specific styles");
-            }
-        }
-     });
-
-    // Cursor
-    if (domElements.bodyEl && domElements.bodyEl.style.cursor !== 'auto' && domElements.bodyEl.style.cursor !== '') {
-        domElements.bodyEl.style.cursor = 'auto';
-    }
-    // Reset Title/Favicon/Alien (mai rar sau la nevoie)
-    if (document.title !== originalTitle && Math.random() < 0.1) document.title = originalTitle;
-    if (domElements.favicon && domElements.favicon.href !== originalFaviconHref && Math.random() < 0.15) domElements.favicon.href = originalFaviconHref;
-    if (domElements.alienImage && domElements.alienImage.src !== originalAlienSrc && Math.random() < 0.3) domElements.alienImage.src = originalAlienSrc;
-
-    // Elimină elementele dinamice create
-    document.querySelectorAll('.fake-error, .fake-warning-popup, .crazy-spawned-button, .fake-status-text, .fake-spinner, .dynamic-text-item').forEach(el => el.remove());
-    // Reset Variabile CSS (rar)
-     if (Math.random() < 0.03) {
-         updateConsole("   - Resetting all CSS color variables (rare chance)");
-         if(domElements.rootEl) domElements.rootEl.style.cssText = '';
-     }
-}
-
-
-// --- Setare Event Listeneri ---
-function setupEventListeners() {
-    // Butonul Principal
-    domElements.doNotClickBtn?.addEventListener("click", () => {
-        initAudioContext();
-        clickCount++;
-        if (clickCount < MAX_CLICKS_BEFORE_UNLOCK) {
-            updateConsole(`>> Button clicked ${clickCount} times (Initial Phase)`);
-            if(domElements.messageBox) domElements.messageBox.innerText = gameData.phrases?.[clickCount - 1] || "Keep Clicking...";
-            playSimpleSound({ frequency: 200 + clickCount * 60, duration: 0.06, type: 'triangle' });
-            if (clickCount > 1 && typeof effect_FlashMsgBox === 'function') effect_FlashMsgBox();
-            if (clickCount > 2 && typeof effect_SmallShake === 'function') effect_SmallShake({intensity: clickCount * 1.5, duration: clickCount * 30});
-        } else if (clickCount === MAX_CLICKS_BEFORE_UNLOCK) {
-            updateConsole(">> THRESHOLD REACHED! Unlocking options...");
-            if(domElements.messageBox) domElements.messageBox.innerText = gameData.phrases?.[MAX_CLICKS_BEFORE_UNLOCK - 1] || "IT HAPPENED!";
-            if(domElements.realOptions) domElements.realOptions.style.display = "block";
-            if(domElements.doNotClickBtn) {
-                 domElements.doNotClickBtn.innerText = "KEEP CLICKING?";
-                 domElements.doNotClickBtn.style.animation = 'none';
-                 void domElements.doNotClickBtn.offsetWidth;
-                 domElements.doNotClickBtn.style.animation = 'shake 0.04s infinite alternate';
-            }
-            if(domElements.scoreDisplay) domElements.scoreDisplay.classList.add('visible');
-            updateScoreDisplay();
-            updateConsole(">> MAXIMUM BRAIN ROT ENGAGED! SCORE ONLINE! OPTIONS AVAILABLE!");
-            console.warn("Chaos Mode Activated!");
-            playSimpleSound({ frequency: 1400, duration: 0.6, type: 'sawtooth', volume: 0.7 });
-            if (typeof effect_SmallShake === 'function') effect_SmallShake({intensity: 25, duration: 600});
-            if (typeof effect_FlashMsgBox === 'function') effect_FlashMsgBox();
-            if (typeof effect_ChangeBgColor === 'function') effect_ChangeBgColor();
-            if (typeof effect_SingleEmoji === 'function') effect_SingleEmoji({count: 2});
-        } else {
-            updateConsole(` `); // Linie goală
-            if (typeof triggerRandomEffects === 'function') triggerRandomEffects(); // Declanseaza haosul
-        }
-    });
-
-    // Butoane Navigare (din pagina haotică)
-    domElements.createSignBtn?.addEventListener("click", () => {
-        updateConsole(">> Navigating to Create Sign section...");
-        playSimpleSound({ frequency: 800, duration: 0.1, type: 'sine', volume: 0.4 });
-        window.location.href = 'create-sign/index.html'; // Navigare
-    });
-    domElements.galleryBtn?.addEventListener("click", () => { // Butonul "Choose Sign"
-        updateConsole(">> Navigating to Choose Sign section...");
-        playSimpleSound({ frequency: 700, duration: 0.1, type: 'square', volume: 0.3 });
-        window.location.href = 'choose-sign/index.html'; // Navigare
-    });
-
-    // Listeneri Modal Suport
-    domElements.attribution?.addEventListener('click', openSupportModal);
-    domElements.closeModalBtn?.addEventListener('click', closeSupportModal);
-    domElements.supportModalOverlay?.addEventListener('click', (event) => {
-        if (event.target === domElements.supportModalOverlay) closeSupportModal();
-    });
-    domElements.twitterShareButton?.addEventListener('click', (e) => { // Folosim click ca sa nu deschida link gol daca JS esueaza
-        e.preventDefault(); // Previne navigarea default
-        const targetUrl = domElements.twitterShareButton.href;
-        if(targetUrl && targetUrl !== '#') {
-            window.open(targetUrl, '_blank');
-            updateConsole(">> Opened X share link.");
-            playSimpleSound({ frequency: 900, duration: 0.05, type: 'sine', volume: 0.3 });
-            // closeSupportModal(); // Optional
-        } else {
-            console.error("Twitter share URL not set correctly.");
-        }
-    });
-    domElements.buyCoffeeBtn?.addEventListener('click', () => {
-        if(domElements.cryptoOptions) domElements.cryptoOptions.style.display = 'block';
-        updateConsole(">> Showing crypto donation options.");
-        playSimpleSound({ frequency: 750, duration: 0.08, type: 'triangle', volume: 0.3 });
-    });
-    domElements.solanaBtn?.addEventListener('click', () => displayCryptoAddress('SOL'));
-    domElements.ethereumBtn?.addEventListener('click', () => displayCryptoAddress('ETH'));
-    domElements.copyAddressBtn?.addEventListener('click', copyAddressToClipboard);
-}
-
-// --- Încărcare Asincronă Date ---
-async function loadData() {
-    try {
-        const [dataRes, configRes] = await Promise.all([
-            fetch('data.json'), // Cale relativă la rădăcină
-            fetch('effects_config.json') // Cale relativă la rădăcină
-        ]);
-        // Verificare răspunsuri
-        if (!dataRes.ok) throw new Error(`Failed to load data.json: ${dataRes.statusText}`);
-        if (!configRes.ok) throw new Error(`Failed to load effects_config.json: ${configRes.statusText}`);
-
-        gameData = await dataRes.json();
-        effectConfig = await configRes.json();
-        updateConsole(">> Game data and effect config loaded.");
-        console.log("Loaded Data:", gameData);
-        console.log("Loaded Config:", effectConfig);
-        return true; // Succes
-    } catch (error) {
-        updateConsole(`>> FATAL ERROR: Could not load config: ${error.message}`);
-        console.error("Load Error:", error);
-        // Setări de avarie minime
-        gameData = { phrases: ["Click?"], words: ["error"] };
-        effectConfig = {
-             effectSettings: { minEffectsPerClick: 1, maxEffectsPerClick: 1 },
-             effects: { SmallShake: { weight: 1, cooldown: 0, params: {intensity: 5, duration: 100} } }
-        };
-        return false; // Eșec
-    }
-}
-
-// --- Inițializare ---
-async function init() {
-    // Cache DOM elements first
-    cacheDOMElements();
-    updateConsole(">> System Initializing...");
-    updateConsole(">> Loading config and data...");
-    const loadedOk = await loadData(); // Incarca JSON
-    initAudioContext(); // Init audio dupa interactiune user, dar pregatim contextul
-    setupEventListeners(); // Setup listeners
-    if (loadedOk) {
-         updateConsole(">> System Online. WARNING: HIGH CHANCE OF INCURABLE BRAIN ROT.");
-         updateConsole(">> Dimensional Stability: ACTIVELY DETERIORATING.");
-         updateConsole(">> Cooldown System: Engaged.");
-         updateConsole(">> The Big Red Button whispers sweet nothings... or maybe threats?");
+// --- Listener Principal pentru Butonul "DO NOT CLICK" ---
+doNotClick.addEventListener("click", () => {
+    initAudioContext();
+    clickCount++;
+    if (clickCount < MAX_CLICKS_BEFORE_UNLOCK) {
+        updateConsole(`>> Button clicked ${clickCount} times (Initial Phase)`);
+        msgBox.innerText = phrases[clickCount - 1];
+        playSimpleSound(200 + clickCount * 60, 0.06, 'triangle');
+        if (clickCount > 1) flashMessageBox();
+        if (clickCount > 2) shakePage(clickCount * 1.5, clickCount * 30);
+    } else if (clickCount === MAX_CLICKS_BEFORE_UNLOCK) {
+        updateConsole(">> THRESHOLD REACHED! Unlocking options...");
+        msgBox.innerText = phrases[MAX_CLICKS_BEFORE_UNLOCK - 1];
+        realOptions.style.display = "block";
+        doNotClick.innerText = "KEEP CLICKING?";
+        doNotClick.style.animation = 'none';
+        void doNotClick.offsetWidth;
+        doNotClick.style.animation = 'shake 0.04s infinite alternate';
+        scoreDisplay.classList.add('visible');
+        updateScoreDisplay();
+        updateConsole(">> MAXIMUM BRAIN ROT ENGAGED! SCORE ONLINE! SIGN OPTIONS AVAILABLE!");
+        console.warn("Chaos Mode Activated!");
+        playSimpleSound(1400, 0.6, 'sawtooth', 0.7);
+        shakePage(25, 600);
+        flashMessageBox();
+        changeBackgroundColor();
+        createFallingEmoji(); createFallingEmoji();
     } else {
-         updateConsole(">> SYSTEM FAILED TO LOAD CONFIGURATION. Limited functionality.");
-         // Maybe disable the main button or show a permanent error
-         if(domElements.doNotClickBtn) domElements.doNotClickBtn.disabled = true;
-         if(domElements.messageBox) domElements.messageBox.innerText = "FATAL ERROR LOADING CONFIGURATION FILES!";
+        updateConsole(` `);
+        triggerRandomEffectRevised();
     }
-    console.log("Page loaded. Abandon hope, all ye who click here.");
+});
+
+// --- Listeneri de Bază pentru Butoanele Creatorului de Semne ---
+// Linkurile absolute sunt corecte pentru versiunea deployed pe GitHub Pages
+createSignBtn.addEventListener("click", () => { initAudioContext(); updateConsole(">> 'Create Sign' clicked. Redirecting to live creator page..."); msgBox.innerText = "Redirecting to Sign Creation page..."; playSimpleSound(800, 0.1, 'sine', 0.4); addScore(1); flashMessageBox(); shakePage(4,80); window.location.href = 'https://ticuv.github.io/SignOMatic/create-sign/'; });
+galleryBtn.addEventListener("click", () => { initAudioContext(); updateConsole(">> 'Gallery' clicked. Redirecting to live gallery page..."); msgBox.innerText = "Redirecting to Sign Gallery page..."; playSimpleSound(700, 0.1, 'square', 0.3); addScore(1); shakePage(5, 100); window.location.href = 'https://ticuv.github.io/SignOMatic/choose-sign/'; });
+
+// --- Listeneri Evenimente pentru Popup ---
+if (madeByBtn && madeByPopup) {
+    madeByBtn.addEventListener('click', () => {
+        initAudioContext();
+        updateConsole(">> Showing 'Made by ticuv' popup.");
+        madeByPopup.classList.add('visible');
+        playSimpleSound(600, 0.05, 'triangle', 0.3);
+        shakePage(3, 50);
+    });
+} else {
+    if (!madeByBtn) console.error("Made By Button not found");
+    if (!madeByPopup) console.error("Made By Popup not found");
 }
 
-// Start
-document.addEventListener('DOMContentLoaded', init);
+if (closeMadeByPopup && madeByPopup) {
+    closeMadeByPopup.addEventListener('click', () => {
+        initAudioContext();
+        updateConsole(">> Closing 'Made by ticuv' popup.");
+        madeByPopup.classList.remove('visible');
+        playSimpleSound(400, 0.05, 'square', 0.2);
+    });
+} else {
+     if (!closeMadeByPopup) console.error("Popup Close Button not found");
+}
 
-// !!! ============================================================ !!!
-// !!! ASIGURĂ-TE CĂ ADAUGI DEFINIȚIILE PENTRU TOATE FUNCȚIILE   !!!
-// !!! effect_... (ca effect_ChangeCursor, effect_CreateEmoji, etc.) !!!
-// !!! ÎN SECȚIUNEA "Efectele Haotice" DE MAI SUS.                  !!!
-// !!! ============================================================ !!!
+if (copyBtns && copyBtns.length > 0) {
+    copyBtns.forEach(button => {
+        button.addEventListener('click', () => {
+            const textToCopy = button.getAttribute('data-clipboard-text');
+            if (navigator.clipboard && textToCopy) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    updateConsole(`>> Copied: ${textToCopy.substring(0,10)}...`);
+                    const originalText = button.innerText; button.innerText = 'Copied!'; button.disabled = true;
+                    setTimeout(() => { button.innerText = originalText; button.disabled = false; }, 1500);
+                    playSimpleSound(1200, 0.08, 'sine', 0.2);
+                }).catch(err => {
+                    updateConsole('>> Failed to copy: ', err); alert('Failed to copy. Manual copy needed.'); playSimpleSound(200, 0.15, 'sawtooth', 0.3);
+                });
+            } else { updateConsole(">> Clipboard API not supported or text missing."); alert('Clipboard copy not supported.'); playSimpleSound(200, 0.15, 'sawtooth', 0.3); }
+        });
+    });
+} else { console.warn("No copy buttons found."); }
+
+
+// --- Mesaje Inițiale Consolă ---
+// Rulează o singură dată la încărcarea scriptului
+updateConsole(">> System Online. WARNING: HIGH CHANCE OF INCURABLE BRAIN ROT.");
+updateConsole(">> Dimensional Stability: ACTIVELY DETERIORATING.");
+updateConsole(">> Cooldown System: Engaged for major anomalies.");
+updateConsole(`>> Assets loading from: ${GITHUB_PAGES_ASSET_BASE_URL}`);
+updateConsole(">> The Big Red Button whispers sweet nothings... or maybe threats?");
+console.log("Page loaded. Abandon hope, all ye who click here.");
