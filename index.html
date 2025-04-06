@@ -1,75 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>ticuv's sign creator - MAXIMUM ROT</title>
-    <!-- Fonturi -->
-    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@400;700&family=Comic+Sans+MS&family=Courier+Prime&family=Special+Elite&family=Nosifer&family=Creepster&display=swap" rel="stylesheet"/>
-    <!-- Legatura catre CSS -->
-    <link rel="stylesheet" href="style.css">
-    <!-- Favicon Initial (poate fi schimbat de JS) -->
-    <link id="favicon" rel="icon" type="image/png" href="data:image/png;base64,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" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ticuv's sign creator</title> <!-- Title will change randomly -->
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@400;700&family=Comic+Sans+MS&family=Courier+Prime&family=Special+Elite&display=swap" rel="stylesheet"/>
+  <!-- Link către fișierul CSS extern -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- Aici este continutul principal al paginii HAOTICE -->
-    <div id="scoreDisplay">Score: 0</div>
-    <div id="jumpscareVisual"></div>
-    <div id="imageFlashOverlay"></div>
-    <div id="fakeLoadingBarContainer"><div id="fakeLoadingBarProgress"></div></div>
-    <div id="dynamicTextOverlay"></div> <!-- Overlay pentru text dinamic -->
+<!-- Conținutul HTML -->
+<div id="scoreDisplay">Score: 0</div>
+<div id="jumpscareVisual"></div>
+<div id="imageFlashOverlay"></div>
+<div id="fakeLoadingBarContainer"><div id="fakeLoadingBarProgress"></div></div>
 
-    <h1>ticuv's sign creator</h1>
-    <div class="center-stage" id="centerStage">
-      <button id="doNotClickBtn" class="btn btn-do-not">DO NOT CLICK</button>
+<h1>ticuv's sign creator</h1>
+<div class="center-stage" id="centerStage">
+  <button id="doNotClickBtn" class="btn btn-do-not">DO NOT CLICK</button>
 
-      <div id="realOptions" style="display:none;">
-        <p id="crazyText" class="crazy-text">Maximum Over-Rot Engaged. Options Unlocked!</p>
-        <!-- Butoane care NAVIGHEAZA acum -->
-        <button id="createSignBtn" class="btn btn-create">Create Sign</button>
-        <button id="galleryBtn" class="btn btn-gallery">Choose Sign (Gallery)</button>
-      </div>
+  <div id="realOptions" style="display:none;">
+    <p id="crazyText" class="crazy-text">Maximum Over-Rot Engaged. Sign options unlocked!</p>
+    <button id="createSignBtn" class="btn btn-create">Create Sign</button>
+    <button id="galleryBtn" class="btn btn-gallery">Choose Sign (Gallery)</button>
+  </div>
 
-      <div class="message-box" id="messageBox">Click. Click. Click. Is it good?</div>
-      <img src="assets/images/img_alien_original.gif" class="alien-img" alt="Floating Alien" id="alienImage"/> <!-- Presupunand ca ai salvat alienul original in assets -->
-      <div id="consoleOutput" class="console-log">Brain Activity Monitor: Flatline</div>
+  <div class="message-box" id="messageBox">Click. Click. Click. Is it good?</div>
+  <!-- Path-ul absolut către imaginea din assets, corect pentru GitHub Pages -->
+  <img src="https://ticuv.github.io/SignOMatic/assets/images/alien.png" class="alien-img" alt="Floating Alien" id="alienImage"/>
+  <div id="consoleOutput" class="console-log">Brain Activity Monitor: Flatline</div>
+</div>
+
+<!-- Butonul Made by ticuv -->
+<button id="madeByBtn" class="btn">Made by ticuv</button>
+
+<!-- Popup-ul Funky HTML -->
+<div id="madeByPopup" class="funky-popup">
+    <h2>Made by ticuv</h2>
+    <p>If you enjoy the chaos, consider following or donating!</p>
+    <div>
+        <a href="https://twitter.com/ticu_v" target="_blank" rel="noopener noreferrer" class="popup-link-btn">Follow on X</a>
     </div>
-
-    <!-- Textul de Atribuire -->
-    <div id="attribution" class="attribution-text">
-        Made by ticu_v
-    </div>
-
-    <!-- Modalul de Suport (Inițial Ascuns) -->
-    <div id="supportModalOverlay" class="modal-overlay" style="display: none;"></div>
-    <div id="supportModal" class="modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
-        <button id="closeModalBtn" class="modal-close-btn" aria-label="Close">×</button>
-        <h2 id="shareModalTitle">Enjoying the Chaos?</h2> <!-- Titlu ajustat -->
-        <div class="modal-content-inner"> <!-- Added inner wrapper if needed for layout -->
-            <p id="shareMessage">If you like this weird experiment, consider sharing it or supporting its creator!</p> <!-- Mesaj ajustat -->
-            <div class="modal-options">
-                <a id="twitterShareButton" href="#" target="_blank" rel="noopener noreferrer" class="modal-btn modal-btn-follow">Share on X</a> <!-- Acum e 'Share', nu 'Follow' -->
-                <button id="buyCoffeeBtn" class="modal-btn modal-btn-coffee">Buy me a coffee</button>
-            </div>
-            <div id="cryptoOptions" class="modal-crypto-options" style="display: none;">
-                <p>Choose your poison:</p>
-                <div class="donation-options"> <!-- Wrapper pentru butoane crypto -->
-                    <button id="solanaBtn" class="modal-btn modal-btn-crypto">Solana (SOL)</button>
-                    <button id="ethereumBtn" class="modal-btn modal-btn-crypto">Ethereum (ETH)</button>
-                </div>
-                <div id="addressDisplay" class="modal-address-display" style="display: none;">
-                    <p>Address:</p>
-                    <input type="text" id="cryptoAddressInput" readonly>
-                    <button id="copyAddressBtn" class="modal-btn modal-btn-copy">Copy Address</button>
-                    <p id="copyFeedback" class="copy-feedback"></p>
-                </div>
-            </div>
+    <div class="coffee-section">
+        <h3>Buy me a coffee? (Crypto)</h3>
+        <div class="address-line">
+           <span>SOL: 2Vv3QHAJxZvViaY1HaWvJ5kbnNeUdN1MrZcRYog4ezHE</span>
+           <button class="copy-btn" data-clipboard-text="2Vv3QHAJxZvViaY1HaWvJ5kbnNeUdN1MrZcRYog4ezHE">Copy</button>
+        </div>
+        <div class="address-line">
+           <span>ETH: 0xbD0dDE4175d8e854306a09dE4c184392b33a6d9C</span>
+           <button class="copy-btn" data-clipboard-text="0xbD0dDE4175d8e854306a09dE4c184392b33a6d9C">Copy</button>
         </div>
     </div>
+    <button id="closeMadeByPopup" class="btn">Close</button>
+</div>
 
-    <!-- Scripturile la final -->
-    <script src="script.js" type="module"></script>
+<!-- Link către fișierul JavaScript extern (plasat la sfârșit) -->
+<script src="script.js"></script>
 
 </body>
 </html>
