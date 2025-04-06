@@ -3,13 +3,13 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>NFT Sign Generator (Ticuv Style Enhanced)</title> <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.umd.min.js"></script>
+    <title>NFT Sign Generator (Ticuv Style Enhanced)</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.umd.min.js"></script>
 
     <link href="https://fonts.googleapis.com" rel="preconnect"/>
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
     <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@400;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Indie+Flower&family=Rubik+Moonrocks&display=swap" rel="stylesheet">
-
 
     <style>
         /* ======================================== */
@@ -17,19 +17,20 @@
         /* ======================================== */
 
         :root {
-            /* Color Palette (Seems identical to signs.ticuv.art) */
+            /* Color Palette */
             --rick-green: #97ce4c; --morty-yellow: #f0e14a; --portal-blue: #00b0c8;
             --interdimensional-purple: #aa6bd1; --slime-green: #c3ff5d; --dark-matter: #1e1e2f;
             --medium-dark: #2a2a3a; --light-bg: #3a3a4a; --input-bg: #3b3b50;
             --off-white: #f0f0e0; --error-red: #ff4d4d; --outline-black: #1a1a1a;
             --glow-green: rgba(151, 206, 76, 0.7); --glow-blue: rgba(0, 176, 200, 0.7);
+            --glow-purple: rgba(170, 107, 209, 0.5); /* Added for modal glow */
             --disabled-text: #888; --disabled-border: #555; --disabled-shadow: #444;
             --handle-active-bg: yellow; --handle-image-active-bg: cyan; --handle-resize-active-bg: lime;
 
-            /* UI adjustments (Based on your compact version, seems appropriate) */
+            /* UI adjustments */
             --control-padding: 0.5rem 0.7rem;
             --control-gap: 5px 8px;
-            --button-padding: 6px 12px; /* Slightly adjusted padding */
+            --button-padding: 6px 12px;
             --button-font-size: 0.85rem;
             --input-padding: 5px 8px;
             --input-font-size: 0.85rem;
@@ -45,7 +46,6 @@
             font-family: 'Roboto', sans-serif; background-color: var(--dark-matter); color: var(--off-white);
             line-height: 1.4; display: flex; justify-content: center; align-items: flex-start;
             min-height: 100vh; padding: 0.5rem 0.3rem;
-            /* Background matches signs.ticuv.art very closely */
             background-image: repeating-linear-gradient(45deg, rgba(42, 42, 58, 0.8) 0, rgba(42, 42, 58, 0.8) 20px, transparent 20px, transparent 40px),
                               repeating-linear-gradient(-45deg, rgba(42, 42, 58, 0.8) 0, rgba(42, 42, 58, 0.8) 20px, transparent 20px, transparent 40px);
             background-size: 56px 56px; overflow-x: hidden;
@@ -60,18 +60,16 @@
             transform: rotate(-0.5deg); transition: transform 0.3s ease-out;
             display: flex; flex-direction: column; align-items: center;
         }
-        .main-container:hover { transform: rotate(0.1deg) scale(1.005); } /* Subtle hover effect matches */
+        .main-container:hover { transform: rotate(0.1deg) scale(1.005); }
 
         h3 {
             font-family: 'Luckiest Guy', cursive; font-size: 1.6rem;
             color: var(--rick-green);
-            /* Text shadow matches */
             text-shadow: -1px -1px 0 var(--outline-black), 1px -1px 0 var(--outline-black), -1px 1px 0 var(--outline-black), 1px 1px 0 var(--outline-black), 2px 2px 0 var(--interdimensional-purple);
             margin-bottom: 0.6rem;
             letter-spacing: 0.5px;
         }
 
-        /* Controls Section Styling (Matches) */
         #controls {
             width: 100%; background: none; padding: 0; border-radius: 0;
             margin-bottom: 0.5rem;
@@ -92,14 +90,12 @@
          .text-editing-group input[type="text"] { flex-grow: 1; min-width: 120px; }
          .text-editing-group select { min-width: 100px; }
 
-        /* Label Styles (Matches) */
         label {
             font-family: 'Luckiest Guy', cursive; color: var(--portal-blue);
             font-size: var(--label-font-size); margin-right: 3px;
             text-shadow: 1px 1px 0 var(--outline-black); white-space: nowrap;
         }
 
-        /* Input & Select Styles (Matches closely) */
         input[type="text"], input[type="number"], select {
             font-family: 'Roboto', sans-serif; border: 2px solid var(--outline-black);
             border-radius: 6px; padding: var(--input-padding); font-size: var(--input-font-size);
@@ -113,13 +109,10 @@
             padding-right: 30px; cursor: pointer; flex-grow: 1; min-width: 100px;
         }
         input:focus, select:focus {
-            outline: none; /* Remove default outline */
-            box-shadow: inset 1px 1px 0px rgba(0,0,0,0.4), 0 0 0 2px var(--portal-blue); /* Focus ring like target */
+            outline: none; box-shadow: inset 1px 1px 0px rgba(0,0,0,0.4), 0 0 0 2px var(--portal-blue);
         }
-        /* Color Input Styling */
         input[type="color"] {
-            width: 40px; height: 30px; /* Adjust size if needed */
-            padding: 2px; border: 2px solid var(--outline-black); border-radius: 6px;
+            width: 40px; height: 30px; padding: 2px; border: 2px solid var(--outline-black); border-radius: 6px;
             background-color: var(--input-bg); cursor: pointer;
             transition: transform 0.15s ease-out; vertical-align: middle;
         }
@@ -128,182 +121,195 @@
         input[type="color"]::-moz-color-swatch { border: none; border-radius: 3px; }
         input[type="color"]:hover:not(:disabled) { transform: scale(1.05); }
 
-        /* File Input Styling (Enhanced to look like buttons) */
-        input[type="file"] {
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.75rem; /* Match other compact elements */
-            color: var(--off-white); /* Text color for "No file chosen" */
-            max-width: 200px; /* Limit width */
-        }
+        input[type="file"] { font-family: 'Roboto', sans-serif; font-size: 0.75rem; color: var(--off-white); max-width: 200px; }
         input[type="file"]::file-selector-button {
-             /* --- Style like other buttons --- */
-            font-family: 'Luckiest Guy', cursive;
+            /* font-family: 'Luckiest Guy', cursive; */ /* <-- Schimbat */
+            font-family: 'Roboto', sans-serif;       /* <-- Adaugat */
+            font-weight: 700;                        /* <-- Adaugat (Optional) */
             font-size: var(--button-font-size);
             padding: var(--button-padding);
             border-radius: 8px;
             border: 2px solid var(--outline-black);
-            background-color: var(--interdimensional-purple); /* Choose a default color */
+            background-color: var(--interdimensional-purple);
             color: var(--off-white);
-            text-shadow: 1px 1px 0 var(--outline-black);
+            /* text-shadow: 1px 1px 0 var(--outline-black); */ /* <-- Comentat (Optional) */
             box-shadow: 2px 2px 0px var(--outline-black);
             cursor: pointer;
             transition: all 0.15s ease-out;
-            margin-right: 10px; /* Space between button and text */
+            margin-right: 10px;
         }
-        input[type="file"]::file-selector-button:hover:not(:disabled) {
-            /* --- Apply standard button hover --- */
-            transform: translateY(-1px) scale(1.02);
-            box-shadow: 3px 3px 0px var(--outline-black);
-        }
-         input[type="file"]::file-selector-button:active:not(:disabled) {
-             /* --- Apply standard button active --- */
-             transform: translateY(1px) scale(0.98);
-             box-shadow: 1px 1px 0px var(--outline-black);
-         }
+        input[type="file"]::file-selector-button:hover:not(:disabled) { transform: translateY(-1px) scale(1.02); box-shadow: 3px 3px 0px var(--outline-black); }
+        input[type="file"]::file-selector-button:active:not(:disabled) { transform: translateY(1px) scale(0.98); box-shadow: 1px 1px 0px var(--outline-black); }
 
-
-        /* === Button Styles (Enhanced Hover/Active Effects) === */
         button {
-            font-family: 'Luckiest Guy', cursive;
+            /* font-family: 'Luckiest Guy', cursive; */ /* <-- Schimbat */
+            font-family: 'Roboto', sans-serif;       /* <-- Adaugat */
+            font-weight: 700;                        /* <-- Adaugat (Optional) */
             font-size: var(--button-font-size);
             padding: var(--button-padding);
             border-radius: 8px;
             border: 2px solid var(--outline-black);
-            text-shadow: 1px 1px 0 var(--outline-black);
-            box-shadow: 2px 2px 0px var(--outline-black); /* Base shadow */
+            /* text-shadow: 1px 1px 0 var(--outline-black); */ /* <-- Comentat (Optional) */
+            box-shadow: 2px 2px 0px var(--outline-black);
             cursor: pointer;
-            transition: all 0.15s ease-out; /* Transition for effects */
+            transition: all 0.15s ease-out;
             user-select: none;
             text-align: center;
             vertical-align: middle;
             white-space: nowrap;
         }
-        /* Specific Button Colors (Matches) */
         #loadNftBtn { background-color: var(--portal-blue); color: var(--off-white); }
         #applyOverlayBtn { background-color: var(--rick-green); color: var(--outline-black); }
         #addTextBtn, #addImageBtn { background-color: var(--morty-yellow); color: var(--outline-black); }
         #removeBtn { background-color: var(--error-red); color: var(--off-white); }
         #saveBtn { background-color: var(--slime-green); color: var(--outline-black); }
 
-        /* --- Hover Effect (Matches signs.ticuv.art) --- */
-        button:hover:not(:disabled) {
-            transform: translateY(-1px) scale(1.02); /* Slight lift and scale */
-            box-shadow: 3px 3px 0px var(--outline-black); /* Increased shadow */
-        }
-        /* --- Active Effect (Matches signs.ticuv.art) --- */
-        button:active:not(:disabled) {
-            transform: translateY(1px) scale(0.98); /* Press down and scale */
-            box-shadow: 1px 1px 0px var(--outline-black); /* Reduced shadow */
-        }
+        button:hover:not(:disabled) { transform: translateY(-1px) scale(1.02); box-shadow: 3px 3px 0px var(--outline-black); }
+        button:active:not(:disabled) { transform: translateY(1px) scale(0.98); box-shadow: 1px 1px 0px var(--outline-black); }
 
-        /* Disabled States (Matches) */
         input:disabled, select:disabled, button:disabled,
         input[type="file"]:disabled::file-selector-button {
-            background-color: var(--light-bg);
-            color: var(--disabled-text);
-            border-color: var(--disabled-border);
-            box-shadow: 1px 1px 0px var(--disabled-shadow);
-            cursor: not-allowed;
-            text-shadow: none;
-            transform: none; /* Disable transforms */
+            background-color: var(--light-bg); color: var(--disabled-text); border-color: var(--disabled-border);
+            box-shadow: 1px 1px 0px var(--disabled-shadow); cursor: not-allowed; text-shadow: none; transform: none;
         }
-        select:disabled {
-             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23888888'%3E%3Cpolygon points='8,12 4,6 12,6' stroke='%23555555' stroke-width='1.5'/%3E%3C/svg%3E"); /* Dimmed arrow */
-        }
+        select:disabled { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23888888'%3E%3Cpolygon points='8,12 4,6 12,6' stroke='%23555555' stroke-width='1.5'/%3E%3C/svg%3E"); }
         input[type="color"]:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
         input[type="file"]:disabled { color: var(--disabled-text); }
 
-
         #nftStatus {
-            width: 100%; text-align: center; font-style: italic; min-height: 1.4em;
-            margin: 4px 0 4px 0; font-size: 0.85rem;
-            color: var(--morty-yellow); text-shadow: 1px 1px 0 var(--outline-black);
+            width: 100%; text-align: center; font-style: italic; min-height: 1.4em; margin: 4px 0;
+            font-size: 0.85rem; color: var(--morty-yellow); text-shadow: 1px 1px 0 var(--outline-black);
             padding: 0 5px; word-wrap: break-word;
         }
         #nftStatus.error { color: var(--error-red); }
         #nftStatus.success { color: var(--slime-green); }
 
-        /* Action Buttons Area (Above Canvas) */
-        #final-actions {
-            display: flex; justify-content: center; gap: 10px;
-            width: 100%; margin-bottom: 0.4rem;
-        }
+        #final-actions { display: flex; justify-content: center; gap: 10px; width: 100%; margin-bottom: 0.4rem; }
 
-        /* Canvas Container Styling (Matches) */
         #canvas-container {
-            width: 100%; max-width: 500px;
-            aspect-ratio: 1 / 1; margin: 0 auto; position: relative;
-            cursor: default; touch-action: none; overflow: hidden;
-            border: 3px solid var(--portal-blue);
-            background-color: #000; border-radius: 8px;
-            box-shadow: 0 0 12px var(--glow-blue), inset 0 0 8px rgba(0,0,0,0.7);
+            width: 100%; max-width: 500px; aspect-ratio: 1 / 1; margin: 0 auto; position: relative;
+            cursor: default; touch-action: none; overflow: hidden; border: 3px solid var(--portal-blue);
+            background-color: #000; border-radius: 8px; box-shadow: 0 0 12px var(--glow-blue), inset 0 0 8px rgba(0,0,0,0.7);
         }
         canvas { display: block; width: 100%; height: 100%; object-fit: contain; background-color: var(--medium-dark); border: none; border-radius: 6px; }
 
-        /* Text & Image Overlay Styles (Matches closely) */
         .textOverlay, .imgOverlay { position: absolute; transform-origin: center center; user-select: none; touch-action: none; cursor: grab; transform: translate(-50%, -50%) rotate(0deg); padding: 3px; box-sizing: border-box; }
         .textOverlay { white-space: nowrap; font-weight: bold; z-index: 10; }
         .imgOverlay { z-index: 20; border: 1px dashed transparent; }
         .textOverlay.active { outline: 2px dashed var(--handle-active-bg); z-index: 100; cursor: grabbing; }
         .imgOverlay.active { outline: 2px dashed var(--handle-image-active-bg); z-index: 101; cursor: grabbing; }
 
-        /* Handle Styles (Matches) */
-        .textOverlay .rotation-handle, .imgOverlay .rotation-handle, .imgOverlay .resize-handle { position: absolute; width: var(--handle-size); height: var(--handle-size); border-radius: 50%; border: 2px solid var(--outline-black); display: none; pointer-events: auto; touch-action: none; font-family: sans-serif; font-size: var(--handle-icon-size); line-height: calc(var(--handle-size) - 4px); text-align: center; box-shadow: 1px 1px 0 var(--outline-black); background-color: transparent; color: var(--outline-black); }
+        .textOverlay .rotation-handle, .imgOverlay .rotation-handle, .imgOverlay .resize-handle {
+            position: absolute; width: var(--handle-size); height: var(--handle-size); border-radius: 50%;
+            border: 2px solid var(--outline-black); display: none; pointer-events: auto; touch-action: none;
+            font-family: sans-serif; font-size: var(--handle-icon-size); line-height: calc(var(--handle-size) - 4px);
+            text-align: center; box-shadow: 1px 1px 0 var(--outline-black); background-color: transparent; color: var(--outline-black);
+        }
         .textOverlay.active .rotation-handle, .imgOverlay.active .rotation-handle, .imgOverlay.active .resize-handle { display: block; }
         .textOverlay .rotation-handle, .imgOverlay .rotation-handle { bottom: calc(-1 * var(--handle-size) - 4px); left: 50%; transform: translateX(-50%); cursor: alias; color: var(--handle-active-bg); text-shadow: 1px 1px 1px var(--outline-black); }
         .imgOverlay .rotation-handle { color: var(--handle-image-active-bg); }
         .imgOverlay .resize-handle { right: calc(-0.5 * var(--handle-size) - 2px); bottom: calc(-0.5 * var(--handle-size) - 2px); cursor: nwse-resize; color: var(--handle-resize-active-bg); font-size: calc(var(--handle-icon-size) * 0.9); text-shadow: 1px 1px 1px var(--outline-black); }
         .imgOverlay img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 
-        /* Reset Button (Applying standard button effects) */
         .floating-reset {
-            position: absolute; top: 5px; right: 5px;
+            position: absolute; top: 5px; right: 5px; background-color: var(--error-red); color: white;
+            border: 2px solid var(--outline-black); border-radius: 50%; font-size: 1.2rem; width: 28px; height: 28px;
+            box-shadow: 1px 1px 0 var(--outline-black); cursor: pointer; z-index: 999;
+            display: flex; align-items: center; justify-content: center; line-height: 1;
+            transition: all 0.15s ease-out;
+        }
+        .floating-reset:hover { transform: translateY(-1px) scale(1.05); box-shadow: 2px 2px 0 var(--outline-black); }
+        .floating-reset:active { transform: translateY(1px) scale(0.95); box-shadow: 0px 0px 0 var(--outline-black); }
+
+        /* === DISCLAIMER MODAL STYLES === */
+        #disclaimerModal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(30, 30, 47, 0.85); /* --dark-matter with alpha */
+            display: none; /* Hidden by default */
+            justify-content: center; align-items: center;
+            z-index: 1000;
+            padding: 1rem;
+            opacity: 0; /* Start fully transparent */
+            transition: opacity 0.3s ease-in-out;
+        }
+        #disclaimerModal.visible {
+            display: flex;
+            opacity: 1; /* Fade in */
+        }
+        .disclaimer-content {
+            background-color: var(--medium-dark);
+            border: 3px solid var(--interdimensional-purple);
+            border-radius: 12px;
+            padding: 1.5rem; /* More padding */
+            max-width: 500px;
+            width: 90%;
+            text-align: left; /* Better for paragraphs */
+            box-shadow: 4px 4px 0px var(--outline-black), 0 0 20px var(--glow-purple); /* Purple glow */
+            transform: rotate(-1deg); /* Slight tilt */
+            position: relative; /* For close button */
+            color: var(--off-white);
+        }
+         .disclaimer-content h4 { /* Modal title style */
+             font-family: 'Luckiest Guy', cursive;
+             font-size: 1.3rem;
+             color: var(--morty-yellow);
+             text-shadow: -1px -1px 0 var(--outline-black), 1px -1px 0 var(--outline-black), -1px 1px 0 var(--outline-black), 1px 1px 0 var(--outline-black), 2px 2px 0 var(--rick-green);
+             margin-bottom: 1rem;
+             text-align: center;
+         }
+        .disclaimer-content p {
+            font-family: 'Roboto', sans-serif;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+        .disclaimer-content p:last-of-type { margin-bottom: 1.5rem; } /* More space before button */
+
+        #closeDisclaimerBtn { /* Style like the reset button */
+            position: absolute; top: 8px; right: 8px;
             background-color: var(--error-red); color: white;
             border: 2px solid var(--outline-black); border-radius: 50%;
-            font-size: 1.2rem; width: 28px; height: 28px;
-            box-shadow: 1px 1px 0 var(--outline-black); /* Base shadow slightly smaller */
-            cursor: pointer; z-index: 999;
+            font-size: 1rem; width: 26px; height: 26px; font-weight: bold;
+            box-shadow: 1px 1px 0 var(--outline-black);
+            cursor: pointer; z-index: 1001; /* Above content */
             display: flex; align-items: center; justify-content: center; line-height: 1;
-            transition: all 0.15s ease-out; /* Added transition */
+            transition: all 0.15s ease-out;
+            padding: 0; /* Override default button padding */
         }
-        .floating-reset:hover {
-            transform: translateY(-1px) scale(1.05); /* Slightly different pop */
-            box-shadow: 2px 2px 0 var(--outline-black);
-        }
-        .floating-reset:active {
-            transform: translateY(1px) scale(0.95);
-            box-shadow: 0px 0px 0 var(--outline-black); /* No shadow when pressed */
-        }
+        #closeDisclaimerBtn:hover { transform: translateY(-1px) scale(1.1); box-shadow: 2px 2px 0 var(--outline-black); }
+        #closeDisclaimerBtn:active { transform: translateY(1px) scale(0.95); box-shadow: 0px 0px 0 var(--outline-black); }
+        /* ==================================== */
 
-        /* Responsive Adjustments (Kept from original, seem appropriate) */
+
+        /* Responsive Adjustments */
         @media (max-width: 600px) {
-            html { font-size: 14px; }
-            body { padding: 0.5rem 0.2rem; }
+            html { font-size: 14px; } body { padding: 0.5rem 0.2rem; }
             .main-container { padding: 0.6rem; width: 99%; margin-top: 0.2rem; border-width: 2px;}
             h3 { font-size: 1.4rem; }
-            button, input[type="file"]::file-selector-button { padding: 4px 8px; font-size: 0.8rem; } /* Adjusted file button too */
+            button, input[type="file"]::file-selector-button { padding: 4px 8px; font-size: 0.8rem; }
             #canvas-container { max-width: 98%; border-width: 2px;}
             .control-group { padding: 0.4rem 0.6rem; gap: 4px 6px; }
             label { font-size: 0.85rem; }
             input[type="text"], input[type="number"], select { padding: 4px 6px; font-size: 0.8rem; }
-            input[type="file"] { font-size: 0.75rem;} /* Keep file text small */
+            input[type="file"] { font-size: 0.75rem;}
             :root { --handle-size: 22px; --handle-icon-size: 12px; }
+            .disclaimer-content h4 { font-size: 1.2rem; } /* Adjust modal title size */
         }
          @media (max-width: 450px) {
              .control-group { flex-direction: column; align-items: stretch; }
              .control-group > * { width: 100%; margin-bottom: 4px; }
-             /* Ensure file input button doesn't take full width unless needed */
              .control-group input[type="file"] { width: auto; max-width: 100%;}
              .text-editing-group .row { flex-direction: column; align-items: stretch;}
              input[type="text"], input[type="number"], select,
-             .control-group > button { width: 100%; } /* Buttons in groups take full width */
+             .control-group > button { width: 100%; }
              label { margin-bottom: 1px; text-align: left; width: 100%;}
              .floating-reset { width: 26px; height: 26px; font-size: 1rem; top: 3px; right: 3px;}
              #nftStatus { font-size: 0.75rem; }
              #final-actions { flex-direction: column; gap: 4px; margin-bottom: 0.3rem;}
-             #final-actions button { width: 100%; } /* Final action buttons take full width */
+             #final-actions button { width: 100%; }
+             .disclaimer-content { padding: 1rem; transform: rotate(0deg); } /* Straighten modal on small screens */
+             .disclaimer-content h4 { font-size: 1.1rem; }
+             #closeDisclaimerBtn { top: 5px; right: 5px; width: 24px; height: 24px; font-size: 0.9rem; }
          }
-
     </style>
 
 </head>
@@ -319,20 +325,23 @@
             </select>
             <label for="nftTokenId">Token ID:</label>
             <input id="nftTokenId" placeholder="e.g.: 1114" type="number"/>
-            <button id="loadNftBtn">Load NFT</button> </div>
+            <button id="loadNftBtn">Load NFT</button>
+        </div>
 
         <p id="nftStatus">Select collection and ID, then load NFT.</p>
 
         <div class="control-group">
             <label for="overlayColor">Sign Color:</label>
             <input disabled id="overlayColor" type="color" value="#00ff00"/>
-            <button disabled id="applyOverlayBtn">Apply Color</button> </div>
+            <button disabled id="applyOverlayBtn">Apply Color</button>
+        </div>
 
         <div class="control-group text-editing-group">
              <div class="row">
                  <label for="textInput">Text:</label>
                  <input disabled id="textInput" placeholder="Your text here" type="text"/>
-                 <button disabled id="addTextBtn">Add Text</button> </div>
+                 <button disabled id="addTextBtn">Add Text</button>
+             </div>
              <div class="row">
                  <label for="textColor">Color:</label>
                  <input disabled id="textColor" type="color" value="#ffffff"/>
@@ -352,15 +361,49 @@
              <div class="row">
                   <label for="imageUpload">Upload:</label>
                  <input type="file" id="imageUpload" accept="image/*" disabled/>
-                 <button disabled id="addImageBtn">Add Image</button> </div>
+                 <button disabled id="addImageBtn">Add Image</button>
+             </div>
         </div>
-    </div> <div id="final-actions">
-         <button disabled id="removeBtn">Delete Selected</button> <button disabled id="saveBtn">Save Image</button> </div>
+    </div>
+
+    <div id="final-actions">
+         <button disabled id="removeBtn">Delete Selected</button>
+         <button disabled id="saveBtn">Save Image</button>
+    </div>
 
     <div id="canvas-container">
-        <button class="floating-reset" id="resetCanvas" title="Reset Canvas & Overlays">↺</button> <canvas height="2048" id="canvas" width="2048"></canvas>
-        </div>
-</div> <script>
+        <button class="floating-reset" id="resetCanvas" title="Reset Canvas & Overlays">↺</button>
+        <canvas height="2048" id="canvas" width="2048"></canvas>
+    </div>
+
+    <!-- === DISCLAIMER BUTTON (ENGLISH TEXT) === -->
+    <div style="margin-top: 10px; width: 100%; text-align: center;">
+        <button id="disclaimerBtn" style="background-color: var(--morty-yellow); color: var(--outline-black);">⚠️ Comic Disclaimer (Read Me!) ⚠️</button>
+    </div>
+    <!-- === END DISCLAIMER BUTTON === -->
+
+</div> <!-- End .main-container -->
+
+<!-- === DISCLAIMER MODAL STRUCTURE (Added before script) === -->
+<div id="disclaimerModal">
+    <div class="disclaimer-content">
+        <button id="closeDisclaimerBtn" title="Close Disclaimer">×</button>
+        <h4>Comic (and Legal-ish) Warning!</h4>
+        <p>
+            Alright, listen up, champ: That genius (or cringey) text and that... 'creative'... image you're slapping onto your GHN or AHC using this gizmo? That's <strong>your</strong> masterpiece (or mess).
+        </p>
+        <p>
+            I just handed you the interdimensional paintbrush and bucket. If the final result is a work of art or some scribbling that offends three galaxies, the responsibility lands squarely in <strong>your</strong> crypto wallet, not my lines of code.
+        </p>
+        <p>
+            Got it? Good. Now get back to... uh... 'art'?
+        </p>
+    </div>
+</div>
+<!-- === END DISCLAIMER MODAL === -->
+
+
+<script>
     // --- Global Constants ---
     const canvasWidth = 2048;
     const canvasHeight = 2048;
@@ -377,16 +420,17 @@
     let textInteractionState = { isDragging: false, isRotating: false, startX: 0, startY: 0, startLeft: 0, startTop: 0, rotateCenterX: 0, rotateCenterY: 0, rotateStartAngle: 0 };
     let imageInteractionState = { isDragging: false, isRotating: false, isResizing: false, startX: 0, startY: 0, startLeft: 0, startTop: 0, centerX: 0, centerY: 0, startAngle: 0, currentRotationRad: 0, startWidth: 0, startHeight: 0, aspectRatio: 1 };
 
-    // --- DOM Element References (declared globally for access) ---
+    // --- DOM Element References ---
     let canvas, ctx, container, textInput, textColor, fontSize, fontFamily, removeBtn, nftStatusEl,
         nftCollectionSelect, nftTokenIdInput, loadNftBtn, applyOverlayBtn, overlayColorInput,
-        addTextBtn, saveBtn, imageUpload, addImageBtn, resetCanvasBtn;
+        addTextBtn, saveBtn, imageUpload, addImageBtn, resetCanvasBtn,
+        disclaimerBtn, disclaimerModal, closeDisclaimerBtn; // <-- DISCLAIMER: Added modal elements
 
     // --- Initialization ---
     window.onload = () => {
-        // Get Element References **after** DOM is loaded
+        // Get Element References
         canvas = document.getElementById("canvas");
-        ctx = canvas.getContext("2d", { willReadFrequently: true }); // Optimization hint for saving
+        ctx = canvas.getContext("2d", { willReadFrequently: true });
         container = document.getElementById("canvas-container");
         textInput = document.getElementById("textInput");
         textColor = document.getElementById("textColor");
@@ -404,35 +448,48 @@
         imageUpload = document.getElementById("imageUpload");
         addImageBtn = document.getElementById("addImageBtn");
         resetCanvasBtn = document.getElementById("resetCanvas");
+        disclaimerBtn = document.getElementById("disclaimerBtn");
+        disclaimerModal = document.getElementById("disclaimerModal"); // <-- DISCLAIMER: Get modal
+        closeDisclaimerBtn = document.getElementById("closeDisclaimerBtn"); // <-- DISCLAIMER: Get close button
 
         // Initial Setup
         enableEditingControls(false);
         clearCanvas();
-        setupEventListeners(); // Attach listeners now that elements are referenced
+        setupEventListeners();
     };
 
     function setupEventListeners() {
-        if (!loadNftBtn) { console.error("Load button not found!"); return; } // Basic check
+        if (!loadNftBtn) { console.error("Load button not found!"); return; }
 
-        // NFT Loading
+        // NFT Loading, Sign Color, Text Editing, Image Editing, Actions, Collection Change... (keep existing listeners)
         loadNftBtn.addEventListener('click', loadNftToCanvas);
-        // Sign Color
         applyOverlayBtn.addEventListener('click', applyOverlay);
         overlayColorInput.addEventListener('input', applyOverlay);
-        // Text Editing
         addTextBtn.addEventListener('click', addText);
         textInput.addEventListener("input", handleTextControlChange);
         textColor.addEventListener("input", handleTextControlChange);
         fontSize.addEventListener("input", handleTextControlChange);
         fontFamily.addEventListener("input", handleTextControlChange);
-        // Image Editing
         addImageBtn.addEventListener('click', addImage);
-        // Actions
         removeBtn.addEventListener('click', removeActiveElement);
         saveBtn.addEventListener('click', saveImage);
         resetCanvasBtn.addEventListener('click', handleReset);
-        // Collection Change
-         nftCollectionSelect.addEventListener("change", () => { if (baseImage.src && baseImage.complete) { applyOverlay(); } });
+        nftCollectionSelect.addEventListener("change", () => { if (baseImage.src && baseImage.complete) { applyOverlay(); } });
+
+        // === DISCLAIMER MODAL LISTENERS ===
+        if (disclaimerBtn && disclaimerModal && closeDisclaimerBtn) {
+            disclaimerBtn.addEventListener('click', showComicDisclaimer);
+            closeDisclaimerBtn.addEventListener('click', hideComicDisclaimer);
+            // Optional: Close modal if clicking outside the content area
+            disclaimerModal.addEventListener('click', (event) => {
+                if (event.target === disclaimerModal) { // Check if clicked on the backdrop
+                    hideComicDisclaimer();
+                }
+            });
+        } else {
+            console.warn("Disclaimer modal elements not found!");
+        }
+        // === END DISCLAIMER LISTENERS ===
     }
 
     // --- Event Handlers ---
@@ -489,7 +546,7 @@
     // --- Text & Image Creation ---
     function addText() {
         if(!baseImage.src||!baseImage.complete||baseImage.naturalWidth===0){nftStatusEl.textContent="Load a valid NFT first.";nftStatusEl.className='error';return;}
-        const textEl=document.createElement("div");textEl.className="textOverlay";textEl.innerText=textInput.value||"New Text";textEl.style.color=textColor.value;textEl.style.fontSize=fontSize.value+"px";textEl.style.fontFamily=fontFamily.value;textEl.style.transform=`translate(-50%, -50%) rotate(0deg)`;textEl.style.zIndex="10";const handle=document.createElement("span");handle.className="rotation-handle";handle.innerHTML='&#x21BA;';textEl.appendChild(handle);const currentPolygon=getPolygonForSelectedCollection();const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x));const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y));const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50;const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50;const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent);textEl.style.left=`${initialX}px`;textEl.style.top=`${initialY}px`;textEl.addEventListener("mousedown",handleTextDragStart);textEl.addEventListener("touchstart",handleTextDragStart,{passive:true});handle.addEventListener("mousedown",handleTextRotateStart);handle.addEventListener("touchstart",handleTextRotateStart,{passive:true});container.appendChild(textEl);setActiveElement(textEl);
+        const textEl=document.createElement("div");textEl.className="textOverlay";textEl.innerText=textInput.value||"New Text";textEl.style.color=textColor.value;textEl.style.fontSize=fontSize.value+"px";textEl.style.fontFamily=fontFamily.value;textEl.style.transform=`translate(-50%, -50%) rotate(0deg)`;textEl.style.zIndex="10";const handle=document.createElement("span");handle.className="rotation-handle";handle.innerHTML='↺';textEl.appendChild(handle);const currentPolygon=getPolygonForSelectedCollection();const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x));const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y));const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50;const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50;const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent);textEl.style.left=`${initialX}px`;textEl.style.top=`${initialY}px`;textEl.addEventListener("mousedown",handleTextDragStart);textEl.addEventListener("touchstart",handleTextDragStart,{passive:true});handle.addEventListener("mousedown",handleTextRotateStart);handle.addEventListener("touchstart",handleTextRotateStart,{passive:true});container.appendChild(textEl);setActiveElement(textEl);
     }
     function addImage() {
         if(!baseImage.src||!baseImage.complete||baseImage.naturalWidth===0){nftStatusEl.textContent="Please load a valid NFT first.";nftStatusEl.className='error';return;}
@@ -498,7 +555,7 @@
         reader.onload=function(e){const wrapper=document.createElement("div");wrapper.className="imgOverlay";wrapper.style.position="absolute";wrapper.style.width="auto";wrapper.style.height="auto";wrapper.style.transform="translate(-50%, -50%) rotate(0deg)";wrapper.style.touchAction="none";wrapper.style.zIndex="20";const img=document.createElement("img");img.src=e.target.result;
         img.onload=()=>{if(container.offsetWidth>0&&img.naturalWidth>0&&img.naturalHeight>0){const contW=container.offsetWidth;const initialWidth=Math.min(img.naturalWidth*0.60,contW*0.5,250);const aspectRatio=img.naturalWidth/img.naturalHeight;wrapper.style.width=`${initialWidth}px`;wrapper.style.height=`${initialWidth/aspectRatio}px`;}else{wrapper.style.width='100px';wrapper.style.height='auto';}};
         img.onerror=()=>{console.error("Error loading added image.");nftStatusEl.textContent="Error displaying uploaded image.";nftStatusEl.className='error';wrapper.remove();}
-        wrapper.appendChild(img);const rotateHandle=document.createElement("div");rotateHandle.className="rotation-handle";rotateHandle.innerHTML='&#x21BA;';wrapper.appendChild(rotateHandle);const resizeHandle=document.createElement("div");resizeHandle.className="resize-handle";resizeHandle.innerHTML='&#x2194;';wrapper.appendChild(resizeHandle);const currentPolygon=getPolygonForSelectedCollection();const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x));const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y));const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50;const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50;const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent);wrapper.style.left=`${initialX}px`;wrapper.style.top=`${initialY}px`;wrapper.addEventListener("mousedown",handleImageDragStart);wrapper.addEventListener("touchstart",handleImageDragStart,{passive:true});rotateHandle.addEventListener("mousedown",handleImageRotateStart);rotateHandle.addEventListener("touchstart",handleImageRotateStart,{passive:true});resizeHandle.addEventListener("mousedown",handleImageResizeStart);resizeHandle.addEventListener("touchstart",handleImageResizeStart,{passive:true});container.appendChild(wrapper);setActiveElement(wrapper);nftStatusEl.textContent="Image added.";nftStatusEl.className='success';imageUpload.value='';};
+        wrapper.appendChild(img);const rotateHandle=document.createElement("div");rotateHandle.className="rotation-handle";rotateHandle.innerHTML='↺';wrapper.appendChild(rotateHandle);const resizeHandle=document.createElement("div");resizeHandle.className="resize-handle";resizeHandle.innerHTML='↔';wrapper.appendChild(resizeHandle);const currentPolygon=getPolygonForSelectedCollection();const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x));const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y));const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50;const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50;const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent);wrapper.style.left=`${initialX}px`;wrapper.style.top=`${initialY}px`;wrapper.addEventListener("mousedown",handleImageDragStart);wrapper.addEventListener("touchstart",handleImageDragStart,{passive:true});rotateHandle.addEventListener("mousedown",handleImageRotateStart);rotateHandle.addEventListener("touchstart",handleImageRotateStart,{passive:true});resizeHandle.addEventListener("mousedown",handleImageResizeStart);resizeHandle.addEventListener("touchstart",handleImageResizeStart,{passive:true});container.appendChild(wrapper);setActiveElement(wrapper);nftStatusEl.textContent="Image added.";nftStatusEl.className='success';imageUpload.value='';};
         reader.onerror=function(err){console.error("FileReader error:",err);nftStatusEl.textContent="Error reading image file.";nftStatusEl.className='error';}
         reader.readAsDataURL(file);
     }
@@ -521,26 +578,124 @@
 
     // --- Utility Functions ---
     function calculateElementPosition(percentX,percentY){const contRect=container.getBoundingClientRect();if(!contRect||contRect.width===0||contRect.height===0)return{x:0,y:0};const scaleX=contRect.width/canvasWidth;const scaleY=contRect.height/canvasHeight;const targetCanvasX=canvasWidth*(percentX/100);const targetCanvasY=canvasHeight*(percentY/100);return{x:targetCanvasX*scaleX,y:targetCanvasY*scaleY};}
+    // NOTE: getCanvasCoordsFromContainerPoint is NO LONGER USED in the saveImage function with the new approach.
+    // It's still used by the drag handlers (handleTextInteractionMove, handleImageInteractionMove) for boundary checking.
+    // Keeping it for that purpose.
     function getCanvasCoordsFromContainerPoint(containerX,containerY){const contRect=container.getBoundingClientRect();if(!contRect||contRect.width===0||contRect.height===0)return{canvasX:0,canvasY:0};const scaleX=contRect.width/canvasWidth;const scaleY=contRect.height/canvasHeight;return{canvasX:containerX/scaleX,canvasY:containerY/scaleY};}
     function pointInPolygon(point,vs){const x=point.x,y=point.y;let inside=false;for(let i=0,j=vs.length-1;i<vs.length;j=i++){const xi=vs[i].x,yi=vs[i].y;const xj=vs[j].x,yj=vs[j].y;const intersect=((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi);if(intersect)inside=!inside;}return inside;}
     function rgb2hex(rgb){if(!rgb)return'#ffffff';if(rgb.startsWith('#'))return rgb;const rgbMatch=rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);if(rgbMatch){return"#"+rgbMatch.slice(1).map(x=>parseInt(x).toString(16).padStart(2,'0')).join('');}return rgb;}
     function getRotationRad(element){if(!element||!element.style)return 0;const transform=element.style.transform;const rotateMatch=transform.match(/rotate\((-?\d+(\.\d+)?)deg\)/);const rotationDeg=rotateMatch?parseFloat(rotateMatch[1]):0;return rotationDeg*(Math.PI/180);}
 
-    // --- Save Functionality ---
+    // --- DISCLAIMER: Functions to Show/Hide the Styled Modal ---
+    function showComicDisclaimer() { if (disclaimerModal) { disclaimerModal.classList.add('visible'); } }
+    function hideComicDisclaimer() { if (disclaimerModal) { disclaimerModal.classList.remove('visible'); } }
+    // --- END DISCLAIMER FUNCTIONS ---
+
+
+    // --- Save Functionality --- MODIFIED with Canvas Rect Scaling & Relative Positioning ---
     function saveImage() {
         if(!baseImage.src||!baseImage.complete||baseImage.naturalWidth===0){alert("Load a valid NFT first!");nftStatusEl.className='error';return;}
-        nftStatusEl.textContent="Generating final image...";nftStatusEl.className=''; if(activeElement)activeElement.classList.remove('active');
-        drawBaseImage(); applyOverlay(); const currentContainerRect=container.getBoundingClientRect();
-        if(!currentContainerRect||currentContainerRect.width===0||currentContainerRect.height===0){alert("Error: Invalid container dimensions for saving.");nftStatusEl.className='error'; nftStatusEl.textContent="Save Error: Invalid container."; if(activeElement)activeElement.classList.add('active');return;}
-        const scaleX=currentContainerRect.width/canvasWidth; const scaleY=currentContainerRect.height/canvasHeight;
+        nftStatusEl.textContent="Generating final image...";nftStatusEl.className=''; if(activeElement)activeElement.classList.remove('active'); // Temporarily deactivate for clean save
+
+        // Redraw base and sign color first
+        drawBaseImage();
+        applyOverlay();
+
+        // === NOUA ABORDARE: Folosim getBoundingClientRect al canvas-ului pentru scalare ===
+        const canvasRect = canvas.getBoundingClientRect();
+        if(!canvasRect || canvasRect.width === 0 || canvasRect.height === 0) {
+             alert("Error: Could not get canvas dimensions for saving.");
+             nftStatusEl.className='error';
+             nftStatusEl.textContent="Save Error: Canvas rect invalid.";
+             if(activeElement)activeElement.classList.add('active'); // Reactivate element visually
+             return;
+        }
+
+        // Calculăm factorii de scalare bazat pe dimensiunea REDATĂ a canvas-ului
+        const scaleX = canvasRect.width / canvasWidth; // canvasWidth is 2048
+        const scaleY = canvasRect.height / canvasHeight; // canvasHeight is 2048
+        // === SFÂRȘIT ABORDARE NOUĂ PENTRU SCALARE ===
+
+        // Get all overlays and sort by z-index
         const allOverlays=Array.from(container.querySelectorAll(".textOverlay, .imgOverlay"));
         allOverlays.sort((a,b)=>(parseInt(window.getComputedStyle(a).zIndex)||0)-(parseInt(window.getComputedStyle(b).zIndex)||0));
-        allOverlays.forEach(el=>{const elLeft=parseFloat(el.style.left||"0");const elTop=parseFloat(el.style.top||"0");const{canvasX,canvasY}=getCanvasCoordsFromContainerPoint(elLeft,elTop);const rotationRad=getRotationRad(el);ctx.save();ctx.translate(canvasX,canvasY);ctx.rotate(rotationRad);if(el.classList.contains('textOverlay')){const text=el.childNodes[0].nodeValue;const color=el.style.color;const size=parseInt(el.style.fontSize);const font=el.style.fontFamily;const canvasFontSize=size/scaleY;ctx.font=`${canvasFontSize}px ${font}`;ctx.fillStyle=color;ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(text,0,0);}else if(el.classList.contains('imgOverlay')){const imgElement=el.querySelector('img');if(imgElement&&imgElement.complete&&imgElement.naturalWidth>0){const domWidth=el.offsetWidth;const domHeight=el.offsetHeight;const canvasDrawWidth=domWidth/scaleX;const canvasDrawHeight=domHeight/scaleY;ctx.drawImage(imgElement,-canvasDrawWidth/2,-canvasDrawHeight/2,canvasDrawWidth,canvasDrawHeight);}else{console.warn("Skipping unloaded/invalid image overlay during save:",imgElement?.src);}} ctx.restore();});
-        if(activeElement)activeElement.classList.add('active');
-        try{const dataURL=canvas.toDataURL("image/png");const link=document.createElement("a");const filename=`signed-${nftCollectionSelect.value}-${nftTokenIdInput.value}.png`;link.download=filename;link.href=dataURL;document.body.appendChild(link);link.click();document.body.removeChild(link);nftStatusEl.textContent=`Image saved as ${filename}!`;nftStatusEl.className='success';}catch(e){console.error("Error saving image:",e);if(e.name==="SecurityError"){alert("Save Error: Cannot save canvas due to cross-origin image security restrictions. Ensure NFT images allow cross-origin use (CORS).");nftStatusEl.textContent="Save Error: Cross-origin issue.";nftStatusEl.className='error';}else{alert("An error occurred while saving the image.");nftStatusEl.textContent="Save Error.";nftStatusEl.className='error';}}}
 
-    // Minor JS adjustment: Ensure passive: true for touch listeners where preventDefault isn't called inside
-    // Already done for drag/rotate starts, checking others... ok.
+        // Draw each overlay onto the canvas
+        allOverlays.forEach(el=>{
+            const elRect = el.getBoundingClientRect(); // Obținem rect-ul elementului overlay
+            const rotationRad = getRotationRad(el);
+
+            // === NOUA ABORDARE: Calculăm poziția relativă la canvas ===
+            // Centrul vizual al elementului (luând în calcul `translate(-50%, -50%)`)
+            const elCenterX_viewport = elRect.left + elRect.width / 2;
+            const elCenterY_viewport = elRect.top + elRect.height / 2;
+
+            // Coordonatele centrului relativ la colțul stânga-sus al canvas-ului redat
+            const relativeCenterX = elCenterX_viewport - canvasRect.left;
+            const relativeCenterY = elCenterY_viewport - canvasRect.top;
+
+            // Scalăm coordonatele relative la dimensiunea canvas-ului de 2048x2048
+            const rawCanvasX = (relativeCenterX / canvasRect.width) * canvasWidth;
+            const rawCanvasY = (relativeCenterY / canvasRect.height) * canvasHeight;
+            // === SFÂRȘIT ABORDARE NOUĂ PENTRU POZIȚIE ===
+
+            // Rotunjim coordonatele finale pentru a le plasa pe grila de pixeli
+            const canvasX = Math.round(rawCanvasX);
+            const canvasY = Math.round(rawCanvasY);
+
+            ctx.save();
+            ctx.translate(canvasX, canvasY); // Translatăm la centrul calculat și rotunjit
+            ctx.rotate(rotationRad);
+
+            if(el.classList.contains('textOverlay')){
+                const text=el.childNodes[0].nodeValue; const color=el.style.color; const size=parseInt(el.style.fontSize); const font=el.style.fontFamily;
+                // Folosim scaleY (bazat pe canvas rect) și rotunjim
+                const canvasFontSize = Math.round(size / scaleY);
+                ctx.font=`${canvasFontSize}px ${font}`; ctx.fillStyle=color; ctx.textAlign="center"; ctx.textBaseline="middle";
+                ctx.fillText(text, 0, 0);
+            } else if(el.classList.contains('imgOverlay')){
+                const imgElement=el.querySelector('img');
+                if(imgElement&&imgElement.complete&&imgElement.naturalWidth>0){
+                     // Folosim offsetWidth (dimensiunea redată a div-ului) și scaleX (bazat pe canvas rect)
+                     const domWidth = el.offsetWidth;
+                     const canvasDrawWidth = Math.round(domWidth / scaleX);
+
+                     const naturalAspectRatio = imgElement.naturalWidth > 0 ? imgElement.naturalHeight / imgElement.naturalWidth : 1;
+                     // Calculăm înălțimea pe canvas și rotunjim (bazat pe aspect ratio)
+                     const canvasDrawHeight = Math.round(canvasDrawWidth * naturalAspectRatio);
+
+                     if (canvasDrawWidth > 0 && canvasDrawHeight > 0) {
+                        // Desenăm imaginea centrată folosind dimensiuni rotunjite
+                        ctx.drawImage(imgElement, -canvasDrawWidth / 2, -canvasDrawHeight / 2, canvasDrawWidth, canvasDrawHeight);
+                     }
+                } else {
+                    console.warn("Skipping unloaded/invalid image overlay during save:", imgElement?.src);
+                }
+            }
+            ctx.restore();
+        });
+
+        if(activeElement)activeElement.classList.add('active');
+
+        // Generate and download the image
+        try{
+            const dataURL=canvas.toDataURL("image/png");
+            const link=document.createElement("a");
+            const filename=`signed-${nftCollectionSelect.value}-${nftTokenIdInput.value}.png`;
+            link.download=filename; link.href=dataURL;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            nftStatusEl.textContent=`Image saved as ${filename}!`; nftStatusEl.className='success';
+        }catch(e){
+            console.error("Error saving image:",e);
+            if(e.name==="SecurityError"){
+                alert("Save Error: Cannot save canvas due to cross-origin image security restrictions. Ensure NFT images allow cross-origin use (CORS).");
+                nftStatusEl.textContent="Save Error: Cross-origin issue."; nftStatusEl.className='error';
+            } else {
+                alert("An error occurred while saving the image.");
+                nftStatusEl.textContent="Save Error."; nftStatusEl.className='error';
+            }
+        }
+    }
 
 </script>
 </body>
