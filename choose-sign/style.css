@@ -1,0 +1,672 @@
+/* ======================================== */
+/*          CSS Styles (Combined)           */
+/* ======================================== */
+
+/* Import Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@400;700&display=swap');
+
+:root {
+    --rick-green: #97ce4c;
+    --morty-yellow: #f0e14a;
+    --portal-blue: #00b0c8;
+    --interdimensional-purple: #aa6bd1;
+    --slime-green: #c3ff5d;
+    --dark-matter: #1e1e2f;
+    --medium-dark: #2a2a3a;
+    --off-white: #f0f0e0;
+    --error-red: #ff4d4d;
+    --outline-black: #1a1a1a;
+    --glow-green: rgba(151, 206, 76, 0.7);
+    --glow-blue: rgba(0, 176, 200, 0.7);
+    --light-bg: #3a3a4a;
+    --disabled-text: #888;
+    --disabled-border: #555;
+    --disabled-shadow: #444;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--dark-matter);
+    color: var(--off-white);
+    line-height: 1.5;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 1.5rem 1rem;
+    background: linear-gradient(135deg, rgba(151, 206, 76, 0.1) 25%, transparent 25%) -50px 0,
+                linear-gradient(225deg, rgba(170, 107, 209, 0.1) 25%, transparent 25%) -50px 0,
+                linear-gradient(315deg, rgba(0, 176, 200, 0.1) 25%, transparent 25%),
+                linear-gradient(45deg, rgba(240, 225, 74, 0.1) 25%, transparent 25%);
+    background-size: 100px 100px;
+    background-color: var(--dark-matter);
+    overflow-x: hidden;
+}
+
+.container {
+    background-color: rgba(42, 42, 58, 0.9);
+    border: 4px solid var(--outline-black);
+    border-radius: 10px;
+    padding: 1.5rem;
+    max-width: 700px;
+    width: 95%;
+    text-align: center;
+    box-shadow: 5px 5px 0px var(--outline-black);
+    margin-top: 1rem;
+    transform: rotate(-1.5deg);
+    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+.container:hover {
+    transform: rotate(0.5deg) scale(1.01);
+}
+
+h1, h2, h3, .button-style, .radio-group label, #signSelector, #tokenIdLabel {
+    font-family: 'Luckiest Guy', cursive;
+    letter-spacing: 1px;
+}
+
+h1 {
+    color: var(--rick-green);
+    margin-bottom: 1.5rem;
+    font-size: 2.8rem;
+    text-shadow: -2px -2px 0 var(--outline-black), 2px -2px 0 var(--outline-black), -2px 2px 0 var(--outline-black), 2px 2px 0 var(--outline-black), 4px 4px 0 var(--interdimensional-purple);
+    animation: pulse-glow-rick 4s infinite alternate;
+}
+
+@keyframes pulse-glow-rick {
+    from {
+        text-shadow: -2px -2px 0 var(--outline-black), 2px -2px 0 var(--outline-black), -2px 2px 0 var(--outline-black), 2px 2px 0 var(--outline-black), 4px 4px 0 var(--interdimensional-purple), 0 0 15px var(--glow-green);
+    }
+    to {
+        text-shadow: -2px -2px 0 var(--outline-black), 2px -2px 0 var(--outline-black), -2px 2px 0 var(--outline-black), 2px 2px 0 var(--outline-black), 4px 4px 0 var(--portal-blue), 0 0 25px var(--glow-blue);
+    }
+}
+
+h2 {
+    font-size: 1.8rem;
+    color: var(--morty-yellow);
+    margin-bottom: 1rem;
+    text-shadow: 2px 2px 0 var(--outline-black);
+}
+
+h3 {
+    font-size: 1.4rem;
+    margin-top: 1.5rem;
+    color: var(--portal-blue);
+    text-shadow: 1px 1px 0 var(--outline-black);
+}
+
+p {
+    color: var(--off-white);
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.nft-section, .sign-section {
+    margin-bottom: 1.5rem;
+    border: 3px dashed var(--interdimensional-purple);
+    padding: 1rem;
+    border-radius: 5px;
+    background-color: rgba(0,0,0, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.button-style {
+    display: inline-block;
+    padding: 10px 20px;
+    border: 3px solid var(--outline-black);
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    background-color: var(--morty-yellow);
+    color: var(--outline-black);
+    transition: all 0.15s ease-out;
+    text-decoration: none;
+    margin: 0.5rem;
+    box-shadow: 3px 3px 0px var(--outline-black);
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
+}
+
+.button-style:hover:not(:disabled) {
+    background-color: var(--rick-green);
+    box-shadow: 4px 4px 0px var(--outline-black);
+    transform: translate(-2px, -2px) rotate(1deg);
+}
+
+.button-style:active:not(:disabled) {
+    transform: translate(1px, 1px) rotate(0deg);
+    box-shadow: 1px 1px 0px var(--outline-black);
+}
+
+#loadNftButton {
+    background-color: var(--portal-blue);
+    color: var(--off-white);
+    margin-top: 1rem;
+}
+
+#loadNftButton:hover:not(:disabled) {
+    background-color: var(--slime-green);
+    color: var(--outline-black);
+}
+
+#generateButton {
+    background-color: var(--slime-green);
+    color: var(--outline-black);
+    margin-top: 1rem;
+    display: inline-block; /* Ensure it's visible when not hidden */
+}
+
+#generateButton:hover:not(:disabled) {
+    background-color: var(--rick-green);
+    color: var(--outline-black);
+}
+
+.button-style:disabled, .button-style.disabled {
+    background-color: var(--light-bg) !important;
+    border-color: var(--disabled-border) !important;
+    color: var(--disabled-text) !important;
+    cursor: crosshair !important;
+    opacity: 0.7 !important;
+    transform: none !important;
+    box-shadow: 2px 2px 0px var(--disabled-shadow) !important;
+    pointer-events: none !important;
+    text-shadow: none !important;
+}
+
+#tokenIdInputContainer {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#tokenIdLabel {
+    font-size: 1.2rem;
+    color: var(--morty-yellow);
+    text-shadow: 1px 1px 0 var(--outline-black);
+}
+
+#tokenIdInput {
+    padding: 8px 12px;
+    border: 3px solid var(--outline-black);
+    border-radius: 5px;
+    background-color: var(--medium-dark);
+    color: var(--off-white);
+    font-size: 1rem;
+    width: 150px;
+    text-align: center;
+    box-shadow: inset 2px 2px 0px var(--outline-black);
+    transition: all 0.2s ease;
+}
+
+#tokenIdInput:focus {
+    outline: 3px dashed var(--rick-green);
+    background-color: var(--light-bg);
+    box-shadow: inset 2px 2px 0px var(--outline-black), 0 0 10px var(--glow-green);
+}
+
+#tokenIdInput:disabled {
+    background-color: var(--light-bg);
+    color: var(--disabled-text);
+    border-color: var(--disabled-border);
+    cursor: not-allowed;
+    opacity: 0.7;
+    box-shadow: inset 2px 2px 0px var(--disabled-shadow);
+}
+
+#statusMessage, #errorMessage {
+    margin-top: 1rem;
+    font-size: 1rem;
+    min-height: 1.5em;
+    font-weight: bold;
+    color: var(--morty-yellow);
+    transition: color 0.3s ease, opacity 0.3s ease;
+    text-shadow: 1px 1px 0 var(--outline-black);
+    word-wrap: break-word;
+}
+
+#statusMessage.success {
+    color: var(--slime-green);
+}
+
+#errorMessage {
+    color: var(--error-red);
+}
+
+@keyframes shake-rick {
+    0%, 100% { transform: translateX(0) rotate(0); }
+    25% { transform: translateX(-3px) rotate(-1deg); }
+    50% { transform: translateX(3px) rotate(1deg); }
+    75% { transform: translateX(-3px) rotate(-1deg); }
+}
+
+.hidden {
+    display: none !important;
+}
+
+#previewArea {
+    margin: 1.5rem auto;
+    position: relative;
+    width: 300px;
+    height: 300px;
+    border: 5px solid var(--portal-blue);
+    background-color: #000;
+    overflow: hidden;
+    border-radius: 10px;
+    box-shadow: 0 0 15px var(--glow-blue), inset 0 0 10px rgba(0,0,0,0.6);
+}
+
+#previewCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+    object-fit: contain;
+    background-color: var(--medium-dark);
+}
+
+.radio-group {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.radio-group input[type="radio"] {
+    display: none;
+}
+
+.radio-group label {
+    display: inline-block;
+    padding: 8px 15px;
+    border: 3px solid var(--outline-black);
+    border-radius: 20px;
+    cursor: pointer;
+    background-color: var(--interdimensional-purple);
+    color: var(--off-white);
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    text-shadow: 1px 1px 0 var(--outline-black);
+    box-shadow: 2px 2px 0 var(--outline-black);
+}
+
+.radio-group input[type="radio"]:checked + label {
+    background-color: var(--rick-green);
+    color: var(--outline-black);
+    transform: scale(1.1);
+    box-shadow: 3px 3px 0 var(--outline-black);
+}
+
+.radio-group label:hover:not(:disabled) {
+    background-color: var(--portal-blue);
+    transform: translateY(-2px);
+    box-shadow: 3px 4px 0 var(--outline-black);
+}
+
+.radio-group input[type="radio"]:focus-visible + label {
+    outline: 3px dashed var(--morty-yellow);
+    outline-offset: 3px;
+}
+
+.radio-group input[type="radio"]:disabled + label {
+    background-color: var(--light-bg);
+    color: var(--disabled-text);
+    border-color: var(--disabled-border);
+    cursor: not-allowed;
+    opacity: 0.7;
+    transform: none;
+    box-shadow: 2px 2px 0 var(--disabled-shadow);
+    pointer-events: none;
+}
+
+#signSelectorContainer {
+    margin-top: 1.5rem;
+}
+
+#signSelector {
+    padding: 10px 15px;
+    background-color: var(--medium-dark);
+    color: var(--rick-green);
+    border: 3px solid var(--outline-black);
+    border-radius: 5px;
+    font-size: 1.1rem;
+    width: 85%;
+    max-width: 400px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2397ce4c'%3E%3Cpolygon points='8,12 4,6 12,6' stroke='%231a1a1a' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px 18px;
+    transition: all 0.2s ease;
+    box-shadow: 2px 2px 0 var(--outline-black);
+}
+
+#signSelector:hover:not(:disabled) {
+    border-color: var(--rick-green);
+    background-color: var(--light-bg);
+    box-shadow: 3px 3px 0 var(--outline-black);
+}
+
+#signSelector:focus:not(:disabled) {
+    outline: 3px dashed var(--morty-yellow);
+    border-color: var(--rick-green);
+}
+
+#signSelector:disabled {
+    background-color: var(--light-bg);
+    color: var(--disabled-text);
+    border-color: var(--disabled-border);
+    cursor: not-allowed;
+    opacity: 0.7;
+    box-shadow: 2px 2px 0 var(--disabled-shadow);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23888888'%3E%3Cpolygon points='8,12 4,6 12,6' stroke='%23444444' stroke-width='1.5'/%3E%3C/svg%3E");
+    pointer-events: none;
+}
+
+footer {
+    margin-top: 2rem;
+    font-size: 0.9rem;
+    color: var(--morty-yellow);
+    opacity: 0.8;
+    transform: rotate(1deg);
+    text-shadow: 1px 1px 0 var(--outline-black);
+}
+
+footer a {
+    color: var(--rick-green);
+    text-decoration: underline dotted;
+}
+
+footer a:hover {
+    color: var(--portal-blue);
+}
+
+#loader {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 60px;
+    height: 60px;
+    z-index: 1000;
+    transform: translate(-50%, -50%);
+}
+
+#loader::before {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 5px solid transparent;
+    border-top-color: var(--portal-blue);
+    border-bottom-color: var(--rick-green);
+    animation: spin-rick 1.2s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+    box-shadow: 0 0 15px var(--glow-blue), 0 0 10px var(--glow-green) inset;
+}
+
+@keyframes spin-rick {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.1); border-top-color: var(--rick-green); border-bottom-color: var(--portal-blue); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 999;
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.modal-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background-color: var(--medium-dark);
+    border: 4px solid var(--portal-blue);
+    border-radius: 10px;
+    padding: 1.5rem 2rem;
+    max-width: 600px;
+    width: 90%;
+    z-index: 1000;
+    box-shadow: 0 5px 25px rgba(0, 176, 200, 0.4), 5px 5px 0px var(--outline-black);
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    pointer-events: none;
+    color: var(--off-white);
+}
+
+.modal:not(.hidden) {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+}
+
+.modal-close-button {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 2.2rem;
+    color: var(--morty-yellow);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    text-shadow: 1px 1px 0 var(--outline-black);
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.modal-close-button:hover {
+    color: var(--rick-green);
+    transform: scale(1.2) rotate(90deg);
+}
+
+.modal-title {
+    font-family: 'Luckiest Guy', cursive;
+    color: var(--rick-green);
+    font-size: 1.7rem;
+    margin-bottom: 0.8rem;
+    text-shadow: 2px 2px 0 var(--outline-black);
+}
+
+.modal p {
+    margin-bottom: 1rem;
+    font-size: 1.05rem;
+    color: var(--off-white);
+    line-height: 1.4;
+}
+
+.modal-submessage {
+    font-size: 0.95rem;
+    color: var(--morty-yellow);
+    font-style: italic;
+    margin-top: -0.8rem;
+    margin-bottom: 1.2rem;
+    opacity: 0.9;
+}
+
+.share-text-display { /* Still here, maybe used later */
+    display: none;
+}
+
+.modal-share-group {
+    margin-top: 1.2rem;
+    margin-bottom: 1.8rem;
+}
+
+.modal-share-button {
+    display: inline-block;
+    width: auto;
+    min-width: 180px;
+    margin: 0;
+    background-color: #1DA1F2; /* Twitter Blue */
+    color: white;
+    text-shadow: none;
+    box-shadow: 3px 3px 0px #0c85d0;
+    padding: 10px 18px;
+    font-size: 1.1rem;
+}
+
+.modal-share-button:hover:not(:disabled) {
+    background-color: #0c85d0;
+    box-shadow: 4px 4px 0px #0a6aa3;
+    transform: translate(-2px, -2px) rotate(1deg);
+}
+
+.modal-share-button:active:not(:disabled) {
+    transform: translate(1px, 1px) rotate(0deg);
+    box-shadow: 1px 1px 0px #0a6aa3;
+}
+
+.modal-divider {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--portal-blue), transparent);
+    border: none;
+    margin: 1.5rem 0;
+    opacity: 0.6;
+}
+
+.coffee-section {
+    text-align: center;
+}
+
+.coffee-button {
+    background-color: var(--morty-yellow);
+    color: var(--outline-black);
+    border: 3px solid var(--outline-black);
+    border-radius: 20px;
+    padding: 8px 18px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-bottom: 1rem;
+    font-family: 'Luckiest Guy', cursive;
+    letter-spacing: 1px;
+    box-shadow: 2px 2px 0 var(--outline-black);
+    transition: all 0.2s ease;
+}
+
+.coffee-button:hover {
+    background-color: var(--rick-green);
+    transform: translateY(-2px);
+    box-shadow: 3px 4px 0 var(--outline-black);
+}
+
+.coffee-options {
+    display: none;
+    margin-top: 1rem;
+}
+
+.coffee-options p {
+    font-size: 0.9rem;
+    color: var(--portal-blue);
+    margin-bottom: 0.8rem;
+}
+
+.donation-options {
+    display: flex;
+    justify-content: space-around;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.donation-box {
+    background-color: rgba(0,0,0,0.2);
+    border: 2px dashed var(--interdimensional-purple);
+    padding: 0.8rem 1rem;
+    border-radius: 5px;
+    width: 45%;
+    min-width: 180px;
+}
+
+.donation-box h4 {
+    color: var(--rick-green);
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.donation-address {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--off-white);
+    word-break: break-all;
+    background: rgba(0,0,0,0.3);
+    padding: 5px;
+    border-radius: 3px;
+    margin-bottom: 0.5rem;
+}
+
+.copy-button {
+    font-size: 0.8rem;
+    padding: 3px 8px;
+    margin-left: 5px;
+    cursor: pointer;
+    background-color: var(--portal-blue);
+    color: white;
+    border: 1px solid var(--outline-black);
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+
+.copy-button:hover {
+    background-color: var(--rick-green);
+    color: var(--outline-black);
+}
+
+.copy-button.copied {
+    background-color: var(--slime-green);
+    color: var(--outline-black);
+}
+
+/* Responsive Styles */
+@media (max-width: 600px) {
+    html { font-size: 14px; }
+    body { padding: 1rem 0.5rem; }
+    .container { padding: 1rem; transform: rotate(0); width: 98%; margin-top: 0.5rem; }
+    .container:hover { transform: none; }
+    h1 { font-size: 2.2rem; }
+    h2 { font-size: 1.6rem; }
+    h3 { font-size: 1.2rem; }
+    .button-style { padding: 8px 15px; font-size: 1rem; }
+    #previewArea { width: 200px; height: 200px; }
+    .radio-group { gap: 0.5rem; }
+    .radio-group label { padding: 6px 12px; font-size: 0.9rem;}
+    #signSelector { width: 95%; font-size: 1rem; padding: 8px 12px;}
+    #tokenIdInput { width: 100px; }
+    .modal { padding: 1.5rem 1rem; width: 95%; }
+    .modal-title { font-size: 1.5rem; }
+    .modal p { font-size: 1rem; }
+    .modal-submessage { font-size: 0.9rem; }
+    .modal-share-button { width: 90%; min-width: 150px; font-size: 1.1rem; }
+    .coffee-button { font-size: 0.9rem; }
+    .donation-options { flex-direction: column; align-items: center; }
+    .donation-box { width: 90%; }
+    .donation-address { font-size: 0.75rem; }
+}

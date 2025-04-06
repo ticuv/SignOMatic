@@ -1,0 +1,28 @@
+{
+  "githubUser": "ticuv",
+  "githubRepo": "SignOMatic",
+  "githubBranch": "main",
+  "imageBasePath": "images",
+  "categories": {
+    "AHC": [
+      {
+        "name": "AHC - Delist",
+        "fileName": "delist.png"
+      },
+      {
+        "name": "AHC - Duko",  
+        "fileName": "duko.png"
+      }
+    ],
+    "GHN": [
+      {
+        "name": "GHN - Delist",
+        "fileName": "delist.png"
+      },
+      {
+        "name": "GHN - Duko",
+        "fileName": "duko.png"
+      }
+    ]
+  }
+}

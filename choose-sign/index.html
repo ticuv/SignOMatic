@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticuv's SignOMatic (TEST V8 - Rebuilt)</title>
+
+    <!-- Include ethers.js FIRST -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
+    <!-- Include Clipboard.js SECOND (needed for copy buttons) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
+
+    <!-- Link to External CSS -->
+    <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+    <div id="loader" class="hidden"></div>
+    <div class="container">
+        <h1>Ticuv's NFT Sign-O-Matic</h1>
+        <p>Alright, pick your poison - GHN or AHC - then shove in the Token ID. Don't screw it up.</p>
+        <div id="nftSelectionSection" class="nft-section">
+            <h2>Step 1: WHICH *burp* DIMENSION?!</h2>
+            <div class="radio-group">
+                <input type="radio" id="categoryGHN" name="category" value="GHN"><label for="categoryGHN">GHN Garbage Heap</label>
+                <input type="radio" id="categoryAHC" name="category" value="AHC"><label for="categoryAHC">AHC Clown Fiesta</label>
+            </div>
+            <div id="tokenIdInputContainer" class="hidden">
+                <h2>Step 2: Gimme the NFT ID, Nerd!</h2>
+                <label id="tokenIdLabel" for="tokenIdInput">Token ID:</label>
+                <input type="number" id="tokenIdInput" placeholder="e.g., 1114" disabled>
+                <button id="loadNftButton" class="button-style disabled" disabled>Load NFT Glagnar!</button>
+            </div>
+            <div id="statusMessage">Select a dimension above...</div>
+            <div id="errorMessage" class="hidden"></div>
+        </div>
+
+        <div id="previewArea" class="hidden">
+            <canvas id="previewCanvas" width="300" height="300"></canvas>
+        </div>
+
+        <div id="signSection" class="sign-section hidden">
+            <div id="signSelectorContainer">
+                <h3 id="signPrompt">Step 3: Pick a sign overlay, quick!</h3>
+                <select id="signSelector" disabled></select>
+            </div>
+            <button id="generateButton" class="button-style hidden disabled" disabled>Generate</button>
+        </div>
+
+        <!-- Hidden canvas for final image generation -->
+        <canvas id="finalCanvas" width="2048" height="2048" style="display: none;"></canvas>
+
+        <footer>Built because Ticuv was bored (probably). Don't break it, plumbus-licker!</footer>
+    </div>
+
+    <!-- Modal Structure -->
+    <div id="shareModalOverlay" class="modal-overlay hidden"></div>
+    <div id="shareModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+        <button id="closeShareModal" class="modal-close-button" aria-label="Close">×</button>
+        <h3 id="shareModalTitle" class="modal-title">Download Started!</h3>
+        <p id="shareMessage">Love your new sign? Share it on X and tag @ticu_v – we’d love to see it!</p>
+        <p id="shareSubMessage" class="modal-submessage"></p> <!-- Comic text goes here -->
+        <div class="modal-share-group">
+            <a id="twitterShareButton" href="#" target="_blank" rel="noopener noreferrer" class="button-style modal-share-button">
+                Share on X
+            </a>
+        </div>
+        <hr class="modal-divider">
+        <div class="coffee-section">
+            <button id="coffeeButton" class="coffee-button">Buy Ticuv a (Virtual) Coffee?</button>
+            <div id="coffeeOptions" class="coffee-options">
+                <p>This keeps the portal fluid flowing & funds more weird tools! Any amount helps!</p>
+                <div class="donation-options">
+                    <div class="donation-box">
+                        <h4>SOL (Solana)</h4>
+                        <span class="donation-address" id="solAddress">2Vv3QHAJxZvViaY1HaWvJ5kbnNeUdN1MrZcRYog4ezHE</span>
+                        <button class="copy-button" data-clipboard-target="#solAddress">Copy</button>
+                    </div>
+                    <div class="donation-box">
+                        <h4>ETH (Ethereum/L2s)</h4>
+                        <span class="donation-address" id="ethAddress">0xbD0dDE4175d8e854306a09dE4c184392b33a6d9C</span>
+                        <button class="copy-button" data-clipboard-target="#ethAddress">Copy</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Link to External JavaScript (place at the end) -->
+    <script src="script.js"></script>
+
+</body>
+</html>
