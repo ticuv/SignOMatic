@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ro">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -23,9 +23,9 @@
             --medium-dark: #2a2a3a; --light-bg: #3a3a4a; --input-bg: #3b3b50;
             --off-white: #f0f0e0; --error-red: #ff4d4d; --outline-black: #1a1a1a;
             --glow-green: rgba(151, 206, 76, 0.7); --glow-blue: rgba(0, 176, 200, 0.7);
-            --glow-purple: rgba(170, 107, 209, 0.5); /* Added for modal glow */
+            --glow-purple: rgba(170, 107, 209, 0.5);
             --disabled-text: #888; --disabled-border: #555; --disabled-shadow: #444;
-            --handle-active-bg: yellow; --handle-image-active-bg: cyan; --handle-resize-active-bg: lime;
+            --handle-active-bg: yellow; --handle-image-active-bg: cyan;
 
             /* UI adjustments */
             --control-padding: 0.5rem 0.7rem;
@@ -123,16 +123,13 @@
 
         input[type="file"] { font-family: 'Roboto', sans-serif; font-size: 0.75rem; color: var(--off-white); max-width: 200px; }
         input[type="file"]::file-selector-button {
-            /* font-family: 'Luckiest Guy', cursive; */ /* <-- Schimbat */
-            font-family: 'Roboto', sans-serif;       /* <-- Adaugat */
-            font-weight: 700;                        /* <-- Adaugat (Optional) */
+            font-family: 'Roboto', sans-serif; font-weight: 700;
             font-size: var(--button-font-size);
             padding: var(--button-padding);
             border-radius: 8px;
             border: 2px solid var(--outline-black);
             background-color: var(--interdimensional-purple);
             color: var(--off-white);
-            /* text-shadow: 1px 1px 0 var(--outline-black); */ /* <-- Comentat (Optional) */
             box-shadow: 2px 2px 0px var(--outline-black);
             cursor: pointer;
             transition: all 0.15s ease-out;
@@ -142,14 +139,11 @@
         input[type="file"]::file-selector-button:active:not(:disabled) { transform: translateY(1px) scale(0.98); box-shadow: 1px 1px 0px var(--outline-black); }
 
         button {
-            /* font-family: 'Luckiest Guy', cursive; */ /* <-- Schimbat */
-            font-family: 'Roboto', sans-serif;       /* <-- Adaugat */
-            font-weight: 700;                        /* <-- Adaugat (Optional) */
+            font-family: 'Roboto', sans-serif; font-weight: 700;
             font-size: var(--button-font-size);
             padding: var(--button-padding);
             border-radius: 8px;
             border: 2px solid var(--outline-black);
-            /* text-shadow: 1px 1px 0 var(--outline-black); */ /* <-- Comentat (Optional) */
             box-shadow: 2px 2px 0px var(--outline-black);
             cursor: pointer;
             transition: all 0.15s ease-out;
@@ -199,16 +193,83 @@
         .textOverlay.active { outline: 2px dashed var(--handle-active-bg); z-index: 100; cursor: grabbing; }
         .imgOverlay.active { outline: 2px dashed var(--handle-image-active-bg); z-index: 101; cursor: grabbing; }
 
-        .textOverlay .rotation-handle, .imgOverlay .rotation-handle, .imgOverlay .resize-handle {
-            position: absolute; width: var(--handle-size); height: var(--handle-size); border-radius: 50%;
-            border: 2px solid var(--outline-black); display: none; pointer-events: auto; touch-action: none;
-            font-family: sans-serif; font-size: var(--handle-icon-size); line-height: calc(var(--handle-size) - 4px);
-            text-align: center; box-shadow: 1px 1px 0 var(--outline-black); background-color: transparent; color: var(--outline-black);
+        /* --- Styling for ALL Handles --- */
+        .textOverlay .rotation-handle,
+        .imgOverlay .rotation-handle,
+        .imgOverlay .resize-handle {
+            position: absolute;
+            width: var(--handle-size);
+            height: var(--handle-size);
+            border-radius: 50%;
+            border: 2px solid var(--outline-black);
+            display: none;
+            pointer-events: auto;
+            touch-action: none;
+            font-family: sans-serif;
+            line-height: calc(var(--handle-size) - 4px);
+            text-align: center;
+            box-shadow: 1px 1px 0 var(--outline-black);
+            background-color: transparent;
+            color: var(--outline-black);
+            user-select: none;
+            transform-origin: center center;
         }
-        .textOverlay.active .rotation-handle, .imgOverlay.active .rotation-handle, .imgOverlay.active .resize-handle { display: block; }
-        .textOverlay .rotation-handle, .imgOverlay .rotation-handle { bottom: calc(-1 * var(--handle-size) - 4px); left: 50%; transform: translateX(-50%); cursor: alias; color: var(--handle-active-bg); text-shadow: 1px 1px 1px var(--outline-black); }
-        .imgOverlay .rotation-handle { color: var(--handle-image-active-bg); }
-        .imgOverlay .resize-handle { right: calc(-0.5 * var(--handle-size) - 2px); bottom: calc(-0.5 * var(--handle-size) - 2px); cursor: nwse-resize; color: var(--handle-resize-active-bg); font-size: calc(var(--handle-icon-size) * 0.9); text-shadow: 1px 1px 1px var(--outline-black); }
+
+        /* Show handles only when the parent overlay is active */
+        .textOverlay.active .rotation-handle,
+        .imgOverlay.active .rotation-handle,
+        .imgOverlay.active .resize-handle {
+            display: block;
+        }
+
+        /* --- Rotation Handle Specific Styles (Text & Image) --- */
+        .textOverlay .rotation-handle,
+        .imgOverlay .rotation-handle {
+            bottom: calc(-1 * var(--handle-size) - 4px);
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: alias;
+            font-size: var(--handle-icon-size);
+            color: var(--handle-active-bg);
+            text-shadow: 1px 1px 1px var(--outline-black);
+        }
+        .imgOverlay .rotation-handle {
+            color: var(--handle-image-active-bg);
+        }
+
+        /* --- Resize Handle Specific Styles (Image Only) --- */
+        .imgOverlay .resize-handle {
+            /* Position */
+            left: calc(-0.5 * var(--handle-size) - 2px);
+            bottom: calc(-0.5 * var(--handle-size) - 2px);
+            cursor: nesw-resize;
+
+            /* Visuals */
+            font-size: calc(var(--handle-icon-size) * 1.1);
+            background-color: rgba(195, 255, 93, 0.6);
+            color: var(--outline-black);
+            text-shadow: none;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+
+            /* === ROTATION ADDED (45deg) === */
+            transform: rotate(45deg);
+        }
+
+        /* Hover effect for resize handle */
+        .imgOverlay .resize-handle:hover {
+            background-color: var(--slime-green);
+            /* Combine rotation and scale */
+            transform: rotate(45deg) scale(1.1);
+        }
+
+        /* Active (pressed) effect for resize handle */
+        .imgOverlay .resize-handle:active {
+            background-color: var(--rick-green);
+            /* Combine rotation and scale */
+            transform: rotate(45deg) scale(0.95);
+        }
+
+
         .imgOverlay img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 
         .floating-reset {
@@ -224,32 +285,32 @@
         /* === DISCLAIMER MODAL STYLES === */
         #disclaimerModal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(30, 30, 47, 0.85); /* --dark-matter with alpha */
-            display: none; /* Hidden by default */
+            background-color: rgba(30, 30, 47, 0.85);
+            display: none;
             justify-content: center; align-items: center;
             z-index: 1000;
             padding: 1rem;
-            opacity: 0; /* Start fully transparent */
+            opacity: 0;
             transition: opacity 0.3s ease-in-out;
         }
         #disclaimerModal.visible {
             display: flex;
-            opacity: 1; /* Fade in */
+            opacity: 1;
         }
         .disclaimer-content {
             background-color: var(--medium-dark);
             border: 3px solid var(--interdimensional-purple);
             border-radius: 12px;
-            padding: 1.5rem; /* More padding */
+            padding: 1.5rem;
             max-width: 500px;
             width: 90%;
-            text-align: left; /* Better for paragraphs */
-            box-shadow: 4px 4px 0px var(--outline-black), 0 0 20px var(--glow-purple); /* Purple glow */
-            transform: rotate(-1deg); /* Slight tilt */
-            position: relative; /* For close button */
+            text-align: left;
+            box-shadow: 4px 4px 0px var(--outline-black), 0 0 20px var(--glow-purple);
+            transform: rotate(-1deg);
+            position: relative;
             color: var(--off-white);
         }
-         .disclaimer-content h4 { /* Modal title style */
+         .disclaimer-content h4 {
              font-family: 'Luckiest Guy', cursive;
              font-size: 1.3rem;
              color: var(--morty-yellow);
@@ -262,18 +323,18 @@
             margin-bottom: 1rem;
             line-height: 1.5;
         }
-        .disclaimer-content p:last-of-type { margin-bottom: 1.5rem; } /* More space before button */
+        .disclaimer-content p:last-of-type { margin-bottom: 1.5rem; }
 
-        #closeDisclaimerBtn { /* Style like the reset button */
+        #closeDisclaimerBtn {
             position: absolute; top: 8px; right: 8px;
             background-color: var(--error-red); color: white;
             border: 2px solid var(--outline-black); border-radius: 50%;
             font-size: 1rem; width: 26px; height: 26px; font-weight: bold;
             box-shadow: 1px 1px 0 var(--outline-black);
-            cursor: pointer; z-index: 1001; /* Above content */
+            cursor: pointer; z-index: 1001;
             display: flex; align-items: center; justify-content: center; line-height: 1;
             transition: all 0.15s ease-out;
-            padding: 0; /* Override default button padding */
+            padding: 0;
         }
         #closeDisclaimerBtn:hover { transform: translateY(-1px) scale(1.1); box-shadow: 2px 2px 0 var(--outline-black); }
         #closeDisclaimerBtn:active { transform: translateY(1px) scale(0.95); box-shadow: 0px 0px 0 var(--outline-black); }
@@ -292,7 +353,7 @@
             input[type="text"], input[type="number"], select { padding: 4px 6px; font-size: 0.8rem; }
             input[type="file"] { font-size: 0.75rem;}
             :root { --handle-size: 22px; --handle-icon-size: 12px; }
-            .disclaimer-content h4 { font-size: 1.2rem; } /* Adjust modal title size */
+            .disclaimer-content h4 { font-size: 1.2rem; }
         }
          @media (max-width: 450px) {
              .control-group { flex-direction: column; align-items: stretch; }
@@ -306,7 +367,7 @@
              #nftStatus { font-size: 0.75rem; }
              #final-actions { flex-direction: column; gap: 4px; margin-bottom: 0.3rem;}
              #final-actions button { width: 100%; }
-             .disclaimer-content { padding: 1rem; transform: rotate(0deg); } /* Straighten modal on small screens */
+             .disclaimer-content { padding: 1rem; transform: rotate(0deg); }
              .disclaimer-content h4 { font-size: 1.1rem; }
              #closeDisclaimerBtn { top: 5px; right: 5px; width: 24px; height: 24px; font-size: 0.9rem; }
          }
@@ -374,17 +435,17 @@
     <div id="canvas-container">
         <button class="floating-reset" id="resetCanvas" title="Reset Canvas & Overlays">↺</button>
         <canvas height="2048" id="canvas" width="2048"></canvas>
+        <!-- Overlays will be added here -->
     </div>
 
-    <!-- === DISCLAIMER BUTTON (ENGLISH TEXT) === -->
+    <!-- === DISCLAIMER BUTTON === -->
     <div style="margin-top: 10px; width: 100%; text-align: center;">
         <button id="disclaimerBtn" style="background-color: var(--morty-yellow); color: var(--outline-black);"> Disclaimer (Read Me!) </button>
     </div>
-    <!-- === END DISCLAIMER BUTTON === -->
 
 </div> <!-- End .main-container -->
 
-<!-- === DISCLAIMER MODAL STRUCTURE (Added before script) === -->
+<!-- === DISCLAIMER MODAL === -->
 <div id="disclaimerModal">
     <div class="disclaimer-content">
         <button id="closeDisclaimerBtn" title="Close Disclaimer">×</button>
@@ -400,7 +461,6 @@
         </p>
     </div>
 </div>
-<!-- === END DISCLAIMER MODAL === -->
 
 
 <script>
@@ -424,7 +484,7 @@
     let canvas, ctx, container, textInput, textColor, fontSize, fontFamily, removeBtn, nftStatusEl,
         nftCollectionSelect, nftTokenIdInput, loadNftBtn, applyOverlayBtn, overlayColorInput,
         addTextBtn, saveBtn, imageUpload, addImageBtn, resetCanvasBtn,
-        disclaimerBtn, disclaimerModal, closeDisclaimerBtn; // <-- DISCLAIMER: Added modal elements
+        disclaimerBtn, disclaimerModal, closeDisclaimerBtn;
 
     // --- Initialization ---
     window.onload = () => {
@@ -449,8 +509,8 @@
         addImageBtn = document.getElementById("addImageBtn");
         resetCanvasBtn = document.getElementById("resetCanvas");
         disclaimerBtn = document.getElementById("disclaimerBtn");
-        disclaimerModal = document.getElementById("disclaimerModal"); // <-- DISCLAIMER: Get modal
-        closeDisclaimerBtn = document.getElementById("closeDisclaimerBtn"); // <-- DISCLAIMER: Get close button
+        disclaimerModal = document.getElementById("disclaimerModal");
+        closeDisclaimerBtn = document.getElementById("closeDisclaimerBtn");
 
         // Initial Setup
         enableEditingControls(false);
@@ -461,7 +521,7 @@
     function setupEventListeners() {
         if (!loadNftBtn) { console.error("Load button not found!"); return; }
 
-        // NFT Loading, Sign Color, Text Editing, Image Editing, Actions, Collection Change... (keep existing listeners)
+        // Event Listeners
         loadNftBtn.addEventListener('click', loadNftToCanvas);
         applyOverlayBtn.addEventListener('click', applyOverlay);
         overlayColorInput.addEventListener('input', applyOverlay);
@@ -476,20 +536,16 @@
         resetCanvasBtn.addEventListener('click', handleReset);
         nftCollectionSelect.addEventListener("change", () => { if (baseImage.src && baseImage.complete) { applyOverlay(); } });
 
-        // === DISCLAIMER MODAL LISTENERS ===
+        // Disclaimer Modal Listeners
         if (disclaimerBtn && disclaimerModal && closeDisclaimerBtn) {
             disclaimerBtn.addEventListener('click', showComicDisclaimer);
             closeDisclaimerBtn.addEventListener('click', hideComicDisclaimer);
-            // Optional: Close modal if clicking outside the content area
             disclaimerModal.addEventListener('click', (event) => {
-                if (event.target === disclaimerModal) { // Check if clicked on the backdrop
-                    hideComicDisclaimer();
-                }
+                if (event.target === disclaimerModal) { hideComicDisclaimer(); }
             });
         } else {
             console.warn("Disclaimer modal elements not found!");
         }
-        // === END DISCLAIMER LISTENERS ===
     }
 
     // --- Event Handlers ---
@@ -555,7 +611,12 @@
         reader.onload=function(e){const wrapper=document.createElement("div");wrapper.className="imgOverlay";wrapper.style.position="absolute";wrapper.style.width="auto";wrapper.style.height="auto";wrapper.style.transform="translate(-50%, -50%) rotate(0deg)";wrapper.style.touchAction="none";wrapper.style.zIndex="20";const img=document.createElement("img");img.src=e.target.result;
         img.onload=()=>{if(container.offsetWidth>0&&img.naturalWidth>0&&img.naturalHeight>0){const contW=container.offsetWidth;const initialWidth=Math.min(img.naturalWidth*0.60,contW*0.5,250);const aspectRatio=img.naturalWidth/img.naturalHeight;wrapper.style.width=`${initialWidth}px`;wrapper.style.height=`${initialWidth/aspectRatio}px`;}else{wrapper.style.width='100px';wrapper.style.height='auto';}};
         img.onerror=()=>{console.error("Error loading added image.");nftStatusEl.textContent="Error displaying uploaded image.";nftStatusEl.className='error';wrapper.remove();}
-        wrapper.appendChild(img);const rotateHandle=document.createElement("div");rotateHandle.className="rotation-handle";rotateHandle.innerHTML='↺';wrapper.appendChild(rotateHandle);const resizeHandle=document.createElement("div");resizeHandle.className="resize-handle";resizeHandle.innerHTML='↔';wrapper.appendChild(resizeHandle);const currentPolygon=getPolygonForSelectedCollection();const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x));const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y));const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50;const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50;const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent);wrapper.style.left=`${initialX}px`;wrapper.style.top=`${initialY}px`;wrapper.addEventListener("mousedown",handleImageDragStart);wrapper.addEventListener("touchstart",handleImageDragStart,{passive:true});rotateHandle.addEventListener("mousedown",handleImageRotateStart);rotateHandle.addEventListener("touchstart",handleImageRotateStart,{passive:true});resizeHandle.addEventListener("mousedown",handleImageResizeStart);resizeHandle.addEventListener("touchstart",handleImageResizeStart,{passive:true});container.appendChild(wrapper);setActiveElement(wrapper);nftStatusEl.textContent="Image added.";nftStatusEl.className='success';imageUpload.value='';};
+        wrapper.appendChild(img);const rotateHandle=document.createElement("div");rotateHandle.className="rotation-handle";rotateHandle.innerHTML='↺';wrapper.appendChild(rotateHandle);
+        const resizeHandle=document.createElement("div");
+        resizeHandle.className="resize-handle";
+        resizeHandle.innerHTML='⤡'; // Icon remains ⤡
+        wrapper.appendChild(resizeHandle);
+        const currentPolygon=getPolygonForSelectedCollection();const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x));const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y));const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50;const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50;const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent);wrapper.style.left=`${initialX}px`;wrapper.style.top=`${initialY}px`;wrapper.addEventListener("mousedown",handleImageDragStart);wrapper.addEventListener("touchstart",handleImageDragStart,{passive:true});rotateHandle.addEventListener("mousedown",handleImageRotateStart);rotateHandle.addEventListener("touchstart",handleImageRotateStart,{passive:true});resizeHandle.addEventListener("mousedown",handleImageResizeStart);resizeHandle.addEventListener("touchstart",handleImageResizeStart,{passive:true});container.appendChild(wrapper);setActiveElement(wrapper);nftStatusEl.textContent="Image added.";nftStatusEl.className='success';imageUpload.value='';};
         reader.onerror=function(err){console.error("FileReader error:",err);nftStatusEl.textContent="Error reading image file.";nftStatusEl.className='error';}
         reader.readAsDataURL(file);
     }
@@ -564,7 +625,7 @@
     function setActiveElement(el) { if(activeElement&&activeElement!==el){activeElement.classList.remove("active");activeElement.style.zIndex=activeElement.classList.contains('imgOverlay')?'20':'10';} if(el){el.classList.add("active");activeElement=el;el.style.zIndex=el.classList.contains('imgOverlay')?'101':'100';if(el.classList.contains('textOverlay')){textInput.value=el.childNodes[0].nodeValue;textColor.value=rgb2hex(el.style.color);fontSize.value=parseInt(el.style.fontSize);const currentFont=el.style.fontFamily.split(',')[0].replace(/['"]/g,"").trim();let foundFont=false;for(let option of fontFamily.options){if(option.value.includes(currentFont)){fontFamily.value=option.value;foundFont=true;break;}}if(!foundFont)fontFamily.value='Arial';}}else{activeElement=null;} updateControlState();}
     function removeActiveElement() { if(activeElement){activeElement.remove();setActiveElement(null);} }
 
-    // --- Interaction Handlers ---
+    // --- Interaction Handlers (Corrected Resize Logic Maintained) ---
     function getEventCoordinates(event) { let x,y; if(event.touches&&event.touches.length>0){x=event.touches[0].clientX;y=event.touches[0].clientY;}else if(event.changedTouches&&event.changedTouches.length>0){x=event.changedTouches[0].clientX;y=event.changedTouches[0].clientY;}else{x=event.clientX;y=event.clientY;} return{x,y}; }
     function handleTextDragStart(event) { if(event.target.classList.contains('rotation-handle'))return;const el=event.currentTarget;setActiveElement(el);textInteractionState.isDragging=true;textInteractionState.isRotating=false;el.style.cursor='grabbing';document.body.style.cursor='grabbing';const coords=getEventCoordinates(event);const contRect=container.getBoundingClientRect();textInteractionState.startX=coords.x-contRect.left;textInteractionState.startY=coords.y-contRect.top;textInteractionState.startLeft=parseFloat(el.style.left||"0");textInteractionState.startTop=parseFloat(el.style.top||"0");document.addEventListener("mousemove",handleTextInteractionMove);document.addEventListener("mouseup",handleTextInteractionEnd);document.addEventListener("touchmove",handleTextInteractionMove,{passive:false});document.addEventListener("touchend",handleTextInteractionEnd);document.addEventListener("touchcancel",handleTextInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
     function handleTextRotateStart(event) { event.stopPropagation();const el=event.currentTarget.parentElement;setActiveElement(el);textInteractionState.isRotating=true;textInteractionState.isDragging=false;document.body.style.cursor='alias';const coords=getEventCoordinates(event);const rect=el.getBoundingClientRect();textInteractionState.rotateCenterX=rect.left+rect.width/2;textInteractionState.rotateCenterY=rect.top+rect.height/2;const dx=coords.x-textInteractionState.rotateCenterX;const dy=coords.y-textInteractionState.rotateCenterY;let startAngle=Math.atan2(dy,dx);const currentRotationRad=getRotationRad(el);textInteractionState.rotateStartAngle=startAngle-currentRotationRad;document.addEventListener("mousemove",handleTextInteractionMove);document.addEventListener("mouseup",handleTextInteractionEnd);document.addEventListener("touchmove",handleTextInteractionMove,{passive:false});document.addEventListener("touchend",handleTextInteractionEnd);document.addEventListener("touchcancel",handleTextInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
@@ -572,100 +633,114 @@
     function handleTextInteractionEnd(event) { if(activeElement&&activeElement.classList.contains('textOverlay')){activeElement.style.cursor='grab';} document.body.style.cursor='default'; textInteractionState.isDragging=false; textInteractionState.isRotating=false; document.removeEventListener("mousemove",handleTextInteractionMove); document.removeEventListener("mouseup",handleTextInteractionEnd); document.removeEventListener("touchmove",handleTextInteractionMove); document.removeEventListener("touchend",handleTextInteractionEnd); document.removeEventListener("touchcancel",handleTextInteractionEnd); }
     function handleImageDragStart(event) { if(event.target.classList.contains('rotation-handle')||event.target.classList.contains('resize-handle'))return;const el=event.currentTarget;setActiveElement(el);imageInteractionState.isDragging=true;imageInteractionState.isRotating=false;imageInteractionState.isResizing=false;el.style.cursor='grabbing';document.body.style.cursor='grabbing';const coords=getEventCoordinates(event);const contRect=container.getBoundingClientRect();imageInteractionState.startX=coords.x-contRect.left;imageInteractionState.startY=coords.y-contRect.top;imageInteractionState.startLeft=parseFloat(el.style.left||"0");imageInteractionState.startTop=parseFloat(el.style.top||"0");document.addEventListener("mousemove",handleImageInteractionMove);document.addEventListener("mouseup",handleImageInteractionEnd);document.addEventListener("touchmove",handleImageInteractionMove,{passive:false});document.addEventListener("touchend",handleImageInteractionEnd);document.addEventListener("touchcancel",handleImageInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
     function handleImageRotateStart(event) { event.stopPropagation();const el=event.currentTarget.parentElement;setActiveElement(el);imageInteractionState.isRotating=true;imageInteractionState.isDragging=false;imageInteractionState.isResizing=false;document.body.style.cursor='alias';const coords=getEventCoordinates(event);const rect=el.getBoundingClientRect();imageInteractionState.centerX=rect.left+rect.width/2;imageInteractionState.centerY=rect.top+rect.height/2;const dx=coords.x-imageInteractionState.centerX;const dy=coords.y-imageInteractionState.centerY;let startAngle=Math.atan2(dy,dx);imageInteractionState.currentRotationRad=getRotationRad(el);imageInteractionState.startAngle=startAngle-imageInteractionState.currentRotationRad;document.addEventListener("mousemove",handleImageInteractionMove);document.addEventListener("mouseup",handleImageInteractionEnd);document.addEventListener("touchmove",handleImageInteractionMove,{passive:false});document.addEventListener("touchend",handleImageInteractionEnd);document.addEventListener("touchcancel",handleImageInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
-    function handleImageResizeStart(event) { event.stopPropagation();const el=event.currentTarget.parentElement;setActiveElement(el);imageInteractionState.isResizing=true;imageInteractionState.isRotating=false;imageInteractionState.isDragging=false;document.body.style.cursor='nwse-resize';const coords=getEventCoordinates(event);imageInteractionState.startX=coords.x;imageInteractionState.startY=coords.y;imageInteractionState.startWidth=el.offsetWidth;imageInteractionState.startHeight=el.offsetHeight;imageInteractionState.aspectRatio=imageInteractionState.startHeight>0?imageInteractionState.startWidth/imageInteractionState.startHeight:1;imageInteractionState.currentRotationRad=getRotationRad(el);const rect=el.getBoundingClientRect();imageInteractionState.centerX=rect.left+rect.width/2;imageInteractionState.centerY=rect.top+rect.height/2;document.addEventListener("mousemove",handleImageInteractionMove);document.addEventListener("mouseup",handleImageInteractionEnd);document.addEventListener("touchmove",handleImageInteractionMove,{passive:false});document.addEventListener("touchend",handleImageInteractionEnd);document.addEventListener("touchcancel",handleImageInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
-    function handleImageInteractionMove(event) { if(!activeElement||!activeElement.classList.contains('imgOverlay')||(!imageInteractionState.isDragging&&!imageInteractionState.isRotating&&!imageInteractionState.isResizing))return; if(event.type==='touchmove')event.preventDefault(); const coords=getEventCoordinates(event); const contRect=container.getBoundingClientRect(); if(imageInteractionState.isDragging){const currentX=coords.x-contRect.left;const currentY=coords.y-contRect.top;let potentialNewLeft=imageInteractionState.startLeft+(currentX-imageInteractionState.startX);let potentialNewTop=imageInteractionState.startTop+(currentY-imageInteractionState.startY);const{canvasX,canvasY}=getCanvasCoordsFromContainerPoint(potentialNewLeft,potentialNewTop);if(pointInPolygon({x:canvasX,y:canvasY},getPolygonForSelectedCollection())){activeElement.style.left=`${potentialNewLeft}px`;activeElement.style.top=`${potentialNewTop}px`;}}else if(imageInteractionState.isRotating){const dx=coords.x-imageInteractionState.centerX;const dy=coords.y-imageInteractionState.centerY;let angle=Math.atan2(dy,dx);let rotationRad=angle-imageInteractionState.startAngle;let rotationDeg=rotationRad*(180/Math.PI);activeElement.style.transform=`translate(-50%, -50%) rotate(${rotationDeg}deg)`;}else if(imageInteractionState.isResizing){const dx=coords.x-imageInteractionState.startX;const dy=coords.y-imageInteractionState.startY;const rotation=imageInteractionState.currentRotationRad;const cosR=Math.cos(rotation);const sinR=Math.sin(rotation);const rotatedDx=dx*cosR+dy*sinR;const diagonalFactor=Math.sqrt(2)/2;const effectiveDelta=rotatedDx*diagonalFactor;let newWidth=imageInteractionState.startWidth+effectiveDelta*2;newWidth=Math.max(30,newWidth);let newHeight=imageInteractionState.aspectRatio>0?newWidth/imageInteractionState.aspectRatio:newWidth;activeElement.style.width=`${newWidth}px`;activeElement.style.height=`${newHeight}px`;}}
+    function handleImageResizeStart(event) { event.stopPropagation();const el=event.currentTarget.parentElement;setActiveElement(el);imageInteractionState.isResizing=true;imageInteractionState.isRotating=false;imageInteractionState.isDragging=false;document.body.style.cursor='nesw-resize'; const coords=getEventCoordinates(event);imageInteractionState.startX=coords.x;imageInteractionState.startY=coords.y;imageInteractionState.startWidth=el.offsetWidth;imageInteractionState.startHeight=el.offsetHeight;imageInteractionState.aspectRatio=imageInteractionState.startHeight>0?imageInteractionState.startWidth/imageInteractionState.startHeight:1;imageInteractionState.currentRotationRad=getRotationRad(el);const rect=el.getBoundingClientRect();imageInteractionState.centerX=rect.left+rect.width/2;imageInteractionState.centerY=rect.top+rect.height/2;document.addEventListener("mousemove",handleImageInteractionMove);document.addEventListener("mouseup",handleImageInteractionEnd);document.addEventListener("touchmove",handleImageInteractionMove,{passive:false});document.addEventListener("touchend",handleImageInteractionEnd);document.addEventListener("touchcancel",handleImageInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
+    function handleImageInteractionMove(event) {
+        if(!activeElement||!activeElement.classList.contains('imgOverlay')||(!imageInteractionState.isDragging&&!imageInteractionState.isRotating&&!imageInteractionState.isResizing))return;
+        if(event.type==='touchmove')event.preventDefault();
+        const coords=getEventCoordinates(event);
+        const contRect=container.getBoundingClientRect();
+
+        if(imageInteractionState.isDragging){
+            const currentX=coords.x-contRect.left;
+            const currentY=coords.y-contRect.top;
+            let potentialNewLeft=imageInteractionState.startLeft+(currentX-imageInteractionState.startX);
+            let potentialNewTop=imageInteractionState.startTop+(currentY-imageInteractionState.startY);
+            const{canvasX,canvasY}=getCanvasCoordsFromContainerPoint(potentialNewLeft,potentialNewTop);
+            if(pointInPolygon({x:canvasX,y:canvasY},getPolygonForSelectedCollection())){
+                activeElement.style.left=`${potentialNewLeft}px`;
+                activeElement.style.top=`${potentialNewTop}px`;
+            }
+        } else if(imageInteractionState.isRotating){
+            const dx=coords.x-imageInteractionState.centerX;
+            const dy=coords.y-imageInteractionState.centerY;
+            let angle=Math.atan2(dy,dx);
+            let rotationRad=angle-imageInteractionState.startAngle;
+            let rotationDeg=rotationRad*(180/Math.PI);
+            activeElement.style.transform=`translate(-50%, -50%) rotate(${rotationDeg}deg)`;
+        } else if(imageInteractionState.isResizing){
+            const dx=coords.x-imageInteractionState.startX;
+            const dy=coords.y-imageInteractionState.startY;
+            const rotation=imageInteractionState.currentRotationRad;
+            const cosR=Math.cos(rotation);
+            const sinR=Math.sin(rotation);
+            const rotatedDx = dx * cosR + dy * sinR;
+            const rotatedDy = -dx * sinR + dy * cosR;
+
+            // Corrected logic for bottom-left handle
+            const diagonalDelta = (-rotatedDx + rotatedDy) / 2;
+
+            let newWidth = imageInteractionState.startWidth + diagonalDelta;
+            newWidth = Math.max(30, newWidth);
+            let newHeight = imageInteractionState.aspectRatio>0?newWidth/imageInteractionState.aspectRatio:newWidth;
+            activeElement.style.width=`${newWidth}px`;
+            activeElement.style.height=`${newHeight}px`;
+        }
+    }
     function handleImageInteractionEnd(event) { if(activeElement&&activeElement.classList.contains('imgOverlay')){activeElement.style.cursor='grab';} document.body.style.cursor='default'; imageInteractionState.isDragging=false; imageInteractionState.isRotating=false; imageInteractionState.isResizing=false; document.removeEventListener("mousemove",handleImageInteractionMove); document.removeEventListener("mouseup",handleImageInteractionEnd); document.removeEventListener("touchmove",handleImageInteractionMove); document.removeEventListener("touchend",handleImageInteractionEnd); document.removeEventListener("touchcancel",handleImageInteractionEnd); }
 
     // --- Utility Functions ---
     function calculateElementPosition(percentX,percentY){const contRect=container.getBoundingClientRect();if(!contRect||contRect.width===0||contRect.height===0)return{x:0,y:0};const scaleX=contRect.width/canvasWidth;const scaleY=contRect.height/canvasHeight;const targetCanvasX=canvasWidth*(percentX/100);const targetCanvasY=canvasHeight*(percentY/100);return{x:targetCanvasX*scaleX,y:targetCanvasY*scaleY};}
-    // NOTE: getCanvasCoordsFromContainerPoint is NO LONGER USED in the saveImage function with the new approach.
-    // It's still used by the drag handlers (handleTextInteractionMove, handleImageInteractionMove) for boundary checking.
-    // Keeping it for that purpose.
     function getCanvasCoordsFromContainerPoint(containerX,containerY){const contRect=container.getBoundingClientRect();if(!contRect||contRect.width===0||contRect.height===0)return{canvasX:0,canvasY:0};const scaleX=contRect.width/canvasWidth;const scaleY=contRect.height/canvasHeight;return{canvasX:containerX/scaleX,canvasY:containerY/scaleY};}
     function pointInPolygon(point,vs){const x=point.x,y=point.y;let inside=false;for(let i=0,j=vs.length-1;i<vs.length;j=i++){const xi=vs[i].x,yi=vs[i].y;const xj=vs[j].x,yj=vs[j].y;const intersect=((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi);if(intersect)inside=!inside;}return inside;}
     function rgb2hex(rgb){if(!rgb)return'#ffffff';if(rgb.startsWith('#'))return rgb;const rgbMatch=rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);if(rgbMatch){return"#"+rgbMatch.slice(1).map(x=>parseInt(x).toString(16).padStart(2,'0')).join('');}return rgb;}
     function getRotationRad(element){if(!element||!element.style)return 0;const transform=element.style.transform;const rotateMatch=transform.match(/rotate\((-?\d+(\.\d+)?)deg\)/);const rotationDeg=rotateMatch?parseFloat(rotateMatch[1]):0;return rotationDeg*(Math.PI/180);}
 
-    // --- DISCLAIMER: Functions to Show/Hide the Styled Modal ---
+    // --- DISCLAIMER Functions ---
     function showComicDisclaimer() { if (disclaimerModal) { disclaimerModal.classList.add('visible'); } }
     function hideComicDisclaimer() { if (disclaimerModal) { disclaimerModal.classList.remove('visible'); } }
-    // --- END DISCLAIMER FUNCTIONS ---
 
-
-    // --- Save Functionality --- MODIFIED with Canvas Rect Scaling & Relative Positioning ---
+    // --- Save Functionality ---
     function saveImage() {
         if(!baseImage.src||!baseImage.complete||baseImage.naturalWidth===0){alert("Load a valid NFT first!");nftStatusEl.className='error';return;}
-        nftStatusEl.textContent="Generating final image...";nftStatusEl.className=''; if(activeElement)activeElement.classList.remove('active'); // Temporarily deactivate for clean save
+        nftStatusEl.textContent="Generating final image...";nftStatusEl.className='';
 
-        // Redraw base and sign color first
         drawBaseImage();
         applyOverlay();
 
-        // === NOUA ABORDARE: Folosim getBoundingClientRect al canvas-ului pentru scalare ===
         const canvasRect = canvas.getBoundingClientRect();
         if(!canvasRect || canvasRect.width === 0 || canvasRect.height === 0) {
              alert("Error: Could not get canvas dimensions for saving.");
              nftStatusEl.className='error';
              nftStatusEl.textContent="Save Error: Canvas rect invalid.";
-             if(activeElement)activeElement.classList.add('active'); // Reactivate element visually
              return;
         }
 
-        // Calculăm factorii de scalare bazat pe dimensiunea REDATĂ a canvas-ului
-        const scaleX = canvasRect.width / canvasWidth; // canvasWidth is 2048
-        const scaleY = canvasRect.height / canvasHeight; // canvasHeight is 2048
-        // === SFÂRȘIT ABORDARE NOUĂ PENTRU SCALARE ===
+        const scaleX = canvasRect.width / canvasWidth;
+        const scaleY = canvasRect.height / canvasHeight;
 
-        // Get all overlays and sort by z-index
         const allOverlays=Array.from(container.querySelectorAll(".textOverlay, .imgOverlay"));
         allOverlays.sort((a,b)=>(parseInt(window.getComputedStyle(a).zIndex)||0)-(parseInt(window.getComputedStyle(b).zIndex)||0));
 
-        // Draw each overlay onto the canvas
         allOverlays.forEach(el=>{
-            const elRect = el.getBoundingClientRect(); // Obținem rect-ul elementului overlay
+            const elRect = el.getBoundingClientRect();
             const rotationRad = getRotationRad(el);
 
-            // === NOUA ABORDARE: Calculăm poziția relativă la canvas ===
-            // Centrul vizual al elementului (luând în calcul `translate(-50%, -50%)`)
             const elCenterX_viewport = elRect.left + elRect.width / 2;
             const elCenterY_viewport = elRect.top + elRect.height / 2;
-
-            // Coordonatele centrului relativ la colțul stânga-sus al canvas-ului redat
             const relativeCenterX = elCenterX_viewport - canvasRect.left;
             const relativeCenterY = elCenterY_viewport - canvasRect.top;
-
-            // Scalăm coordonatele relative la dimensiunea canvas-ului de 2048x2048
             const rawCanvasX = (relativeCenterX / canvasRect.width) * canvasWidth;
             const rawCanvasY = (relativeCenterY / canvasRect.height) * canvasHeight;
-            // === SFÂRȘIT ABORDARE NOUĂ PENTRU POZIȚIE ===
-
-            // Rotunjim coordonatele finale pentru a le plasa pe grila de pixeli
             const canvasX = Math.round(rawCanvasX);
             const canvasY = Math.round(rawCanvasY);
 
             ctx.save();
-            ctx.translate(canvasX, canvasY); // Translatăm la centrul calculat și rotunjit
+            ctx.translate(canvasX, canvasY);
             ctx.rotate(rotationRad);
 
             if(el.classList.contains('textOverlay')){
                 const text=el.childNodes[0].nodeValue; const color=el.style.color; const size=parseInt(el.style.fontSize); const font=el.style.fontFamily;
-                // Folosim scaleY (bazat pe canvas rect) și rotunjim
                 const canvasFontSize = Math.round(size / scaleY);
                 ctx.font=`${canvasFontSize}px ${font}`; ctx.fillStyle=color; ctx.textAlign="center"; ctx.textBaseline="middle";
                 ctx.fillText(text, 0, 0);
             } else if(el.classList.contains('imgOverlay')){
                 const imgElement=el.querySelector('img');
                 if(imgElement&&imgElement.complete&&imgElement.naturalWidth>0){
-                     // Folosim offsetWidth (dimensiunea redată a div-ului) și scaleX (bazat pe canvas rect)
                      const domWidth = el.offsetWidth;
                      const canvasDrawWidth = Math.round(domWidth / scaleX);
-
                      const naturalAspectRatio = imgElement.naturalWidth > 0 ? imgElement.naturalHeight / imgElement.naturalWidth : 1;
-                     // Calculăm înălțimea pe canvas și rotunjim (bazat pe aspect ratio)
                      const canvasDrawHeight = Math.round(canvasDrawWidth * naturalAspectRatio);
-
                      if (canvasDrawWidth > 0 && canvasDrawHeight > 0) {
-                        // Desenăm imaginea centrată folosind dimensiuni rotunjite
                         ctx.drawImage(imgElement, -canvasDrawWidth / 2, -canvasDrawHeight / 2, canvasDrawWidth, canvasDrawHeight);
                      }
                 } else {
@@ -674,8 +749,6 @@
             }
             ctx.restore();
         });
-
-        if(activeElement)activeElement.classList.add('active');
 
         // Generate and download the image
         try{
