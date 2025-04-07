@@ -26,6 +26,7 @@
             --glow-purple: rgba(170, 107, 209, 0.5);
             --disabled-text: #888; --disabled-border: #555; --disabled-shadow: #444;
             --handle-active-bg: yellow; --handle-image-active-bg: cyan;
+            --sign-save-bg: var(--interdimensional-purple); /* Color for "Save Sign Only" button */
 
             /* UI adjustments */
             --control-padding: 0.5rem 0.7rem;
@@ -156,7 +157,8 @@
         #applyOverlayBtn { background-color: var(--rick-green); color: var(--outline-black); }
         #addTextBtn, #addImageBtn { background-color: var(--morty-yellow); color: var(--outline-black); }
         #removeBtn { background-color: var(--error-red); color: var(--off-white); }
-        #saveBtn { background-color: var(--slime-green); color: var(--outline-black); }
+        #saveFullBtn { background-color: var(--slime-green); color: var(--outline-black); }
+        #saveSignBtn { background-color: var(--sign-save-bg); color: var(--off-white); } /* Style for new button */
 
         button:hover:not(:disabled) { transform: translateY(-1px) scale(1.02); box-shadow: 3px 3px 0px var(--outline-black); }
         button:active:not(:disabled) { transform: translateY(1px) scale(0.98); box-shadow: 1px 1px 0px var(--outline-black); }
@@ -178,7 +180,7 @@
         #nftStatus.error { color: var(--error-red); }
         #nftStatus.success { color: var(--slime-green); }
 
-        #final-actions { display: flex; justify-content: center; gap: 10px; width: 100%; margin-bottom: 0.4rem; }
+        #final-actions { display: flex; justify-content: center; gap: 10px; width: 100%; margin-bottom: 0.4rem; flex-wrap: wrap; /* Allow wrapping on small screens */ }
 
         #canvas-container {
             width: 100%; max-width: 500px; aspect-ratio: 1 / 1; margin: 0 auto; position: relative;
@@ -251,21 +253,19 @@
             text-shadow: none;
             transition: background-color 0.2s ease, transform 0.1s ease;
 
-            /* === ROTATION ADDED (45deg) === */
+            /* Rotated icon */
             transform: rotate(45deg);
         }
 
         /* Hover effect for resize handle */
         .imgOverlay .resize-handle:hover {
             background-color: var(--slime-green);
-            /* Combine rotation and scale */
             transform: rotate(45deg) scale(1.1);
         }
 
         /* Active (pressed) effect for resize handle */
         .imgOverlay .resize-handle:active {
             background-color: var(--rick-green);
-            /* Combine rotation and scale */
             transform: rotate(45deg) scale(0.95);
         }
 
@@ -353,6 +353,7 @@
             input[type="text"], input[type="number"], select { padding: 4px 6px; font-size: 0.8rem; }
             input[type="file"] { font-size: 0.75rem;}
             :root { --handle-size: 22px; --handle-icon-size: 12px; }
+            #final-actions { gap: 5px; } /* Reduce gap between save buttons */
             .disclaimer-content h4 { font-size: 1.2rem; }
         }
          @media (max-width: 450px) {
@@ -366,7 +367,7 @@
              .floating-reset { width: 26px; height: 26px; font-size: 1rem; top: 3px; right: 3px;}
              #nftStatus { font-size: 0.75rem; }
              #final-actions { flex-direction: column; gap: 4px; margin-bottom: 0.3rem;}
-             #final-actions button { width: 100%; }
+             #final-actions button { width: 100%; } /* Make buttons full width */
              .disclaimer-content { padding: 1rem; transform: rotate(0deg); }
              .disclaimer-content h4 { font-size: 1.1rem; }
              #closeDisclaimerBtn { top: 5px; right: 5px; width: 24px; height: 24px; font-size: 0.9rem; }
@@ -429,7 +430,10 @@
 
     <div id="final-actions">
          <button disabled id="removeBtn">Delete Selected</button>
-         <button disabled id="saveBtn">Save Image</button>
+         <!-- === SAVE BUTTONS UPDATED === -->
+         <button disabled id="saveFullBtn">Save Full Image</button>
+         <button disabled id="saveSignBtn">Save Sign Only</button>
+         <!-- === END SAVE BUTTONS === -->
     </div>
 
     <div id="canvas-container">
@@ -483,7 +487,8 @@
     // --- DOM Element References ---
     let canvas, ctx, container, textInput, textColor, fontSize, fontFamily, removeBtn, nftStatusEl,
         nftCollectionSelect, nftTokenIdInput, loadNftBtn, applyOverlayBtn, overlayColorInput,
-        addTextBtn, saveBtn, imageUpload, addImageBtn, resetCanvasBtn,
+        addTextBtn, addImageBtn, resetCanvasBtn,
+        saveFullBtn, saveSignBtn, // Updated save button refs
         disclaimerBtn, disclaimerModal, closeDisclaimerBtn;
 
     // --- Initialization ---
@@ -504,10 +509,10 @@
         applyOverlayBtn = document.getElementById("applyOverlayBtn");
         overlayColorInput = document.getElementById("overlayColor");
         addTextBtn = document.getElementById("addTextBtn");
-        saveBtn = document.getElementById("saveBtn");
-        imageUpload = document.getElementById("imageUpload");
         addImageBtn = document.getElementById("addImageBtn");
         resetCanvasBtn = document.getElementById("resetCanvas");
+        saveFullBtn = document.getElementById("saveFullBtn"); // Get ref to full save
+        saveSignBtn = document.getElementById("saveSignBtn"); // Get ref to sign only save
         disclaimerBtn = document.getElementById("disclaimerBtn");
         disclaimerModal = document.getElementById("disclaimerModal");
         closeDisclaimerBtn = document.getElementById("closeDisclaimerBtn");
@@ -532,9 +537,17 @@
         fontFamily.addEventListener("input", handleTextControlChange);
         addImageBtn.addEventListener('click', addImage);
         removeBtn.addEventListener('click', removeActiveElement);
-        saveBtn.addEventListener('click', saveImage);
         resetCanvasBtn.addEventListener('click', handleReset);
         nftCollectionSelect.addEventListener("change", () => { if (baseImage.src && baseImage.complete) { applyOverlay(); } });
+
+        // === UPDATED SAVE LISTENERS ===
+        if (saveFullBtn) {
+            saveFullBtn.addEventListener('click', () => saveImage('full'));
+        }
+        if (saveSignBtn) {
+            saveSignBtn.addEventListener('click', () => saveImage('sign'));
+        }
+        // === END UPDATED SAVE LISTENERS ===
 
         // Disclaimer Modal Listeners
         if (disclaimerBtn && disclaimerModal && closeDisclaimerBtn) {
@@ -555,8 +568,32 @@
     // --- Canvas & Overlay Management ---
     function clearCanvasAndOverlays() { ctx.clearRect(0,0,canvasWidth,canvasHeight); ctx.fillStyle='#444'; ctx.fillRect(0,0,canvasWidth,canvasHeight); container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el=>el.remove()); setActiveElement(null); nftStatusEl.textContent="Canvas Cleared."; nftStatusEl.className=''; }
     function clearCanvas() { ctx.clearRect(0,0,canvasWidth,canvasHeight); ctx.fillStyle='#444'; ctx.fillRect(0,0,canvasWidth,canvasHeight); }
-    function enableEditingControls(isEnabled) { [overlayColorInput,applyOverlayBtn,textInput,textColor,fontSize,fontFamily,addTextBtn,saveBtn,imageUpload,addImageBtn,removeBtn].forEach(el=>{if(el)el.disabled=!isEnabled;}); updateControlState(); }
-    function updateControlState() { const isElementActive=activeElement!==null; const isTextActive=isElementActive&&activeElement.classList.contains('textOverlay'); const isImageLoaded=baseImage.src!==""&&baseImage.complete&&baseImage.naturalWidth>0; if(textInput)textInput.disabled=!isTextActive||!isImageLoaded; if(textColor)textColor.disabled=!isTextActive||!isImageLoaded; if(fontSize)fontSize.disabled=!isTextActive||!isImageLoaded; if(fontFamily)fontFamily.disabled=!isTextActive||!isImageLoaded; if(overlayColorInput)overlayColorInput.disabled=!isImageLoaded; if(applyOverlayBtn)applyOverlayBtn.disabled=!isImageLoaded; if(addTextBtn)addTextBtn.disabled=!isImageLoaded; if(imageUpload)imageUpload.disabled=!isImageLoaded; if(addImageBtn)addImageBtn.disabled=!isImageLoaded; if(saveBtn)saveBtn.disabled=!isImageLoaded; if(removeBtn)removeBtn.disabled=!isElementActive||!isImageLoaded; }
+    // === UPDATED: Include both save buttons ===
+    function enableEditingControls(isEnabled) {
+        [overlayColorInput, applyOverlayBtn, textInput, textColor, fontSize, fontFamily,
+         addTextBtn, imageUpload, addImageBtn, removeBtn, saveFullBtn, saveSignBtn // Added both save buttons
+        ].forEach(el => { if (el) el.disabled = !isEnabled; });
+        updateControlState();
+    }
+    function updateControlState() {
+        const isElementActive=activeElement!==null;
+        const isTextActive=isElementActive&&activeElement.classList.contains('textOverlay');
+        const isImageLoaded=baseImage.src!==""&&baseImage.complete&&baseImage.naturalWidth>0;
+
+        if(textInput)textInput.disabled=!isTextActive||!isImageLoaded;
+        if(textColor)textColor.disabled=!isTextActive||!isImageLoaded;
+        if(fontSize)fontSize.disabled=!isTextActive||!isImageLoaded;
+        if(fontFamily)fontFamily.disabled=!isTextActive||!isImageLoaded;
+        if(overlayColorInput)overlayColorInput.disabled=!isImageLoaded;
+        if(applyOverlayBtn)applyOverlayBtn.disabled=!isImageLoaded;
+        if(addTextBtn)addTextBtn.disabled=!isImageLoaded;
+        if(imageUpload)imageUpload.disabled=!isImageLoaded;
+        if(addImageBtn)addImageBtn.disabled=!isImageLoaded;
+        if(saveFullBtn)saveFullBtn.disabled=!isImageLoaded; // Control full save button
+        if(saveSignBtn)saveSignBtn.disabled=!isImageLoaded; // Control sign only save button
+        if(removeBtn)removeBtn.disabled=!isElementActive||!isImageLoaded;
+    }
+    // === END UPDATED CONTROL FUNCTIONS ===
 
     // --- NFT Loading & Drawing ---
     function getPolygonForSelectedCollection(){const selectedCollection=nftCollectionSelect.value;if(selectedCollection==="AHC"){return[{x:1415,y:316},{x:2024,y:358},{x:1958,y:1324},{x:1358,y:1286}];}else{return[{x:1403,y:196},{x:2034,y:218},{x:1968,y:1164},{x:1358,y:1126}];}}
@@ -597,7 +634,24 @@
         }
      }
     function drawBaseImage() { if(!baseImage.src||!baseImage.complete||baseImage.naturalWidth===0)return; const aspectRatio=baseImage.naturalWidth/baseImage.naturalHeight; let drawWidth=canvasWidth,drawHeight=canvasHeight,x=0,y=0; if(canvasWidth/canvasHeight>aspectRatio){drawHeight=canvasHeight;drawWidth=drawHeight*aspectRatio;x=(canvasWidth-drawWidth)/2;}else{drawWidth=canvasWidth;drawHeight=drawWidth/aspectRatio;y=(canvasHeight-drawHeight)/2;} ctx.clearRect(0,0,canvasWidth,canvasHeight); ctx.fillStyle="#444"; ctx.fillRect(0,0,canvasWidth,canvasHeight); try{ctx.drawImage(baseImage,x,y,drawWidth,drawHeight);}catch(e){console.error("Error drawing base image:",e); nftStatusEl.textContent="Error drawing NFT image."; nftStatusEl.className='error';} }
-    function applyOverlay() { if(!baseImage.src||!baseImage.complete||baseImage.naturalWidth===0)return; drawBaseImage(); const color=overlayColorInput.value; const currentPolygon=getPolygonForSelectedCollection(); ctx.beginPath(); ctx.moveTo(currentPolygon[0].x,currentPolygon[0].y); for(let i=1;i<currentPolygon.length;i++)ctx.lineTo(currentPolygon[i].x,currentPolygon[i].y); ctx.closePath(); ctx.fillStyle=color; ctx.fill(); ctx.lineJoin="round"; ctx.lineWidth=14; ctx.strokeStyle="black"; ctx.stroke(); }
+    function applyOverlay() { if(!baseImage.src||!baseImage.complete||baseImage.naturalWidth===0)return; drawBaseImage(); drawSignPolygonOnly(); }
+    // Helper to draw just the colored sign polygon
+    function drawSignPolygonOnly() {
+        const color = overlayColorInput.value;
+        const currentPolygon = getPolygonForSelectedCollection();
+        ctx.beginPath();
+        ctx.moveTo(currentPolygon[0].x, currentPolygon[0].y);
+        for (let i = 1; i < currentPolygon.length; i++) {
+            ctx.lineTo(currentPolygon[i].x, currentPolygon[i].y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineJoin = "round";
+        ctx.lineWidth = 14; // Keep the stroke consistent
+        ctx.strokeStyle = "black";
+        ctx.stroke();
+    }
 
     // --- Text & Image Creation ---
     function addText() {
@@ -614,7 +668,7 @@
         wrapper.appendChild(img);const rotateHandle=document.createElement("div");rotateHandle.className="rotation-handle";rotateHandle.innerHTML='↺';wrapper.appendChild(rotateHandle);
         const resizeHandle=document.createElement("div");
         resizeHandle.className="resize-handle";
-        resizeHandle.innerHTML='⤡'; // Icon remains ⤡
+        resizeHandle.innerHTML='⤡';
         wrapper.appendChild(resizeHandle);
         const currentPolygon=getPolygonForSelectedCollection();const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x));const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y));const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50;const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50;const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent);wrapper.style.left=`${initialX}px`;wrapper.style.top=`${initialY}px`;wrapper.addEventListener("mousedown",handleImageDragStart);wrapper.addEventListener("touchstart",handleImageDragStart,{passive:true});rotateHandle.addEventListener("mousedown",handleImageRotateStart);rotateHandle.addEventListener("touchstart",handleImageRotateStart,{passive:true});resizeHandle.addEventListener("mousedown",handleImageResizeStart);resizeHandle.addEventListener("touchstart",handleImageResizeStart,{passive:true});container.appendChild(wrapper);setActiveElement(wrapper);nftStatusEl.textContent="Image added.";nftStatusEl.className='success';imageUpload.value='';};
         reader.onerror=function(err){console.error("FileReader error:",err);nftStatusEl.textContent="Error reading image file.";nftStatusEl.className='error';}
@@ -665,10 +719,7 @@
             const sinR=Math.sin(rotation);
             const rotatedDx = dx * cosR + dy * sinR;
             const rotatedDy = -dx * sinR + dy * cosR;
-
-            // Corrected logic for bottom-left handle
             const diagonalDelta = (-rotatedDx + rotatedDy) / 2;
-
             let newWidth = imageInteractionState.startWidth + diagonalDelta;
             newWidth = Math.max(30, newWidth);
             let newHeight = imageInteractionState.aspectRatio>0?newWidth/imageInteractionState.aspectRatio:newWidth;
@@ -689,32 +740,55 @@
     function showComicDisclaimer() { if (disclaimerModal) { disclaimerModal.classList.add('visible'); } }
     function hideComicDisclaimer() { if (disclaimerModal) { disclaimerModal.classList.remove('visible'); } }
 
-    // --- Save Functionality ---
-    function saveImage() {
-        if(!baseImage.src||!baseImage.complete||baseImage.naturalWidth===0){alert("Load a valid NFT first!");nftStatusEl.className='error';return;}
-        nftStatusEl.textContent="Generating final image...";nftStatusEl.className='';
+    // --- Save Functionality (Handles 'full' and 'sign' modes) ---
+    function saveImage(mode = 'full') { // Default to 'full' if no mode specified
+        const currentNftId = nftTokenIdInput.value || 'unknown';
+        const currentCollection = nftCollectionSelect.value || 'unknown';
 
-        drawBaseImage();
-        applyOverlay();
+        if (mode === 'full' && (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0)) {
+            alert("Load a valid NFT first to save the full image!");
+            nftStatusEl.className = 'error';
+            nftStatusEl.textContent = "NFT not loaded for full save.";
+            return;
+        }
+        if (mode === 'sign' && !overlayColorInput.value) { // Basic check: Need at least a sign color
+             alert("Add at least a sign color before saving the sign only.");
+             nftStatusEl.className = 'error';
+             nftStatusEl.textContent = "No sign elements to save.";
+             return;
+        }
 
+        nftStatusEl.textContent = `Generating ${mode === 'full' ? 'full' : 'sign'} image...`;
+        nftStatusEl.className = '';
+        if (activeElement) activeElement.classList.remove('active'); // Temporarily hide outline
+
+        // --- Prepare Canvas Based on Mode ---
+        if (mode === 'full') {
+            drawBaseImage(); // Draw NFT background
+            drawSignPolygonOnly(); // Draw colored polygon on top
+        } else if (mode === 'sign') {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight); // Clear to TRANSPARENT
+            drawSignPolygonOnly(); // Draw colored polygon on transparent background
+        }
+
+        // --- Draw Overlays (Common Logic) ---
         const canvasRect = canvas.getBoundingClientRect();
         if(!canvasRect || canvasRect.width === 0 || canvasRect.height === 0) {
              alert("Error: Could not get canvas dimensions for saving.");
              nftStatusEl.className='error';
              nftStatusEl.textContent="Save Error: Canvas rect invalid.";
+             if(activeElement) activeElement.classList.add('active'); // Restore outline if error
              return;
         }
-
         const scaleX = canvasRect.width / canvasWidth;
         const scaleY = canvasRect.height / canvasHeight;
 
-        const allOverlays=Array.from(container.querySelectorAll(".textOverlay, .imgOverlay"));
-        allOverlays.sort((a,b)=>(parseInt(window.getComputedStyle(a).zIndex)||0)-(parseInt(window.getComputedStyle(b).zIndex)||0));
+        const allOverlays = Array.from(container.querySelectorAll(".textOverlay, .imgOverlay"));
+        allOverlays.sort((a, b) => (parseInt(window.getComputedStyle(a).zIndex) || 0) - (parseInt(window.getComputedStyle(b).zIndex) || 0));
 
-        allOverlays.forEach(el=>{
+        allOverlays.forEach(el => {
             const elRect = el.getBoundingClientRect();
             const rotationRad = getRotationRad(el);
-
             const elCenterX_viewport = elRect.left + elRect.width / 2;
             const elCenterY_viewport = elRect.top + elRect.height / 2;
             const relativeCenterX = elCenterX_viewport - canvasRect.left;
@@ -750,25 +824,49 @@
             ctx.restore();
         });
 
-        // Generate and download the image
-        try{
-            const dataURL=canvas.toDataURL("image/png");
-            const link=document.createElement("a");
-            const filename=`signed-${nftCollectionSelect.value}-${nftTokenIdInput.value}.png`;
-            link.download=filename; link.href=dataURL;
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
-            nftStatusEl.textContent=`Image saved as ${filename}!`; nftStatusEl.className='success';
-        }catch(e){
-            console.error("Error saving image:",e);
-            if(e.name==="SecurityError"){
+        if (activeElement) activeElement.classList.add('active'); // Restore outline after drawing
+
+        // --- Generate Filename and Download ---
+        try {
+            const dataURL = canvas.toDataURL("image/png"); // PNG supports transparency
+            const link = document.createElement("a");
+            let filename;
+            if (mode === 'full') {
+                filename = `signed-${currentCollection}-${currentNftId}.png`;
+            } else { // mode === 'sign'
+                filename = `sign-${currentCollection}-${currentNftId}.png`;
+            }
+            link.download = filename;
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            nftStatusEl.textContent = `${mode === 'full' ? 'Full image' : 'Sign'} saved as ${filename}!`;
+            nftStatusEl.className = 'success';
+        } catch (e) {
+            console.error("Error saving image:", e);
+            if (e.name === "SecurityError") {
                 alert("Save Error: Cannot save canvas due to cross-origin image security restrictions. Ensure NFT images allow cross-origin use (CORS).");
-                nftStatusEl.textContent="Save Error: Cross-origin issue."; nftStatusEl.className='error';
+                nftStatusEl.textContent = "Save Error: Cross-origin issue.";
             } else {
                 alert("An error occurred while saving the image.");
-                nftStatusEl.textContent="Save Error."; nftStatusEl.className='error';
+                nftStatusEl.textContent = "Save Error.";
             }
+             nftStatusEl.className = 'error';
         }
-    }
+
+        // === IMPORTANT: Redraw the original full view after saving ===
+        // This prevents the user from seeing the transparent background if they saved 'sign only'
+        if (mode === 'sign' && baseImage.src && baseImage.complete) {
+             setTimeout(() => { // Use setTimeout to allow download to initiate
+                applyOverlay(); // Redraw the full view (NFT + sign)
+             }, 100);
+        } else if (mode === 'sign') {
+             setTimeout(() => {
+                 clearCanvas(); // If no base image, just clear to grey
+             }, 100);
+        }
+    } // End saveImage function
 
 </script>
 </body>
