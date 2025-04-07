@@ -12,7 +12,7 @@
     --glow-purple: rgba(170, 107, 209, 0.5);
     --disabled-text: #888; --disabled-border: #555; --disabled-shadow: #444;
     --handle-active-bg: yellow; --handle-image-active-bg: cyan;
-    --sign-save-bg: var(--interdimensional-purple); /* Color for "Save Sign Only" button */
+    --sign-save-bg: var(--interdimensional-purple); /* Color for "Save Sign Only" button - no longer used, kept for reference */
 
     /* UI adjustments */
     --control-padding: 0.5rem 0.7rem;
@@ -56,6 +56,20 @@ h3 {
     margin-bottom: 0.6rem;
     letter-spacing: 0.5px;
 }
+
+/* Authentication Status Area Styles */
+#auth-status {
+    color: var(--off-white); /* Default text color */
+    font-size: 0.9rem;
+}
+#auth-status button {
+     /* Inherit default button styles or add specific ones */
+     margin-left: 10px; /* Space out button if text is present */
+}
+#auth-status span {
+    vertical-align: middle; /* Align text with button */
+}
+
 
 #controls {
     width: 100%; background: none; padding: 0; border-radius: 0;
@@ -139,12 +153,13 @@ button {
     vertical-align: middle;
     white-space: nowrap;
 }
+/* Default Button Colors */
 #loadNftBtn { background-color: var(--portal-blue); color: var(--off-white); }
 #applyOverlayBtn { background-color: var(--rick-green); color: var(--outline-black); }
 #addTextBtn, #addImageBtn { background-color: var(--morty-yellow); color: var(--outline-black); }
 #removeBtn { background-color: var(--error-red); color: var(--off-white); }
 #saveFullBtn { background-color: var(--slime-green); color: var(--outline-black); }
-#saveSignBtn { background-color: var(--sign-save-bg); color: var(--off-white); } /* Style for new button */
+#uploadSignBtn { background-color: var(--interdimensional-purple); color: var(--off-white); } /* Style for Upload */
 
 button:hover:not(:disabled) { transform: translateY(-1px) scale(1.02); box-shadow: 3px 3px 0px var(--outline-black); }
 button:active:not(:disabled) { transform: translateY(1px) scale(0.98); box-shadow: 1px 1px 0px var(--outline-black); }
@@ -153,27 +168,24 @@ input:disabled, select:disabled, button:disabled,
 input[type="file"]:disabled::file-selector-button {
     background-color: var(--light-bg); color: var(--disabled-text); border-color: var(--disabled-border);
     box-shadow: 1px 1px 0px var(--disabled-shadow); cursor: not-allowed; text-shadow: none; transform: none;
-    opacity: 0.7; /* Opacity for disabled elements */
+    opacity: 0.6; /* Make disabled state more obvious */
 }
 select:disabled { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23888888'%3E%3Cpolygon points='8,12 4,6 12,6' stroke='%23555555' stroke-width='1.5'/%3E%3C/svg%3E"); }
 input[type="color"]:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 input[type="file"]:disabled { color: var(--disabled-text); }
- /* Stil specific pentru input[text] dezactivat */
- input[type="text"]:disabled {
-     background-color: var(--light-bg); color: var(--disabled-text); border-color: var(--disabled-border);
-     box-shadow: 1px 1px 0px var(--disabled-shadow); cursor: not-allowed; text-shadow: none; transform: none;
-     opacity: 0.7;
- }
 
 #nftStatus {
     width: 100%; text-align: center; font-style: italic; min-height: 1.4em; margin: 4px 0;
     font-size: 0.85rem; color: var(--morty-yellow); text-shadow: 1px 1px 0 var(--outline-black);
     padding: 0 5px; word-wrap: break-word;
+    transition: color 0.3s ease; /* Smooth color transitions */
 }
 #nftStatus.error { color: var(--error-red); }
 #nftStatus.success { color: var(--slime-green); }
+#nftStatus.warning { color: var(--morty-yellow); font-weight: bold; } /* Optional warning state */
 
-#final-actions { display: flex; justify-content: center; gap: 10px; width: 100%; margin-bottom: 0.4rem; flex-wrap: wrap; }
+
+#final-actions { display: flex; justify-content: center; gap: 10px; width: 100%; margin-bottom: 0.4rem; flex-wrap: wrap; /* Allow wrapping on small screens */ }
 
 #canvas-container {
     width: 100%; max-width: 500px; aspect-ratio: 1 / 1; margin: 0 auto; position: relative;
@@ -184,7 +196,7 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
 
 .textOverlay, .imgOverlay { position: absolute; transform-origin: center center; user-select: none; touch-action: none; cursor: grab; transform: translate(-50%, -50%) rotate(0deg); padding: 3px; box-sizing: border-box; }
 .textOverlay { white-space: nowrap; font-weight: bold; z-index: 10; }
-.imgOverlay { z-index: 20; border: 1px dashed transparent; }
+.imgOverlay { z-index: 20; border: 1px dashed transparent; } /* Transparent border helps visualize bounds when not active */
 .textOverlay.active { outline: 2px dashed var(--handle-active-bg); z-index: 100; cursor: grabbing; }
 .imgOverlay.active { outline: 2px dashed var(--handle-image-active-bg); z-index: 101; cursor: grabbing; }
 
@@ -197,17 +209,18 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
     height: var(--handle-size);
     border-radius: 50%;
     border: 2px solid var(--outline-black);
-    display: none;
-    pointer-events: auto;
+    display: none; /* Hidden by default */
+    pointer-events: auto; /* Allow interaction */
     touch-action: none;
     font-family: sans-serif;
-    line-height: calc(var(--handle-size) - 4px);
+    line-height: calc(var(--handle-size) - 4px); /* Adjust line height for border */
     text-align: center;
     box-shadow: 1px 1px 0 var(--outline-black);
-    background-color: transparent;
-    color: var(--outline-black);
+    background-color: rgba(50, 50, 70, 0.7); /* Slightly transparent background */
+    color: var(--off-white); /* Default icon color */
     user-select: none;
     transform-origin: center center;
+    transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
 /* Show handles only when the parent overlay is active */
@@ -220,50 +233,63 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
 /* --- Rotation Handle Specific Styles (Text & Image) --- */
 .textOverlay .rotation-handle,
 .imgOverlay .rotation-handle {
+    /* Position below the element */
     bottom: calc(-1 * var(--handle-size) - 4px);
     left: 50%;
-    transform: translateX(-50%);
-    cursor: alias;
+    transform: translateX(-50%); /* Center horizontally */
+    cursor: alias; /* Rotation cursor */
     font-size: var(--handle-icon-size);
-    color: var(--handle-active-bg);
+}
+/* Specific icon colors for rotation handles */
+.textOverlay .rotation-handle {
+    color: var(--handle-active-bg); /* Yellow for text rotate */
     text-shadow: 1px 1px 1px var(--outline-black);
 }
 .imgOverlay .rotation-handle {
-    color: var(--handle-image-active-bg);
+    color: var(--handle-image-active-bg); /* Cyan for image rotate */
+    text-shadow: 1px 1px 1px var(--outline-black);
 }
+
+/* Hover/Active state for rotation handles */
+.textOverlay .rotation-handle:hover,
+.imgOverlay .rotation-handle:hover {
+    background-color: rgba(70, 70, 90, 0.9);
+}
+.textOverlay .rotation-handle:active,
+.imgOverlay .rotation-handle:active {
+    transform: translateX(-50%) scale(0.95);
+    background-color: rgba(90, 90, 110, 1);
+}
+
 
 /* --- Resize Handle Specific Styles (Image Only) --- */
 .imgOverlay .resize-handle {
-    /* Position */
+    /* Position bottom-left (adjust if needed) */
     left: calc(-0.5 * var(--handle-size) - 2px);
     bottom: calc(-0.5 * var(--handle-size) - 2px);
-    cursor: nesw-resize;
+    cursor: nesw-resize; /* Diagonal resize cursor */
 
     /* Visuals */
-    font-size: calc(var(--handle-icon-size) * 1.1);
-    background-color: rgba(195, 255, 93, 0.6);
-    color: var(--outline-black);
+    font-size: calc(var(--handle-icon-size) * 1.1); /* Slightly larger icon */
+    background-color: rgba(195, 255, 93, 0.6); /* Slime green transparent */
+    color: var(--outline-black); /* Black icon for contrast */
     text-shadow: none;
-    transition: background-color 0.2s ease, transform 0.1s ease;
-
-    /* Rotated icon */
-    transform: rotate(45deg);
 }
 
 /* Hover effect for resize handle */
 .imgOverlay .resize-handle:hover {
     background-color: var(--slime-green);
-    transform: rotate(45deg) scale(1.1);
+    transform: scale(1.1); /* Grow slightly */
 }
 
 /* Active (pressed) effect for resize handle */
 .imgOverlay .resize-handle:active {
     background-color: var(--rick-green);
-    transform: rotate(45deg) scale(0.95);
+    transform: scale(0.95); /* Shrink slightly */
 }
 
 
-.imgOverlay img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.imgOverlay img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; /* Prevent image from stealing events */ }
 
 .floating-reset {
     position: absolute; top: 5px; right: 5px; background-color: var(--error-red); color: white;
@@ -279,15 +305,16 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
 #disclaimerModal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background-color: rgba(30, 30, 47, 0.85);
-    display: none;
+    display: none; /* Hidden by default */
     justify-content: center; align-items: center;
     z-index: 1000;
     padding: 1rem;
     opacity: 0;
     transition: opacity 0.3s ease-in-out;
+    backdrop-filter: blur(3px); /* Optional blur effect */
 }
 #disclaimerModal.visible {
-    display: flex;
+    display: flex; /* Show when visible class is added */
     opacity: 1;
 }
 .disclaimer-content {
@@ -317,6 +344,8 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
     line-height: 1.5;
 }
 .disclaimer-content p:last-of-type { margin-bottom: 1.5rem; }
+.disclaimer-content strong { color: var(--rick-green); } /* Highlight strong text */
+
 
 #closeDisclaimerBtn {
     position: absolute; top: 8px; right: 8px;
@@ -348,6 +377,7 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
     :root { --handle-size: 22px; --handle-icon-size: 12px; }
     #final-actions { gap: 5px; } /* Reduce gap between save buttons */
     .disclaimer-content h4 { font-size: 1.2rem; }
+    #auth-status { flex-wrap: wrap; gap: 5px; } /* Allow auth elements to wrap */
 }
  @media (max-width: 450px) {
      .control-group { flex-direction: column; align-items: stretch; }
@@ -355,13 +385,15 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
      .control-group input[type="file"] { width: auto; max-width: 100%;}
      .text-editing-group .row { flex-direction: column; align-items: stretch;}
      input[type="text"], input[type="number"], select,
-     .control-group > button { width: 100%; }
+     .control-group > button { width: 100%; } /* Make inputs/buttons full width in groups */
      label { margin-bottom: 1px; text-align: left; width: 100%;}
      .floating-reset { width: 26px; height: 26px; font-size: 1rem; top: 3px; right: 3px;}
      #nftStatus { font-size: 0.75rem; }
      #final-actions { flex-direction: column; gap: 4px; margin-bottom: 0.3rem;}
-     #final-actions button { width: 100%; } /* Make buttons full width */
+     #final-actions button { width: 100%; } /* Make final action buttons full width */
      .disclaimer-content { padding: 1rem; transform: rotate(0deg); }
      .disclaimer-content h4 { font-size: 1.1rem; }
      #closeDisclaimerBtn { top: 5px; right: 5px; width: 24px; height: 24px; font-size: 0.9rem; }
+     #auth-status button { width: 100%; margin-left: 0; } /* Full width auth buttons on small screens */
+     #auth-status span { width: 100%; text-align: center; margin-bottom: 5px; margin-right: 0;} /* Center auth text */
  }
