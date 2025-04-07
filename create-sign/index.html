@@ -23,6 +23,14 @@
 <body>
     <div class="main-container">
         <h3>NFT Sign Generator</h3>
+
+        <!-- Authentication Status -->
+        <div id="auth-status" style="margin-bottom: 1rem; padding: 0.5rem; border: 1px dashed var(--portal-blue); border-radius: 8px; min-height: 40px; display: flex; justify-content: center; align-items: center;">
+            <!-- Content will be dynamically added by JS -->
+            <button id="connectXBtn" style="background-color: var(--portal-blue); color: var(--off-white);">Connect with X</button>
+        </div>
+        <!-- End Authentication Status -->
+
         <div id="controls">
             <div class="control-group">
                 <label for="nftCollection">Collection:</label>
@@ -75,10 +83,9 @@
 
         <div id="final-actions">
             <button disabled id="removeBtn">Delete Selected</button>
-            <!-- === SAVE/UPLOAD BUTTONS UPDATED === -->
             <button disabled id="saveFullBtn">Save Full Image</button>
-            <button disabled id="uploadSignBtn">Upload To Sign Gallery</button> <!-- Changed ID and Text -->
-            <!-- === END SAVE/UPLOAD BUTTONS === -->
+            <!-- Butonul de Upload va fi activat de JS doar dacă ești conectat și un NFT e încărcat -->
+            <button disabled id="uploadSignBtn" title="Load NFT and Connect with X to upload.">Upload To Sign Gallery</button>
         </div>
 
         <div id="canvas-container">
