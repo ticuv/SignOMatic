@@ -5,11 +5,11 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>NFT Sign Generator (Ticuv Style Enhanced)</title>
 
-    <!-- Link către fișierul CSS -->
-    <link rel="stylesheet" href="style.css">
-
-    <!-- Librăria Ethers.js (necesară pentru NFT) -->
+    <!-- Include Ethers.js -->
     <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.umd.min.js"></script>
+
+    <!-- Include Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com" rel="preconnect"/>
@@ -17,104 +17,101 @@
     <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@400;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Indie+Flower&family=Rubik+Moonrocks&display=swap" rel="stylesheet">
 
+    <!-- Link to external CSS -->
+    <link href="style.css" rel="stylesheet"/>
 </head>
 <body>
-<div class="main-container">
-    <h3>NFT Sign Generator</h3>
-    <div id="controls">
-        <!-- Grupul pentru încărcare NFT -->
-        <div class="control-group">
-            <label for="nftCollection">Collection:</label>
-            <select id="nftCollection">
-                <option value="GHN">GHN (Gooniez)</option>
-                <option value="AHC">AHC (Ape Hater)</option>
-            </select>
-            <label for="nftTokenId">Token ID:</label>
-            <input id="nftTokenId" placeholder="e.g.: 1114" type="number"/>
-            <button id="loadNftBtn">Load NFT</button>
+    <div class="main-container">
+        <h3>NFT Sign Generator</h3>
+        <div id="controls">
+            <div class="control-group">
+                <label for="nftCollection">Collection:</label>
+                <select id="nftCollection">
+                    <option value="GHN">GHN (Gooniez)</option>
+                    <option value="AHC">AHC (Ape Hater)</option>
+                </select>
+                <label for="nftTokenId">Token ID:</label>
+                <input id="nftTokenId" placeholder="e.g.: 1114" type="number"/>
+                <button id="loadNftBtn">Load NFT</button>
+            </div>
+
+            <p id="nftStatus">Select collection and ID, then load NFT.</p>
+
+            <div class="control-group">
+                <label for="overlayColor">Sign Color:</label>
+                <input disabled id="overlayColor" type="color" value="#00ff00"/>
+                <button disabled id="applyOverlayBtn">Apply Color</button>
+            </div>
+
+            <div class="control-group text-editing-group">
+                <div class="row">
+                    <label for="textInput">Text:</label>
+                    <input disabled id="textInput" placeholder="Your text here" type="text"/>
+                    <button disabled id="addTextBtn">Add Text</button>
+                </div>
+                <div class="row">
+                    <label for="textColor">Color:</label>
+                    <input disabled id="textColor" type="color" value="#ffffff"/>
+                    <label for="fontSize">Size:</label>
+                    <input disabled id="fontSize" max="200" min="10" type="number" value="15"/>
+                    <label for="fontFamily">Font:</label>
+                    <select disabled id="fontFamily">
+                        <option value="'Comic Neue', cursive">Comic Neue</option>
+                        <option value="'Indie Flower', cursive">Indie Flower</option>
+                        <option value="'Rubik Moonrocks', cursive">Rubik Moonrocks</option>
+                        <option value="'Luckiest Guy', cursive">Luckiest Guy</option>
+                        <option value="Arial">Arial</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <label for="imageUpload">Upload:</label>
+                    <input type="file" id="imageUpload" accept="image/*" disabled/>
+                    <button disabled id="addImageBtn">Add Image</button>
+                </div>
+            </div>
         </div>
 
-        <!-- Status NFT -->
-        <p id="nftStatus">Select collection and ID, then load NFT.</p>
-
-        <!-- Grupul pentru culoare semn -->
-        <div class="control-group">
-            <label for="overlayColor">Sign Color:</label>
-            <input disabled id="overlayColor" type="color" value="#00ff00"/>
-            <button disabled id="applyOverlayBtn">Apply Color</button>
+        <div id="final-actions">
+            <button disabled id="removeBtn">Delete Selected</button>
+            <!-- === SAVE/UPLOAD BUTTONS UPDATED === -->
+            <button disabled id="saveFullBtn">Save Full Image</button>
+            <button disabled id="uploadSignBtn">Upload To Sign Gallery</button> <!-- Changed ID and Text -->
+            <!-- === END SAVE/UPLOAD BUTTONS === -->
         </div>
 
-        <!-- Grupul pentru editare Text & Imagine -->
-        <div class="control-group text-editing-group">
-             <div class="row">
-                 <label for="textInput">Text:</label>
-                 <input disabled id="textInput" placeholder="Your text here" type="text"/>
-                 <button disabled id="addTextBtn">Add Text</button>
-             </div>
-             <div class="row">
-                 <label for="textColor">Color:</label>
-                 <input disabled id="textColor" type="color" value="#ffffff"/>
-                 <label for="fontSize">Size:</label>
-                 <input disabled id="fontSize" max="200" min="10" type="number" value="15"/>
-                 <label for="fontFamily">Font:</label>
-                 <select disabled id="fontFamily">
-                     <option value="'Comic Neue', cursive">Comic Neue</option>
-                     <option value="'Indie Flower', cursive">Indie Flower</option>
-                     <option value="'Rubik Moonrocks', cursive">Rubik Moonrocks</option>
-                     <option value="'Luckiest Guy', cursive">Luckiest Guy</option>
-                     <option value="Arial">Arial</option>
-                     <option value="Verdana">Verdana</option>
-                     <option value="Times New Roman">Times New Roman</option>
-                 </select>
-             </div>
-             <div class="row">
-                  <label for="imageUpload">Upload:</label>
-                 <input type="file" id="imageUpload" accept="image/*" disabled/>
-                 <button disabled id="addImageBtn">Add Image</button>
-             </div>
+        <div id="canvas-container">
+            <button class="floating-reset" id="resetCanvas" title="Reset Canvas & Overlays">↺</button>
+            <canvas height="2048" id="canvas" width="2048"></canvas>
+            <!-- Overlays will be added here by JS -->
+        </div>
+
+        <!-- === DISCLAIMER BUTTON === -->
+        <div style="margin-top: 10px; width: 100%; text-align: center;">
+            <button id="disclaimerBtn" style="background-color: var(--morty-yellow); color: var(--outline-black);">⚠️ Comic Disclaimer (Read Me!) ⚠️</button>
+        </div>
+
+    </div> <!-- End .main-container -->
+
+    <!-- === DISCLAIMER MODAL === -->
+    <div id="disclaimerModal">
+        <div class="disclaimer-content">
+            <button id="closeDisclaimerBtn" title="Close Disclaimer">×</button>
+            <h4>Comic (and Legal-ish) Warning!</h4>
+            <p>
+                Alright, listen up, champ: That genius (or cringey) text and that... 'creative'... image you're slapping onto your GHN or AHC using this gizmo? That's <strong>your</strong> masterpiece (or mess).
+            </p>
+            <p>
+                I just handed you the interdimensional paintbrush and bucket. If the final result is a work of art or some scribbling that offends three galaxies, the responsibility lands squarely in <strong>your</strong> crypto wallet, not my lines of code.
+            </p>
+            <p>
+                Got it? Good. Now get back to... uh... 'art'?
+            </p>
         </div>
     </div>
 
-    <!-- Acțiuni Finale (Ștergere, Salvare) -->
-    <div id="final-actions">
-         <button disabled id="removeBtn">Delete Selected</button>
-         <button disabled id="saveFullBtn">Save Full Image</button>
-         <button disabled id="saveSignBtn">Save Sign Only</button>
-    </div>
-
-    <!-- Container Canvas -->
-    <div id="canvas-container">
-        <button class="floating-reset" id="resetCanvas" title="Reset Canvas & Overlays">↺</button>
-        <canvas height="2048" id="canvas" width="2048"></canvas>
-        <!-- Overlays (text/image) will be added here dynamically by JS -->
-    </div>
-
-    <!-- Buton Disclaimer -->
-    <div style="margin-top: 10px; width: 100%; text-align: center;">
-        <button id="disclaimerBtn" style="background-color: var(--morty-yellow); color: var(--outline-black);"> Disclaimer (Read Me!) </button>
-    </div>
-
-</div> <!-- Sfârșit .main-container -->
-
-<!-- Modal Disclaimer -->
-<div id="disclaimerModal">
-    <div class="disclaimer-content">
-        <button id="closeDisclaimerBtn" title="Close Disclaimer">×</button>
-        <h4>Comic (and Legal-ish) Warning!</h4>
-        <p>
-            Alright, listen up, champ: That genius (or cringey) text and that... 'creative'... image you're slapping onto your GHN or AHC using this gizmo? That's <strong>your</strong> masterpiece (or mess).
-        </p>
-        <p>
-            I just handed you the interdimensional paintbrush and bucket. If the final result is a work of art or some scribbling that offends three galaxies, the responsibility lands squarely in <strong>your</strong> crypto wallet, not my lines of code.
-        </p>
-        <p>
-            Got it? Good. Now get back to... uh... 'art'?
-        </p>
-    </div>
-</div>
-
-<!-- Link către fișierul JavaScript (la sfârșitul body) -->
-<script src="script.js"></script>
-
+    <!-- Link to external JavaScript -->
+    <script src="script.js"></script>
 </body>
 </html>
