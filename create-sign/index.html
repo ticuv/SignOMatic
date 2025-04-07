@@ -244,29 +244,29 @@
             /* Position */
             left: calc(-0.5 * var(--handle-size) - 2px);
             bottom: calc(-0.5 * var(--handle-size) - 2px);
-            cursor: nesw-resize;
+            cursor: nwse-resize; /* Changed cursor to better match diagonal arrow */
 
             /* Visuals */
-            font-size: calc(var(--handle-icon-size) * 1.1);
+            font-size: calc(var(--handle-icon-size) * 1.1); /* Adjusted size slightly if needed */
             background-color: rgba(195, 255, 93, 0.6);
             color: var(--outline-black);
             text-shadow: none;
             transition: background-color 0.2s ease, transform 0.1s ease;
 
-            /* Rotated icon */
-            transform: rotate(45deg);
+            /* NO ROTATION NEEDED FOR ⤢ */
+            /* transform: rotate(45deg); <-- Removed this */
         }
 
         /* Hover effect for resize handle */
         .imgOverlay .resize-handle:hover {
             background-color: var(--slime-green);
-            transform: rotate(45deg) scale(1.1);
+            transform: scale(1.1); /* Keep scale effect */
         }
 
         /* Active (pressed) effect for resize handle */
         .imgOverlay .resize-handle:active {
             background-color: var(--rick-green);
-            transform: rotate(45deg) scale(0.95);
+            transform: scale(0.95); /* Keep scale effect */
         }
 
 
@@ -379,7 +379,8 @@
 <div class="main-container">
     <h3>NFT Sign Generator</h3>
     <div id="controls">
-        <div class="control-group">
+        <!-- ... (restul controalelor neschimbate) ... -->
+         <div class="control-group">
             <label for="nftCollection">Collection:</label>
             <select id="nftCollection">
                 <option value="GHN">GHN (Gooniez)</option>
@@ -437,14 +438,15 @@
     </div>
 
     <div id="canvas-container">
-        <button class="floating-reset" id="resetCanvas" title="Reset Canvas & Overlays">âº</button>
+        <!-- === MODIFICAT BUTON RESET === -->
+        <button class="floating-reset" id="resetCanvas" title="Reset Canvas & Overlays">↺</button> <!-- Am înlocuit 🔄 cu entitatea pentru ↺ -->
         <canvas height="2048" id="canvas" width="2048"></canvas>
         <!-- Overlays will be added here -->
     </div>
 
-    <!-- === DISCLAIMER BUTTON === -->
+    <!-- === MODIFICAT BUTON DISCLAIMER === -->
     <div style="margin-top: 10px; width: 100%; text-align: center;">
-        <button id="disclaimerBtn" style="background-color: var(--morty-yellow); color: var(--outline-black);">â ï¸ Comic Disclaimer (Read Me!) â ï¸</button>
+        <button id="disclaimerBtn" style="background-color: var(--morty-yellow); color: var(--outline-black);"> Disclaimer (Read Me!) </button> <!-- Am înlocuit ☢️️ cu entitățile pentru ⚠️ -->
     </div>
 
 </div> <!-- End .main-container -->
@@ -452,7 +454,8 @@
 <!-- === DISCLAIMER MODAL === -->
 <div id="disclaimerModal">
     <div class="disclaimer-content">
-        <button id="closeDisclaimerBtn" title="Close Disclaimer">Ã</button>
+        <!-- === MODIFICAT BUTON ÎNCHIDERE MODAL === -->
+        <button id="closeDisclaimerBtn" title="Close Disclaimer">×</button> <!-- Am înlocuit × cu entitatea pentru × -->
         <h4>Comic (and Legal-ish) Warning!</h4>
         <p>
             Alright, listen up, champ: That genius (or cringey) text and that... 'creative'... image you're slapping onto your GHN or AHC using this gizmo? That's <strong>your</strong> masterpiece (or mess).
@@ -487,7 +490,7 @@
     // --- DOM Element References ---
     let canvas, ctx, container, textInput, textColor, fontSize, fontFamily, removeBtn, nftStatusEl,
         nftCollectionSelect, nftTokenIdInput, loadNftBtn, applyOverlayBtn, overlayColorInput,
-        addTextBtn, addImageBtn, resetCanvasBtn,
+        addTextBtn, addImageBtn, resetCanvasBtn, imageUpload, // Added imageUpload reference
         saveFullBtn, saveSignBtn, // Updated save button refs
         disclaimerBtn, disclaimerModal, closeDisclaimerBtn;
 
@@ -509,6 +512,7 @@
         applyOverlayBtn = document.getElementById("applyOverlayBtn");
         overlayColorInput = document.getElementById("overlayColor");
         addTextBtn = document.getElementById("addTextBtn");
+        imageUpload = document.getElementById("imageUpload"); // Get reference to file input
         addImageBtn = document.getElementById("addImageBtn");
         resetCanvasBtn = document.getElementById("resetCanvas");
         saveFullBtn = document.getElementById("saveFullBtn"); // Get ref to full save
@@ -535,7 +539,7 @@
         textColor.addEventListener("input", handleTextControlChange);
         fontSize.addEventListener("input", handleTextControlChange);
         fontFamily.addEventListener("input", handleTextControlChange);
-        addImageBtn.addEventListener('click', addImage);
+        addImageBtn.addEventListener('click', addImage); // Listener for the button, not the input directly
         removeBtn.addEventListener('click', removeActiveElement);
         resetCanvasBtn.addEventListener('click', handleReset);
         nftCollectionSelect.addEventListener("change", () => { if (baseImage.src && baseImage.complete) { applyOverlay(); } });
@@ -656,19 +660,22 @@
     // --- Text & Image Creation ---
     function addText() {
         if(!baseImage.src||!baseImage.complete||baseImage.naturalWidth===0){nftStatusEl.textContent="Load a valid NFT first.";nftStatusEl.className='error';return;}
-        const textEl=document.createElement("div");textEl.className="textOverlay";textEl.innerText=textInput.value||"New Text";textEl.style.color=textColor.value;textEl.style.fontSize=fontSize.value+"px";textEl.style.fontFamily=fontFamily.value;textEl.style.transform=`translate(-50%, -50%) rotate(0deg)`;textEl.style.zIndex="10";const handle=document.createElement("span");handle.className="rotation-handle";handle.innerHTML='âº';textEl.appendChild(handle);const currentPolygon=getPolygonForSelectedCollection();const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x));const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y));const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50;const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50;const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent);textEl.style.left=`${initialX}px`;textEl.style.top=`${initialY}px`;textEl.addEventListener("mousedown",handleTextDragStart);textEl.addEventListener("touchstart",handleTextDragStart,{passive:true});handle.addEventListener("mousedown",handleTextRotateStart);handle.addEventListener("touchstart",handleTextRotateStart,{passive:true});container.appendChild(textEl);setActiveElement(textEl);
+        const textEl=document.createElement("div");textEl.className="textOverlay";textEl.innerText=textInput.value||"New Text";textEl.style.color=textColor.value;textEl.style.fontSize=fontSize.value+"px";textEl.style.fontFamily=fontFamily.value;textEl.style.transform=`translate(-50%, -50%) rotate(0deg)`;textEl.style.zIndex="10";const handle=document.createElement("span");handle.className="rotation-handle";handle.innerHTML='↺'; /* Changed reset icon here too */ textEl.appendChild(handle);const currentPolygon=getPolygonForSelectedCollection();const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x));const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y));const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50;const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50;const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent);textEl.style.left=`${initialX}px`;textEl.style.top=`${initialY}px`;textEl.addEventListener("mousedown",handleTextDragStart);textEl.addEventListener("touchstart",handleTextDragStart,{passive:true});handle.addEventListener("mousedown",handleTextRotateStart);handle.addEventListener("touchstart",handleTextRotateStart,{passive:true});container.appendChild(textEl);setActiveElement(textEl);
     }
     function addImage() {
         if(!baseImage.src||!baseImage.complete||baseImage.naturalWidth===0){nftStatusEl.textContent="Please load a valid NFT first.";nftStatusEl.className='error';return;}
-        if(!imageUpload.files||imageUpload.files.length===0){nftStatusEl.textContent="Please select an image file.";nftStatusEl.className='error';return;}
+        if(!imageUpload || !imageUpload.files || imageUpload.files.length===0){nftStatusEl.textContent="Please select an image file.";nftStatusEl.className='error';return;}
         const file=imageUpload.files[0];const reader=new FileReader();
         reader.onload=function(e){const wrapper=document.createElement("div");wrapper.className="imgOverlay";wrapper.style.position="absolute";wrapper.style.width="auto";wrapper.style.height="auto";wrapper.style.transform="translate(-50%, -50%) rotate(0deg)";wrapper.style.touchAction="none";wrapper.style.zIndex="20";const img=document.createElement("img");img.src=e.target.result;
         img.onload=()=>{if(container.offsetWidth>0&&img.naturalWidth>0&&img.naturalHeight>0){const contW=container.offsetWidth;const initialWidth=Math.min(img.naturalWidth*0.60,contW*0.5,250);const aspectRatio=img.naturalWidth/img.naturalHeight;wrapper.style.width=`${initialWidth}px`;wrapper.style.height=`${initialWidth/aspectRatio}px`;}else{wrapper.style.width='100px';wrapper.style.height='auto';}};
         img.onerror=()=>{console.error("Error loading added image.");nftStatusEl.textContent="Error displaying uploaded image.";nftStatusEl.className='error';wrapper.remove();}
-        wrapper.appendChild(img);const rotateHandle=document.createElement("div");rotateHandle.className="rotation-handle";rotateHandle.innerHTML='âº';wrapper.appendChild(rotateHandle);
+        wrapper.appendChild(img);const rotateHandle=document.createElement("div");rotateHandle.className="rotation-handle";rotateHandle.innerHTML='↺'; /* Changed reset icon here too */ wrapper.appendChild(rotateHandle);
         const resizeHandle=document.createElement("div");
         resizeHandle.className="resize-handle";
-        resizeHandle.innerHTML='â¤¡';
+        // ========================================================================
+        // MODIFICAREA CERUTĂ: Schimbă simbolul de redimensionare cu o săgeată cu 2 vârfuri
+        resizeHandle.innerHTML='⤢'; // Săgeată diagonală NV-SE (sau folosește '↔', '↕', '⇕' dacă preferi)
+        // ========================================================================
         wrapper.appendChild(resizeHandle);
         const currentPolygon=getPolygonForSelectedCollection();const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x));const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y));const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50;const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50;const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent);wrapper.style.left=`${initialX}px`;wrapper.style.top=`${initialY}px`;wrapper.addEventListener("mousedown",handleImageDragStart);wrapper.addEventListener("touchstart",handleImageDragStart,{passive:true});rotateHandle.addEventListener("mousedown",handleImageRotateStart);rotateHandle.addEventListener("touchstart",handleImageRotateStart,{passive:true});resizeHandle.addEventListener("mousedown",handleImageResizeStart);resizeHandle.addEventListener("touchstart",handleImageResizeStart,{passive:true});container.appendChild(wrapper);setActiveElement(wrapper);nftStatusEl.textContent="Image added.";nftStatusEl.className='success';imageUpload.value='';};
         reader.onerror=function(err){console.error("FileReader error:",err);nftStatusEl.textContent="Error reading image file.";nftStatusEl.className='error';}
@@ -680,14 +687,14 @@
     function removeActiveElement() { if(activeElement){activeElement.remove();setActiveElement(null);} }
 
     // --- Interaction Handlers (Corrected Resize Logic Maintained) ---
-    function getEventCoordinates(event) { let x,y; if(event.touches&&event.touches.length>0){x=event.touches[0].clientX;y=event.touches[0].clientY;}else if(event.changedTouches&&event.changedTouches.length>0){x=event.changedTouches[0].clientX;y=event.changedTouches[0].clientY;}else{x=event.clientX;y=event.clientY;} return{x,y}; }
+     function getEventCoordinates(event) { let x,y; if(event.touches&&event.touches.length>0){x=event.touches[0].clientX;y=event.touches[0].clientY;}else if(event.changedTouches&&event.changedTouches.length>0){x=event.changedTouches[0].clientX;y=event.changedTouches[0].clientY;}else{x=event.clientX;y=event.clientY;} return{x,y}; }
     function handleTextDragStart(event) { if(event.target.classList.contains('rotation-handle'))return;const el=event.currentTarget;setActiveElement(el);textInteractionState.isDragging=true;textInteractionState.isRotating=false;el.style.cursor='grabbing';document.body.style.cursor='grabbing';const coords=getEventCoordinates(event);const contRect=container.getBoundingClientRect();textInteractionState.startX=coords.x-contRect.left;textInteractionState.startY=coords.y-contRect.top;textInteractionState.startLeft=parseFloat(el.style.left||"0");textInteractionState.startTop=parseFloat(el.style.top||"0");document.addEventListener("mousemove",handleTextInteractionMove);document.addEventListener("mouseup",handleTextInteractionEnd);document.addEventListener("touchmove",handleTextInteractionMove,{passive:false});document.addEventListener("touchend",handleTextInteractionEnd);document.addEventListener("touchcancel",handleTextInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
     function handleTextRotateStart(event) { event.stopPropagation();const el=event.currentTarget.parentElement;setActiveElement(el);textInteractionState.isRotating=true;textInteractionState.isDragging=false;document.body.style.cursor='alias';const coords=getEventCoordinates(event);const rect=el.getBoundingClientRect();textInteractionState.rotateCenterX=rect.left+rect.width/2;textInteractionState.rotateCenterY=rect.top+rect.height/2;const dx=coords.x-textInteractionState.rotateCenterX;const dy=coords.y-textInteractionState.rotateCenterY;let startAngle=Math.atan2(dy,dx);const currentRotationRad=getRotationRad(el);textInteractionState.rotateStartAngle=startAngle-currentRotationRad;document.addEventListener("mousemove",handleTextInteractionMove);document.addEventListener("mouseup",handleTextInteractionEnd);document.addEventListener("touchmove",handleTextInteractionMove,{passive:false});document.addEventListener("touchend",handleTextInteractionEnd);document.addEventListener("touchcancel",handleTextInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
     function handleTextInteractionMove(event) { if(!activeElement||!activeElement.classList.contains('textOverlay')||(!textInteractionState.isDragging&&!textInteractionState.isRotating))return; if(event.type==='touchmove')event.preventDefault(); const coords=getEventCoordinates(event); const contRect=container.getBoundingClientRect(); if(textInteractionState.isDragging){const currentX=coords.x-contRect.left; const currentY=coords.y-contRect.top; let potentialNewLeft=textInteractionState.startLeft+(currentX-textInteractionState.startX); let potentialNewTop=textInteractionState.startTop+(currentY-textInteractionState.startY); const{canvasX,canvasY}=getCanvasCoordsFromContainerPoint(potentialNewLeft,potentialNewTop); if(pointInPolygon({x:canvasX,y:canvasY},getPolygonForSelectedCollection())){activeElement.style.left=`${potentialNewLeft}px`; activeElement.style.top=`${potentialNewTop}px`;}}else if(textInteractionState.isRotating){const dx=coords.x-textInteractionState.rotateCenterX; const dy=coords.y-textInteractionState.rotateCenterY; let angle=Math.atan2(dy,dx); let rotationRad=angle-textInteractionState.rotateStartAngle; let rotationDeg=rotationRad*(180/Math.PI); activeElement.style.transform=`translate(-50%, -50%) rotate(${rotationDeg}deg)`;}}
     function handleTextInteractionEnd(event) { if(activeElement&&activeElement.classList.contains('textOverlay')){activeElement.style.cursor='grab';} document.body.style.cursor='default'; textInteractionState.isDragging=false; textInteractionState.isRotating=false; document.removeEventListener("mousemove",handleTextInteractionMove); document.removeEventListener("mouseup",handleTextInteractionEnd); document.removeEventListener("touchmove",handleTextInteractionMove); document.removeEventListener("touchend",handleTextInteractionEnd); document.removeEventListener("touchcancel",handleTextInteractionEnd); }
     function handleImageDragStart(event) { if(event.target.classList.contains('rotation-handle')||event.target.classList.contains('resize-handle'))return;const el=event.currentTarget;setActiveElement(el);imageInteractionState.isDragging=true;imageInteractionState.isRotating=false;imageInteractionState.isResizing=false;el.style.cursor='grabbing';document.body.style.cursor='grabbing';const coords=getEventCoordinates(event);const contRect=container.getBoundingClientRect();imageInteractionState.startX=coords.x-contRect.left;imageInteractionState.startY=coords.y-contRect.top;imageInteractionState.startLeft=parseFloat(el.style.left||"0");imageInteractionState.startTop=parseFloat(el.style.top||"0");document.addEventListener("mousemove",handleImageInteractionMove);document.addEventListener("mouseup",handleImageInteractionEnd);document.addEventListener("touchmove",handleImageInteractionMove,{passive:false});document.addEventListener("touchend",handleImageInteractionEnd);document.addEventListener("touchcancel",handleImageInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
     function handleImageRotateStart(event) { event.stopPropagation();const el=event.currentTarget.parentElement;setActiveElement(el);imageInteractionState.isRotating=true;imageInteractionState.isDragging=false;imageInteractionState.isResizing=false;document.body.style.cursor='alias';const coords=getEventCoordinates(event);const rect=el.getBoundingClientRect();imageInteractionState.centerX=rect.left+rect.width/2;imageInteractionState.centerY=rect.top+rect.height/2;const dx=coords.x-imageInteractionState.centerX;const dy=coords.y-imageInteractionState.centerY;let startAngle=Math.atan2(dy,dx);imageInteractionState.currentRotationRad=getRotationRad(el);imageInteractionState.startAngle=startAngle-imageInteractionState.currentRotationRad;document.addEventListener("mousemove",handleImageInteractionMove);document.addEventListener("mouseup",handleImageInteractionEnd);document.addEventListener("touchmove",handleImageInteractionMove,{passive:false});document.addEventListener("touchend",handleImageInteractionEnd);document.addEventListener("touchcancel",handleImageInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
-    function handleImageResizeStart(event) { event.stopPropagation();const el=event.currentTarget.parentElement;setActiveElement(el);imageInteractionState.isResizing=true;imageInteractionState.isRotating=false;imageInteractionState.isDragging=false;document.body.style.cursor='nesw-resize'; const coords=getEventCoordinates(event);imageInteractionState.startX=coords.x;imageInteractionState.startY=coords.y;imageInteractionState.startWidth=el.offsetWidth;imageInteractionState.startHeight=el.offsetHeight;imageInteractionState.aspectRatio=imageInteractionState.startHeight>0?imageInteractionState.startWidth/imageInteractionState.startHeight:1;imageInteractionState.currentRotationRad=getRotationRad(el);const rect=el.getBoundingClientRect();imageInteractionState.centerX=rect.left+rect.width/2;imageInteractionState.centerY=rect.top+rect.height/2;document.addEventListener("mousemove",handleImageInteractionMove);document.addEventListener("mouseup",handleImageInteractionEnd);document.addEventListener("touchmove",handleImageInteractionMove,{passive:false});document.addEventListener("touchend",handleImageInteractionEnd);document.addEventListener("touchcancel",handleImageInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
+    function handleImageResizeStart(event) { event.stopPropagation();const el=event.currentTarget.parentElement;setActiveElement(el);imageInteractionState.isResizing=true;imageInteractionState.isRotating=false;imageInteractionState.isDragging=false;document.body.style.cursor='nwse-resize'; /* Changed cursor to match */ const coords=getEventCoordinates(event);imageInteractionState.startX=coords.x;imageInteractionState.startY=coords.y;imageInteractionState.startWidth=el.offsetWidth;imageInteractionState.startHeight=el.offsetHeight;imageInteractionState.aspectRatio=imageInteractionState.startHeight>0?imageInteractionState.startWidth/imageInteractionState.startHeight:1;imageInteractionState.currentRotationRad=getRotationRad(el);const rect=el.getBoundingClientRect();imageInteractionState.centerX=rect.left+rect.width/2;imageInteractionState.centerY=rect.top+rect.height/2;document.addEventListener("mousemove",handleImageInteractionMove);document.addEventListener("mouseup",handleImageInteractionEnd);document.addEventListener("touchmove",handleImageInteractionMove,{passive:false});document.addEventListener("touchend",handleImageInteractionEnd);document.addEventListener("touchcancel",handleImageInteractionEnd);if(event.type==='mousedown')event.preventDefault();}
     function handleImageInteractionMove(event) {
         if(!activeElement||!activeElement.classList.contains('imgOverlay')||(!imageInteractionState.isDragging&&!imageInteractionState.isRotating&&!imageInteractionState.isResizing))return;
         if(event.type==='touchmove')event.preventDefault();
@@ -717,12 +724,21 @@
             const rotation=imageInteractionState.currentRotationRad;
             const cosR=Math.cos(rotation);
             const sinR=Math.sin(rotation);
-            const rotatedDx = dx * cosR + dy * sinR;
-            const rotatedDy = -dx * sinR + dy * cosR;
-            const diagonalDelta = (-rotatedDx + rotatedDy) / 2;
-            let newWidth = imageInteractionState.startWidth + diagonalDelta;
-            newWidth = Math.max(30, newWidth);
-            let newHeight = imageInteractionState.aspectRatio>0?newWidth/imageInteractionState.aspectRatio:newWidth;
+            // Calculate change along the diagonal axis of the handle (NW-SE)
+            const rotatedDx = dx * cosR + dy * sinR; // Project change onto rotated x-axis
+            const rotatedDy = -dx * sinR + dy * cosR; // Project change onto rotated y-axis
+            // For a handle in the bottom-left (NWSE cursor), dragging right-down increases size
+            // This means positive rotatedDy increases size, negative rotatedDx increases size
+            // We can approximate the diagonal change: average of projected changes along handle axis
+            // Or simply use the distance change from the center along the diagonal
+            const startDist = Math.hypot(imageInteractionState.startX - imageInteractionState.centerX, imageInteractionState.startY - imageInteractionState.centerY);
+            const currentDist = Math.hypot(coords.x - imageInteractionState.centerX, coords.y - imageInteractionState.centerY);
+            const scaleFactor = currentDist / startDist;
+
+            let newWidth = imageInteractionState.startWidth * scaleFactor;
+            newWidth = Math.max(30, newWidth); // Minimum size constraint
+            let newHeight = imageInteractionState.aspectRatio > 0 ? newWidth / imageInteractionState.aspectRatio : newWidth;
+
             activeElement.style.width=`${newWidth}px`;
             activeElement.style.height=`${newHeight}px`;
         }
@@ -867,6 +883,7 @@
              }, 100);
         }
     } // End saveImage function
+
 
 </script>
 </body>
