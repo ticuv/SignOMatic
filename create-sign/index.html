@@ -24,12 +24,7 @@
     <div class="main-container">
         <h3>NFT Sign Generator</h3>
 
-        <!-- Authentication Status -->
-        <div id="auth-status" style="margin-bottom: 1rem; padding: 0.5rem; border: 1px dashed var(--portal-blue); border-radius: 8px; min-height: 40px; display: flex; justify-content: center; align-items: center;">
-            <!-- Content will be dynamically added by JS -->
-            <button id="connectXBtn" style="background-color: var(--portal-blue); color: var(--off-white);">Connect with X</button>
-        </div>
-        <!-- End Authentication Status -->
+        <!-- Div-ul #auth-status a fost eliminat -->
 
         <div id="controls">
             <div class="control-group">
@@ -84,8 +79,8 @@
         <div id="final-actions">
             <button disabled id="removeBtn">Delete Selected</button>
             <button disabled id="saveFullBtn">Save Full Image</button>
-            <!-- Butonul de Upload va fi activat de JS doar dacă ești conectat și un NFT e încărcat -->
-            <button disabled id="uploadSignBtn" title="Load NFT and Connect with X to upload.">Upload To Sign Gallery</button>
+            <!-- Textul tooltip va fi actualizat de JS -->
+            <button disabled id="uploadSignBtn" title="Load NFT first.">Upload To Sign Gallery</button>
         </div>
 
         <div id="canvas-container">
@@ -117,6 +112,21 @@
             </p>
         </div>
     </div>
+
+    <!-- === AUTHENTICATION MODAL === -->
+    <div id="authModal">
+        <div class="auth-modal-content">
+            <button id="closeAuthModalBtn" title="Close">×</button>
+            <h4>Connect to Upload</h4>
+            <p>
+                To upload your awesome sign to the gallery, you need to connect your X (Twitter) account first. This links your creation to you!
+            </p>
+            <div style="text-align: center; margin-top: 1.5rem;">
+                <button id="connectXModalBtn" style="background-color: var(--portal-blue); color: var(--off-white);">Connect with X</button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Link to external JavaScript -->
     <script src="script.js"></script>
