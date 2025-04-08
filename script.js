@@ -18,13 +18,13 @@ const DONATION_ADDRESSES = {
     sol: "2Vv3QHAJxZvViaY1HaWvJ5kbnNeUdN1MrZcRYog4ezHE",
     eth: "0xbD0dDE4175d8e854306a09dE4c184392b33a6d9C"
 };
-// Restore original help text for handles
+// Updated help text for handles based on final state
 const HELP_TEXTS = {
     "nft-load": "Choose a collection (e.g., GHN) and enter the specific Token ID number of the NFT you want to load onto the canvas.",
     "gallery": "Click any pre-made sign below to instantly apply it over your loaded NFT image. Click again to remove it.",
     "custom": "Use these controls to customize the sign: change the sign's background color, add/style your own text, and upload/position additional images.",
-    "custom-text": "Select text on canvas to edit here. Use handles on canvas: \n⇦ (Left): Adjust font size.\n⇨ (Right): Adjust text box width.\n↻ (Bottom): Rotate text.", // Original help text
-    "custom-image": "'Choose File' then 'Add Image'. Drag to move. Use handles on canvas:\n⤡ (Bottom-Left): Resize image.\n↻ (Bottom): Rotate image." // Updated help text for new rotation handle position
+    "custom-text": "Select text on canvas to edit here. Use handles on canvas: \n⇦ (Left): Adjust font size.\n⇨ (Right): Adjust text box width.\n↻ (Bottom): Rotate text.", // Restored help
+    "custom-image": "'Choose File' then 'Add Image'. Drag to move. Use handles on canvas:\n⤡ (Bottom-Left): Resize image.\n↻ (Bottom): Rotate image." // Updated for bottom rotation
 };
 
 
@@ -66,7 +66,6 @@ window.onload = () => {
     textColor = document.getElementById("textColor");
     fontFamily = document.getElementById("fontFamily");
     // removeBtn reference remains removed
-    // removeBtn = document.getElementById("removeBtn");
     nftStatusEl = document.getElementById("nftStatus");
     nftCollectionSelect = document.getElementById("nftCollection");
     nftTokenIdInput = document.getElementById("nftTokenId");
@@ -768,14 +767,14 @@ function addImage() {
         deleteBtn.addEventListener("touchstart", (e) => e.stopPropagation());
         wrapper.appendChild(deleteBtn);
 
-        // Rotation Handle (Bottom-Center, Icon now handled by CSS)
+        // Rotation Handle (Bottom-Center, using text '↻' icon now) - MODIFIED
         const rotateHandle = document.createElement("div");
         rotateHandle.className = "handle rotation-handle";
-        // rotateHandle.innerHTML = ''; // Ensure no text icon conflicts with CSS background
+        rotateHandle.innerHTML = '↻'; // Match text handle icon
         rotateHandle.title = "Rotate Image";
         wrapper.appendChild(rotateHandle); // Positioned by CSS
 
-        // Resize Handle (Bottom-Left, Icon handled by CSS via resize-handle-base)
+        // Resize Handle (Bottom-Left, icon and rotation handled by CSS)
         const resizeHandle = document.createElement("div");
         // Uses .resize-handle-right class for correct CSS targeting, even though it's on the left visually
         resizeHandle.className = "handle resize-handle-base resize-handle-right";
@@ -1002,7 +1001,7 @@ function handleTextInteractionEnd(event) {
 
 // --- Image Interaction Handlers (No changes needed from previous version) ---
 function handleImageDragStart(event) { if (event.target.classList.contains('handle') || event.target.classList.contains('overlay-delete-btn') || currentSignMode !== 'custom') return; hideHelpTooltip(); const el = event.currentTarget; setActiveElement(el); imageInteractionState.isDragging = true; imageInteractionState.isRotating = false; imageInteractionState.isResizing = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); imageInteractionState.startX = coords.x - contRect.left; imageInteractionState.startY = coords.y - contRect.top; imageInteractionState.startLeft = parseFloat(el.style.left || "0"); imageInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
-function handleImageRotateStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isRotating = true; imageInteractionState.isDragging = false; imageInteractionState.isResizing = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let startAngle = Math.atan2(dy, dx); imageInteractionState.currentRotationRad = getRotationRad(el); imageInteractionState.startAngle = startAngle - imageInteractionState.currentRotationRad; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleImageRotateStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isRotating = true; imageInteractionState.isDragging = false; imageInteractionState.isResizing = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let startAngle = Math.atan2(dy, dx); imageInteractionState.currentRotationRad = getRotationRad(el); imageInteractionState.startAngle = startAngle - imageInteractionState.currentRotationRad; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
 function handleImageResizeStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isResizing = true; imageInteractionState.isRotating = false; imageInteractionState.isDragging = false; document.body.style.cursor = 'nwse-resize'; // Corner resize cursor
     const coords = getEventCoordinates(event); imageInteractionState.startX = coords.x; imageInteractionState.startY = coords.y; imageInteractionState.startWidth = el.offsetWidth; imageInteractionState.startHeight = el.offsetHeight; imageInteractionState.aspectRatio = imageInteractionState.startHeight > 0 ? imageInteractionState.startWidth / imageInteractionState.startHeight : 1; imageInteractionState.currentRotationRad = getRotationRad(el); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
 function handleImageInteractionMove(event) { if (!activeElement || !activeElement.classList.contains('imgOverlay') || (!imageInteractionState.isDragging && !imageInteractionState.isRotating && !imageInteractionState.isResizing)) return; if (event.type === 'touchmove') event.preventDefault(); const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); if (imageInteractionState.isDragging) { const currentX = coords.x - contRect.left; const currentY = coords.y - contRect.top; activeElement.style.left = `${imageInteractionState.startLeft + (currentX - imageInteractionState.startX)}px`; activeElement.style.top = `${imageInteractionState.startTop + (currentY - imageInteractionState.startY)}px`; } else if (imageInteractionState.isRotating) { const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let angle = Math.atan2(dy, dx); let rotationRad = angle - imageInteractionState.startAngle; let rotationDeg = rotationRad * (180 / Math.PI); activeElement.style.transform = `translate(-50%, -50%) rotate(${rotationDeg}deg)`; } else if (imageInteractionState.isResizing) { const startDist = Math.hypot(imageInteractionState.startX - imageInteractionState.centerX, imageInteractionState.startY - imageInteractionState.centerY); const currentDist = Math.hypot(coords.x - imageInteractionState.centerX, coords.y - imageInteractionState.centerY); const scaleFactor = startDist > 0 ? currentDist / startDist : 1; let newWidth = imageInteractionState.startWidth * scaleFactor; let newHeight = imageInteractionState.aspectRatio > 0 ? newWidth / imageInteractionState.aspectRatio : newWidth; // Maintain aspect ratio
