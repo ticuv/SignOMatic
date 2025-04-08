@@ -62,7 +62,7 @@ window.onload = () => {
     textInput = document.getElementById("textInput");
     textColor = document.getElementById("textColor");
     fontFamily = document.getElementById("fontFamily");
-    removeBtn = document.getElementById("removeBtn");
+    removeBtn = document.getElementById("removeBtn"); // <<<< Ensure this ID matches HTML
     nftStatusEl = document.getElementById("nftStatus");
     nftCollectionSelect = document.getElementById("nftCollection");
     nftTokenIdInput = document.getElementById("nftTokenId");
@@ -146,7 +146,16 @@ function setupEventListeners() {
     addImageBtn.addEventListener('click', addImage);
 
     // Custom Actions
-    removeBtn.addEventListener('click', (event) => removeActiveElement(event));
+    // Ensure removeBtn exists before adding listener
+    if (removeBtn) {
+        removeBtn.addEventListener('click', (event) => {
+            // console.log("Remove button clicked. Active element:", activeElement); // Debug log
+            removeActiveElement(event);
+        });
+    } else {
+        console.error("Remove button (#removeBtn) not found in DOM!");
+    }
+
 
     // General Actions
     resetCanvasBtn.addEventListener('click', handleReset);
@@ -167,14 +176,9 @@ function setupEventListeners() {
      if (sendEthBtn) sendEthBtn.addEventListener('click', () => showDonationAddress('eth'));
      if (copyAddressBtn) copyAddressBtn.addEventListener('click', copyDonationAddress);
 
-     // --- Help Tooltip Listeners (NOW CLICK-BASED) ---
+     // --- Help Tooltip Listeners (CLICK-BASED) ---
      const helpBtns = document.querySelectorAll('.help-btn');
      helpBtns.forEach(btn => {
-         // REMOVED hover/focus listeners
-         // btn.addEventListener('mouseenter', showHelpTooltip);
-         // btn.addEventListener('mouseleave', hideHelpTooltip);
-         // btn.addEventListener('focus', showHelpTooltip); // Accessibility
-         // btn.addEventListener('blur', hideHelpTooltip);  // Accessibility
          btn.addEventListener('click', handleHelpClick); // ADDED click listener
      });
 
@@ -202,10 +206,17 @@ function setupEventListeners() {
 }
 
 // --- Click Outside Handler (For deselecting canvas elements) ---
+// --- UPDATED to prevent deselect on action button clicks ---
 function handleOutsideClick(event) {
-    // Modal Check first
+    // Ignore clicks on action buttons or help buttons for deselect purposes
+    const clickedActionButton = event.target.closest('#removeBtn, #saveFullBtn, #savePrefixBtn, #addTextBtn, #addImageBtn');
+    const clickedHelpButton = event.target.closest('.help-btn');
+    if (clickedActionButton || clickedHelpButton) {
+        return; // Let their own click handlers manage state
+    }
+
+    // Modal Check
     if (isModalOpen && donateModal && !donateModal.querySelector('.modal-content').contains(event.target) && event.target !== donateBtn) {
-         // Don't process deselect if click was related to the modal or its trigger button
          return;
     }
 
@@ -213,23 +224,16 @@ function handleOutsideClick(event) {
     if (helpTooltip && helpTooltip.style.display === 'block' && helpTooltip.contains(event.target)) {
         return;
     }
-    // Help Button Check - Let the help button click handler manage the tooltip state
-    if (event.target.classList.contains('help-btn')) {
-        return;
-    }
-
 
     // Deselect Active Element Logic (Canvas Overlays)
     if (currentSignMode === 'custom') {
         const clickedInsideContainer = container.contains(event.target);
         const clickedOnContainerOrCanvas = event.target === container || event.target === canvas;
-        // Check if click was on controls that *should not* cause deselect
-        const clickedOnInteractiveControl = event.target.closest('#custom-options-group input, #custom-options-group select, #custom-options-group button:not(#removeBtn):not(#saveFullBtn):not(.help-btn)');
+        // Check if click was on *other* interactive controls within the custom group
+        const clickedOnOtherInteractiveControl = event.target.closest('#custom-options-group input:not(#textInput), #custom-options-group select'); // Exclude text input here
         const clickedOnActiveElementHandle = event.target.classList.contains('handle');
 
-        if (activeElement && !clickedOnInteractiveControl && !clickedOnActiveElementHandle) {
-             // Click was NOT on a handle or non-action button within the custom controls group
-
+        if (activeElement && !clickedOnOtherInteractiveControl && !clickedOnActiveElementHandle) {
              // Condition 1: Click outside the main canvas container entirely
              if (!clickedInsideContainer) {
                   setActiveElement(null); // Deselect
@@ -254,19 +258,20 @@ function setControlsDisabled(isDisabled) {
     prefixControls.forEach(el => { if(el) el.disabled = isDisabled; });
     signChoiceRadios.forEach(el => { if(el) el.disabled = isDisabled; });
 
-    // Also disable help buttons inside custom controls when main controls are disabled
-    const customHelpBtns = document.querySelectorAll('#custom-options-group .help-btn');
-    customHelpBtns.forEach(btn => { if(btn) btn.disabled = isDisabled; });
+    // Disable/Enable ALL help buttons based on the overall state
+    const allHelpBtns = document.querySelectorAll('.help-btn');
+    allHelpBtns.forEach(btn => { if(btn) btn.disabled = isDisabled; });
 
 
     if (isDisabled) {
+        // Ensure specific buttons are disabled regardless of individual control state
         if(removeBtn) removeBtn.disabled = true;
         if(saveFullBtn) saveFullBtn.disabled = true;
         if(savePrefixBtn) savePrefixBtn.disabled = true;
     } else {
-        // Re-enable relevant help buttons if controls are enabled
-         const customHelpBtns = document.querySelectorAll('#custom-options-group .help-btn');
-         customHelpBtns.forEach(btn => { if(btn) btn.disabled = false; });
+        // If enabling controls, re-evaluate specific button states
+        // Note: Help buttons are re-enabled above by the allHelpBtns loop
+        // updateCustomActionButtons() will correctly set remove/save button states later
     }
 }
 
@@ -291,7 +296,7 @@ function setSignMode(mode) {
     if (mode === 'prefix') {
         customOverlays.forEach(el => el.classList.add('hidden-overlay'));
         if (activeElement) {
-            setActiveElement(null);
+            setActiveElement(null); // Deselect when switching away from custom
         }
         if (appliedPrefixSignImage && baseImage.complete) {
             drawBaseImage();
@@ -309,11 +314,19 @@ function setSignMode(mode) {
             selectedSignItem = null;
         }
         if (textInput) {
-            textInput.value = lastCustomTextInputValue;
+            // Restore general value only if nothing is selected
+            if (!activeElement) {
+                textInput.value = lastCustomTextInputValue;
+            }
         }
         if (baseImage.complete) {
             applyOverlay(false);
         }
+        // If switching TO custom, ensure activeElement (if any) is still valid
+        if (activeElement && !container.contains(activeElement)) {
+            activeElement = null; // Clear invalid active element
+        }
+
     }
 
     nftStatusEl.textContent = `Mode selected: ${mode === 'prefix' ? 'Signs Gallery' : 'Custom Sign'}.`;
@@ -327,24 +340,33 @@ function setSignMode(mode) {
     setControlsDisabled(true); // Disable all first
     signTypePrefixRadio.disabled = false; // Always re-enable choice
     signTypeCustomRadio.disabled = false; // Always re-enable choice
+    // Enable relevant help buttons for the active mode section header
+    if (mode === 'prefix') {
+        const prefixHelpBtn = document.querySelector('#prefix-options-group .section-header .help-btn');
+        if (prefixHelpBtn) prefixHelpBtn.disabled = false;
+    } else if (mode === 'custom') {
+        const customHelpBtn = document.querySelector('#custom-options-group .section-header .help-btn');
+        if (customHelpBtn) customHelpBtn.disabled = false;
+        // Enable custom subsection help buttons only if base image is loaded
+        if (baseImage.complete) {
+            const customSubHelpBtns = document.querySelectorAll('#custom-options-group .text-editing-row .help-btn, #custom-options-group .file-upload-row .help-btn');
+            customSubHelpBtns.forEach(btn => btn.disabled = false);
+        }
+    }
+
+    // Enable specific controls based on mode and image loaded state
     if (mode === 'custom' && baseImage.complete) {
         const customEditControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn];
         customEditControls.forEach(el => { if(el) el.disabled = false; });
-         // Re-enable custom help buttons too
-        const customHelpBtns = document.querySelectorAll('#custom-options-group .help-btn');
-        customHelpBtns.forEach(btn => { if(btn) btn.disabled = false; });
-
-    } else if (mode === 'prefix' && baseImage.complete) {
-        // Enable prefix help button if needed (currently only one)
-        const prefixHelpBtn = document.querySelector('#prefix-options-group .help-btn');
-        if (prefixHelpBtn) prefixHelpBtn.disabled = false;
     }
+
     updateCustomActionButtons(); // This will set save/remove button states correctly
 }
 
 // Updates ALL action buttons based on current mode and state
 function updateCustomActionButtons() {
     const isImageLoaded = baseImage.src !== "" && baseImage.complete && baseImage.naturalWidth > 0;
+    // Ensure activeElement is still in the DOM before considering it active
     const isElementActive = activeElement !== null && container.contains(activeElement);
 
     const enableRemove = currentSignMode === 'custom' && isImageLoaded && isElementActive;
@@ -354,13 +376,16 @@ function updateCustomActionButtons() {
 
     const enableSavePrefix = currentSignMode === 'prefix' && isImageLoaded && appliedPrefixSignImage;
     if (savePrefixBtn) savePrefixBtn.disabled = !enableSavePrefix;
+
+     // Debugging log for button states
+     // console.log(`UpdateBtns: Mode=${currentSignMode}, ImgLoaded=${isImageLoaded}, ElActive=${isElementActive}, RemoveDisabled=${removeBtn?.disabled}, SaveCustomDisabled=${saveFullBtn?.disabled}, SavePrefixDisabled=${savePrefixBtn?.disabled}`);
 }
 
 
 // ===========================================================
 // handleTextControlChange - Revised Logic (FIX APPLIED)
 // ===========================================================
-function handleTextControlChange() {
+function handleTextControlChange(event) { // Added event param
     if (activeElement && activeElement.classList.contains('textOverlay') && currentSignMode === 'custom') {
         // Update Active Element Directly
         let textNode = activeElement.childNodes[0];
@@ -390,8 +415,9 @@ function handleTextControlChange() {
                 if (activeElement && activeElement.classList.contains('textOverlay') && container.contains(activeElement)) {
                     const originalWidthStyle = activeElement.style.width;
                     const hadManualWidth = originalWidthStyle && originalWidthStyle !== 'auto';
-                    activeElement.style.width = 'auto';
+                    activeElement.style.width = 'auto'; // Let browser calculate natural width
                     const naturalWidth = activeElement.offsetWidth;
+                    // Restore manual width if it existed, otherwise set to natural width (with min)
                     activeElement.style.width = hadManualWidth ? originalWidthStyle : `${Math.max(30, naturalWidth)}px`;
                 }
             });
@@ -416,6 +442,7 @@ function handleReset() {
         if (textColor) textColor.value = '#ffffff';
         if (fontFamily) fontFamily.value = "'Comic Neue', cursive";
         if (imageUpload) imageUpload.value = '';
+        activeElement = null; // Explicitly clear active element
 
         if (baseImage.src && baseImage.complete && baseImage.naturalWidth > 0) {
             drawBaseImage();
@@ -427,9 +454,9 @@ function handleReset() {
             currentSignMode = null;
             setControlsDisabled(true); // Disable all
             signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false; // Re-enable choice
-            // Re-enable main section help buttons if they exist
-            const loadHelpBtn = document.querySelector('#nft-load-group ~ .section-header .help-btn');
-            if (loadHelpBtn) loadHelpBtn.disabled = false;
+            // Re-enable main section help buttons if they exist (NFT Load)
+            const loadHelpBtn = document.querySelector('#controls .section-header .help-btn[data-help-key="nft-load"]');
+             if (loadHelpBtn) loadHelpBtn.disabled = false;
 
 
             nftStatusEl.textContent = "Canvas reset. Choose sign type."; nftStatusEl.className = '';
@@ -440,7 +467,7 @@ function handleReset() {
             enableNftLoadControlsOnly();
             nftStatusEl.textContent = "Select collection and ID, then load NFT."; nftStatusEl.className = '';
         }
-         updateCustomActionButtons();
+         updateCustomActionButtons(); // Ensure buttons are correctly disabled
     }
 }
 
@@ -463,7 +490,7 @@ function enableNftLoadControlsOnly() {
     if(nftCollectionSelect) nftCollectionSelect.disabled = false;
     if(nftTokenIdInput) nftTokenIdInput.disabled = false;
     // Re-enable NFT load help button
-    const loadHelpBtn = document.querySelector('#nft-load-group ~ .section-header .help-btn');
+    const loadHelpBtn = document.querySelector('#controls .section-header .help-btn[data-help-key="nft-load"]');
     if (loadHelpBtn) loadHelpBtn.disabled = false;
 
     if(signTypeChoiceGroup) signTypeChoiceGroup.classList.add('hidden');
@@ -489,9 +516,15 @@ async function loadNftToCanvas() {
     if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
     baseImage = new Image();
     lastCustomTextInputValue = "";
+    activeElement = null; // Ensure no active element after load
 
     loadNftBtn.disabled = true; nftCollectionSelect.disabled = true; nftTokenIdInput.disabled = true;
     setControlsDisabled(true); // Disable everything during load
+    // Re-enable the NFT load help button specifically
+    const loadHelpBtn = document.querySelector('#controls .section-header .help-btn[data-help-key="nft-load"]');
+    if (loadHelpBtn) loadHelpBtn.disabled = false;
+
+
     signTypeChoiceGroup.classList.add('hidden');
     if(signTypeChoiceHeader) signTypeChoiceHeader.classList.add('hidden');
     prefixOptionsGroup.classList.add('hidden'); customOptionsGroup.classList.add('hidden');
@@ -544,7 +577,6 @@ async function loadNftToCanvas() {
             signTypePrefixRadio.checked = false; signTypeCustomRadio.checked = false; currentSignMode = null;
             loadNftBtn.disabled = false; nftCollectionSelect.disabled = false; nftTokenIdInput.disabled = false; // Re-enable load controls
             // Re-enable NFT load help button
-            const loadHelpBtn = document.querySelector('#nft-load-group ~ .section-header .help-btn');
             if (loadHelpBtn) loadHelpBtn.disabled = false;
 
             if (!signConfigData) fetchSignConfig();
@@ -617,6 +649,7 @@ function populateSignGallery() {
         img.onerror = () => { img.alt = `${signName} (Load Error)`; img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 40'%3E%3Crect width='50' height='40' fill='%23555'/%3E%3Ctext x='50%' y='50%' fill='red' font-size='9' dominant-baseline='middle' text-anchor='middle'%3EError%3C/text%3E%3C/svg%3E"; itemDiv.style.borderColor = 'var(--error-red)'; console.warn(`Failed to load sign image: ${signImageUrl}`); };
         const nameSpan = document.createElement('span'); nameSpan.textContent = signName; itemDiv.appendChild(img); itemDiv.appendChild(nameSpan);
         itemDiv.addEventListener('click', () => {
+             hideHelpTooltip(); // Hide help if interacting with gallery
             if (currentSignMode !== 'prefix') return; const clickedImageUrl = itemDiv.dataset.imageUrl; const clickedSignName = itemDiv.dataset.signName; if (selectedSignItem && selectedSignItem !== itemDiv) { selectedSignItem.classList.remove('selected'); }
             if (selectedSignItem === itemDiv) { itemDiv.classList.remove('selected'); selectedSignItem = null; appliedPrefixSignImage = null; if(baseImage.src && baseImage.complete) drawBaseImage(); if(savePrefixBtn) savePrefixBtn.disabled = true; nftStatusEl.textContent = "Sign removed."; nftStatusEl.className = ''; }
             else { itemDiv.classList.add('selected'); selectedSignItem = itemDiv; applyPrefixSign(clickedImageUrl, clickedSignName); }
@@ -668,6 +701,7 @@ function addText() {
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
 
+    hideHelpTooltip(); // Hide help when adding text
     const textValue = textInput.value || "New Text";
 
     const textEl = document.createElement("div"); textEl.className = "textOverlay";
@@ -701,6 +735,8 @@ function addImage() {
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
     if (!imageUpload || !imageUpload.files || imageUpload.files.length === 0) { nftStatusEl.textContent = "Please select an image file."; nftStatusEl.className = 'error'; return; }
+
+    hideHelpTooltip(); // Hide help when adding image
     const file = imageUpload.files[0]; if (!file.type.startsWith('image/')) { nftStatusEl.textContent = "Invalid file type. Please select an image."; nftStatusEl.className = 'error'; imageUpload.value = ''; return; }
     const reader = new FileReader();
     reader.onload = function (e) {
@@ -742,11 +778,8 @@ function setActiveElement(el) {
             previouslyActiveElement.classList.remove("active");
             previouslyActiveElement.style.zIndex = previouslyActiveElement.classList.contains('imgOverlay') ? '20' : '10';
         }
-         // If deselecting a text overlay, store its current input value
-         if (previouslyActiveElement.classList.contains('textOverlay') && currentSignMode === 'custom' && textInput) {
-             // No action needed here, textInput should already reflect the active element's value
-         } else if (currentSignMode === 'custom' && textInput) {
-            // If deselecting something else (or clicking outside), restore the general text value
+         // If deselecting something, restore general text value to input IF the new selection isn't text
+         if (!(el && el.classList.contains('textOverlay')) && currentSignMode === 'custom' && textInput) {
             textInput.value = lastCustomTextInputValue;
         }
     }
@@ -792,7 +825,7 @@ function setActiveElement(el) {
         }
 
     } else {
-        // Deselecting Completely (clicked outside, etc.)
+        // Deselecting Completely (clicked outside, or 'el' is null)
         activeElement = null;
         if (currentSignMode === 'custom' && textInput) {
             textInput.value = lastCustomTextInputValue; // Restore general text value
@@ -803,18 +836,31 @@ function setActiveElement(el) {
 
 
 // ===========================================================
-// removeActiveElement - Adjust text input handling (FIX APPLIED)
+// removeActiveElement - Function to remove selected element
 // ===========================================================
 function removeActiveElement(event) {
-    if (event) { event.stopPropagation(); }
+    if (event) {
+        event.stopPropagation(); // Prevent triggering other listeners like handleOutsideClick
+    }
     hideHelpTooltip(); // Hide tooltip if removing element
 
+    // Double check activeElement is valid and in custom mode
     if (activeElement && container.contains(activeElement) && currentSignMode === 'custom') {
         const elementType = activeElement.classList.contains('textOverlay') ? 'Text' : 'Image';
-        activeElement.remove();
-        setActiveElement(null); // Deselect and restore general text value if needed
+        // console.log(`Removing ${elementType} element:`, activeElement); // Debug log
+
+        activeElement.remove(); // Remove from DOM
+
+        // IMPORTANT: Explicitly set activeElement to null *before* calling setActiveElement(null)
+        // This ensures the state is cleared correctly before UI updates.
+        const removedEl = activeElement; // Keep a ref if needed for logs, but clear the global one
+        activeElement = null;
+
+        setActiveElement(null); // Update UI state (deselect, update buttons, text input)
+
         nftStatusEl.textContent = `${elementType} element removed.`;
         nftStatusEl.className = '';
+        // console.log("Element removed. Active element is now:", activeElement); // Debug log
     } else if (currentSignMode !== 'custom') {
         nftStatusEl.textContent = "Delete only works in Custom Sign mode.";
         nftStatusEl.className = 'error';
@@ -823,8 +869,16 @@ function removeActiveElement(event) {
         nftStatusEl.textContent = "No element selected to delete.";
         nftStatusEl.className = 'error';
         console.warn("Delete clicked with no active element.");
+    } else if (activeElement && !container.contains(activeElement)) {
+         // If activeElement exists but isn't in the container (shouldn't happen often)
+         console.warn("Attempted to delete an element not in container DOM.", activeElement);
+         activeElement = null; // Clear the invalid reference
+         setActiveElement(null);
+         nftStatusEl.textContent = "Could not delete element (not found).";
+         nftStatusEl.className = 'error';
     } else {
-         console.warn("Attempted to delete an element not in container or invalid state.", activeElement);
+         // Catch-all for unexpected states
+         console.warn("Attempted to delete element in unexpected state.", activeElement);
          setActiveElement(null);
          nftStatusEl.textContent = "Could not delete element.";
          nftStatusEl.className = 'error';
