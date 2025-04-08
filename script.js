@@ -25,6 +25,7 @@ let signConfigData = null;
 let isSignConfigLoading = false;
 let selectedSignItem = null; // Track selected sign DOM element in gallery
 let appliedPrefixSignImage = null; // Keep track of the currently applied prefix sign Image object
+let lastCustomTextInputValue = ""; // <<< NEW: Store last text input value for custom mode
 
 // --- DOM Element References ---
 let canvas, ctx, container, textInput, textColor, fontFamily, removeBtn, nftStatusEl,
@@ -85,12 +86,10 @@ function setupEventListeners() {
         // When collection changes *after* loading, clear the specific mode's additions
         if (baseImage.src && baseImage.complete) {
             if (currentSignMode === 'custom') {
-                // Remove custom overlays if any exist
-                container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove());
-                setActiveElement(null); // Deselect & update buttons
-                applyOverlay(false);    // Redraw base + polygon
+                // Re-apply overlay for new collection polygon
+                 applyOverlay(false);
             } else if (currentSignMode === 'prefix') {
-                // Reset prefix state
+                // Reset prefix state for the new collection
                 appliedPrefixSignImage = null;
                 if (selectedSignItem) {
                     selectedSignItem.classList.remove('selected');
@@ -105,6 +104,7 @@ function setupEventListeners() {
                 drawBaseImage();
             }
         }
+         // NOTE: Custom overlays are NOT removed on collection change, only hidden/shown by mode change
     });
 
     // Sign Type Choice
@@ -177,18 +177,22 @@ function setSignMode(mode) {
     const previousMode = currentSignMode;
     if (mode === previousMode) return; // No change needed
 
+    // --- Save State from Previous Mode (if needed) ---
+    if (previousMode === 'custom' && textInput) {
+        lastCustomTextInputValue = textInput.value; // <<< SAVE text input value
+    }
+
     // --- Set new mode state FIRST ---
-    // This ensures subsequent checks/functions know the *intended* new mode
-    currentSignMode = mode; // <-- MOVED HERE
+    currentSignMode = mode;
 
     const customOverlays = container.querySelectorAll('.textOverlay, .imgOverlay');
 
     // --- Cleanup/Transition Logic ---
     if (mode === 'prefix') {
-        // Switching TO Prefix: Hide custom elements, deselect active
+        // Switching TO Prefix: Hide custom elements, deselect active element (without removing it)
         customOverlays.forEach(el => el.classList.add('hidden-overlay'));
         if (activeElement) {
-            setActiveElement(null); // Deselects and updates buttons
+            setActiveElement(null); // Deselects active element visually & updates buttons
         }
         // Restore prefix sign image on canvas if one was applied before
         if (appliedPrefixSignImage && baseImage.complete) {
@@ -200,22 +204,26 @@ function setSignMode(mode) {
         populateSignGallery(); // Refresh gallery view
 
     } else if (mode === 'custom') {
-        // Switching TO Custom: Show custom elements, clear prefix state
+        // Switching TO Custom: Show custom elements, clear prefix state, restore text input
         customOverlays.forEach(el => el.classList.remove('hidden-overlay'));
         appliedPrefixSignImage = null; // Clear prefix image state
         if (selectedSignItem) {
             selectedSignItem.classList.remove('selected');
             selectedSignItem = null;
         }
+
+        // Restore last text input value
+        if (textInput) {
+            textInput.value = lastCustomTextInputValue; // <<< RESTORE text input value
+        }
+
         // Redraw canvas with base image + custom color overlay
-        // Now applyOverlay will correctly see currentSignMode is 'custom'
         if (baseImage.complete) {
-            applyOverlay(false); // <-- This should now work correctly
+            applyOverlay(false);
         }
     }
 
     // --- Update UI text and visibility ---
-    // currentSignMode is already set
     nftStatusEl.textContent = `Mode selected: ${mode === 'prefix' ? 'Signs Gallery' : 'Custom Sign'}.`;
     nftStatusEl.className = '';
 
@@ -280,6 +288,10 @@ function handleTextControlChange() {
              }
          });
     }
+     // Update the stored text value whenever the user types in custom mode
+     if (currentSignMode === 'custom' && textInput) {
+         lastCustomTextInputValue = textInput.value;
+     }
 }
 function handleReset() {
     if (confirm("Are you sure you want to clear the canvas and all added elements/signs? This cannot be undone.")) {
@@ -291,6 +303,7 @@ function handleReset() {
         }
         // Clear custom controls input fields
         if (textInput) textInput.value = '';
+        lastCustomTextInputValue = ""; // <<< RESET stored text value
         if (overlayColorInput) overlayColorInput.value = '#00ff00'; // Reset color
         if (textColor) textColor.value = '#ffffff';
         if (fontFamily) fontFamily.value = "'Comic Neue', cursive"; // Reset font
@@ -360,10 +373,12 @@ async function loadNftToCanvas() {
     if (!tokenId || parseInt(tokenId) < 0) { nftStatusEl.textContent = "Please enter a valid, non-negative Token ID."; nftStatusEl.className = 'error'; return; }
     if (!nftContracts[selectedCollection]) { console.error(`Selected collection "${selectedCollection}" not found.`); nftStatusEl.textContent = `Error: Collection definition "${selectedCollection}" not found.`; nftStatusEl.className = 'error'; return; }
 
+    // Reset everything including custom elements when loading a *new* NFT
     clearCanvasAndOverlays();
     appliedPrefixSignImage = null;
     if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
     baseImage = new Image();
+    lastCustomTextInputValue = ""; // Reset stored text on new NFT load
 
     loadNftBtn.disabled = true; nftCollectionSelect.disabled = true; nftTokenIdInput.disabled = true;
     setControlsDisabled(true);
@@ -491,18 +506,47 @@ function populateSignGallery() { /* Presumed OK */
     });
     updateCustomActionButtons(); // Ensure button state is correct after populating
 }
-function applyPrefixSign(signImageUrl, signName) { /* Presumed OK */
-    if (!baseImage.src || !baseImage.complete || currentSignMode !== 'prefix') return; nftStatusEl.textContent = `Applying sign: ${signName}...`; nftStatusEl.className = ''; if(savePrefixBtn) savePrefixBtn.disabled = true;
-    if (container.querySelectorAll('.textOverlay, .imgOverlay').length > 0) { container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove()); setActiveElement(null); }
+
+// ===========================================================
+// applyPrefixSign - Do NOT remove custom overlays (FIX APPLIED)
+// ===========================================================
+function applyPrefixSign(signImageUrl, signName) {
+    if (!baseImage.src || !baseImage.complete || currentSignMode !== 'prefix') return;
+    nftStatusEl.textContent = `Applying sign: ${signName}...`; nftStatusEl.className = '';
+    if(savePrefixBtn) savePrefixBtn.disabled = true;
+
+    // <<< REMOVED CODE BLOCK THAT DELETED CUSTOM OVERLAYS >>>
+    // Visibility of custom overlays is now solely handled by setSignMode using CSS.
+
     const signImage = new Image(); signImage.crossOrigin = "Anonymous";
-    signImage.onload = () => { drawBaseImage(); ctx.drawImage(signImage, 0, 0, canvasWidth, canvasHeight); appliedPrefixSignImage = signImage; appliedPrefixSignImage.alt = signName; nftStatusEl.textContent = `Sign '${signName}' applied. Ready to save.`; nftStatusEl.className = 'success'; if(savePrefixBtn) savePrefixBtn.disabled = false; };
-    signImage.onerror = () => { console.error(`Error loading sign image: ${signImageUrl}`); nftStatusEl.textContent = `Error loading sign: ${signName}. Check console.`; nftStatusEl.className = 'error'; appliedPrefixSignImage = null; if (selectedSignItem && selectedSignItem.dataset.imageUrl === signImageUrl) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; } drawBaseImage(); if(savePrefixBtn) savePrefixBtn.disabled = true; };
+    signImage.onload = () => {
+        drawBaseImage();
+        ctx.drawImage(signImage, 0, 0, canvasWidth, canvasHeight);
+        appliedPrefixSignImage = signImage;
+        appliedPrefixSignImage.alt = signName;
+        nftStatusEl.textContent = `Sign '${signName}' applied. Ready to save.`;
+        nftStatusEl.className = 'success';
+        if(savePrefixBtn) savePrefixBtn.disabled = false;
+    };
+    signImage.onerror = () => {
+        console.error(`Error loading sign image: ${signImageUrl}`);
+        nftStatusEl.textContent = `Error loading sign: ${signName}. Check console.`;
+        nftStatusEl.className = 'error';
+        appliedPrefixSignImage = null;
+        if (selectedSignItem && selectedSignItem.dataset.imageUrl === signImageUrl) {
+            selectedSignItem.classList.remove('selected');
+            selectedSignItem = null;
+        }
+        drawBaseImage(); // Redraw base without the failed sign
+        if(savePrefixBtn) savePrefixBtn.disabled = true;
+    };
     signImage.src = signImageUrl;
 }
 
+
 // --- Text & Image Creation (Custom Mode) ---
 // Presuming these are OK from previous versions
-function addText() { /* ... code from previous response ... */
+function addText() { /* ... unchanged ... */
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
 
@@ -530,8 +574,10 @@ function addText() { /* ... code from previous response ... */
             const initialWidth = textEl.offsetWidth; textEl.style.width = `${Math.max(initialWidth, 30)}px`; textEl.style.whiteSpace = 'normal'; textEl.style.overflow = 'visible'; setActiveElement(textEl);
         }
     });
+     // Update stored text value when adding new text
+     if (textInput) lastCustomTextInputValue = textInput.value;
 }
-function addImage() { /* ... code from previous response ... */
+function addImage() { /* ... unchanged ... */
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
     if (!imageUpload || !imageUpload.files || imageUpload.files.length === 0) { nftStatusEl.textContent = "Please select an image file."; nftStatusEl.className = 'error'; return; }
@@ -577,8 +623,13 @@ function setActiveElement(el) {
         if (el.classList.contains('textOverlay')) {
              let textNode = el.childNodes[0];
              while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
-             if (textNode) { textInput.value = textNode.nodeValue.trim(); }
-             else { textInput.value = (el.textContent || '').trim(); }
+             let currentTextValue = "";
+             if (textNode) { currentTextValue = textNode.nodeValue.trim(); }
+             else { currentTextValue = (el.textContent || '').trim(); }
+
+             textInput.value = currentTextValue;
+             lastCustomTextInputValue = currentTextValue; // Update stored value when selecting text
+
              textColor.value = rgb2hex(el.style.color || '#ffffff');
              const currentFont = (el.style.fontFamily || 'Arial').split(',')[0].replace(/['"]/g, "").trim();
              let foundFont = false;
@@ -587,6 +638,10 @@ function setActiveElement(el) {
         }
     } else {
         activeElement = null; // Clear selection
+        // When deselecting, restore the last *manually typed* value to the input field if in custom mode
+        if (currentSignMode === 'custom' && textInput){
+            textInput.value = lastCustomTextInputValue;
+        }
     }
     // Always update button states
     updateCustomActionButtons();
@@ -607,6 +662,10 @@ function removeActiveElement(event) {
         setActiveElement(null); // Deselect and update buttons
         nftStatusEl.textContent = `${elementType} element removed.`;
         nftStatusEl.className = '';
+         // After removing, reset text input to the last stored general value
+         if (textInput) {
+             textInput.value = lastCustomTextInputValue;
+         }
     } else if (currentSignMode !== 'custom') {
         nftStatusEl.textContent = "Delete only works in Custom Sign mode.";
         nftStatusEl.className = 'error';
@@ -669,12 +728,13 @@ function saveImage() {
     } else if (currentSignMode === 'custom') {
         drawSignPolygonOnly(); // Draw custom color polygon
 
-        // Draw custom overlays (now potentially hidden in DOM, but we iterate here)
+        // Draw custom overlays (Iterate over *all* overlays, even if hidden by CSS)
         const containerRect = container.getBoundingClientRect();
         if (!containerRect || containerRect.width === 0 || containerRect.height === 0) { console.error("Error getting container rect during save"); nftStatusEl.className='error'; nftStatusEl.textContent="Save Error: Container rect invalid."; if(previouslyActive && container.contains(previouslyActive)) setActiveElement(previouslyActive); return; }
         const scaleX = canvasWidth / containerRect.width;
         const scaleY = canvasHeight / containerRect.height;
 
+        // Query ALL overlays, regardless of visibility class, as we need to draw them
         const allOverlays = Array.from(container.querySelectorAll(".textOverlay, .imgOverlay"));
         allOverlays.sort((a, b) => (parseInt(window.getComputedStyle(a).zIndex) || 0) - (parseInt(window.getComputedStyle(b).zIndex) || 0));
 
@@ -736,11 +796,16 @@ function saveImage() {
          } else { clearCanvas(); }
          // Re-select the element that was active before saving
          if (previouslyActive && container.contains(previouslyActive)) {
-             setActiveElement(previouslyActive); // This will also update buttons
+             setActiveElement(previouslyActive); // This will also update buttons and text input if needed
          } else {
-             updateCustomActionButtons(); // Ensure buttons are correct if no element was active
+             // If nothing was active, ensure text input still shows the last general value
+             if (currentSignMode === 'custom' && textInput) {
+                 textInput.value = lastCustomTextInputValue;
+             }
+             updateCustomActionButtons(); // Ensure buttons are correct
          }
      }, 100);
 }
+
 
 // --- END OF FILE script.js ---
