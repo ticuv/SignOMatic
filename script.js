@@ -60,7 +60,7 @@ let canvas, ctx, container, textInput, textColor, fontFamily, /* removeBtn, */ n
 window.onload = () => {
     // Get Element References
     canvas = document.getElementById("canvas");
-    ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx = canvas.getContext("2d", { willReadFrequently: true }); // Ensure context is available globally
     container = document.getElementById("canvas-container");
     textInput = document.getElementById("textInput");
     textColor = document.getElementById("textColor");
@@ -353,9 +353,6 @@ function setSignMode(mode) {
 function updateCustomActionButtons() {
     const isImageLoaded = baseImage.src !== "" && baseImage.complete && baseImage.naturalWidth > 0;
     // removeBtn logic remains removed
-    // const isElementActive = activeElement !== null && container.contains(activeElement);
-    // const enableRemove = currentSignMode === 'custom' && isImageLoaded && isElementActive;
-    // if (removeBtn) removeBtn.disabled = !enableRemove;
 
     const enableSaveFullCustom = currentSignMode === 'custom' && isImageLoaded;
     if (saveFullBtn) saveFullBtn.disabled = !enableSaveFullCustom;
@@ -1024,11 +1021,53 @@ function calculateElementPosition(percentX, percentY) { const contRect=container
 function getCanvasCoordsFromContainerPoint(containerX, containerY) { const contRect=container.getBoundingClientRect();if(!contRect||contRect.width===0||contRect.height===0)return{canvasX:0,canvasY:0};const scaleX=canvasWidth/contRect.width; const scaleY=canvasHeight/contRect.height; return{canvasX:containerX*scaleX,canvasY:containerY*scaleY};}
 function pointInPolygon(point, vs) { const x = point.x, y = point.y; let inside = false; for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) { const xi = vs[i].x, yi = vs[i].y; const xj = vs[j].x, yj = vs[j].y; const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi); if (intersect) inside = !inside; } return inside; }
 function rgb2hex(rgb) { if(!rgb)return'#ffffff'; if(rgb.startsWith('#'))return rgb; const rgbMatch=rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/); if(rgbMatch){return"#"+rgbMatch.slice(1).map(x=>{const hex=parseInt(x).toString(16);return hex.length===1?"0"+hex:hex;}).join('');} return rgb; }
-function getWrappedTextLines(text, maxWidthPx, fontStyle) { if (!text || maxWidthPx <= 0) return []; ctx.font = fontStyle; const words = text.split(' '); const lines = []; let currentLine = ''; for (let i = 0; i < words.length; i++) { const word = words[i]; const testLine = currentLine ? currentLine + " " + word : word; const testWidth = ctx.measureText(testLine).width; if (testWidth <= maxWidthPx || !currentLine) { currentLine = testLine; } else { lines.push(currentLine); currentLine = word; if (ctx.measureText(currentLine).width > maxWidthPx) { let tempLine = ''; for(let char of currentLine) { if(ctx.measureText(tempLine + char).width > maxWidthPx && tempLine) { lines.push(tempLine); tempLine = char; } else { tempLine += char; } } currentLine = tempLine; } } } if (currentLine) { lines.push(currentLine); } return lines; }
+// Ensure getWrappedTextLines is present and correct
+function getWrappedTextLines(text, maxWidthPx, fontStyle) {
+    if (!text || maxWidthPx <= 0) return [];
+    // Ensure context font is set *before* measuring
+    // IMPORTANT: Assumes 'ctx' is the global canvas 2D context
+    if (!ctx) {
+        console.error("getWrappedTextLines: Canvas context 'ctx' is not available.");
+        return [text]; // Fallback: return as single line
+    }
+    ctx.font = fontStyle;
+
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+
+    for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        // Add space only if currentLine is not empty
+        const testLine = currentLine ? currentLine + " " + word : word;
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+
+        if (testWidth <= maxWidthPx || !currentLine) {
+            // If it fits, or if it's the first word on the line, add it to the current line
+            currentLine = testLine;
+        } else {
+            // The new word doesn't fit, so push the previous line
+            lines.push(currentLine);
+            // Start the new line with the current word
+            currentLine = word;
+            // Edge case: If the single word itself is too long, it will still be added
+            // on the next iteration or at the end. More complex character wrapping isn't handled here.
+             if (ctx.measureText(currentLine).width > maxWidthPx) {
+                 console.warn("Single word wider than max width:", currentLine, ctx.measureText(currentLine).width, maxWidthPx);
+             }
+        }
+    }
+    // Add the last line
+    if (currentLine) {
+        lines.push(currentLine);
+    }
+    return lines;
+}
 
 
 // ===========================================================
-// saveImage - Includes fix for rendering overlays correctly
+// saveImage - Refined for Text Wrapping and Image Scaling Consistency
 // ===========================================================
 function saveImage() {
     const currentNftId = nftTokenIdInput.value || 'unknown';
@@ -1041,7 +1080,7 @@ function saveImage() {
     nftStatusEl.textContent = `Generating final image...`; nftStatusEl.className = '';
     const previouslyActive = activeElement; if (activeElement) setActiveElement(null); // Deselect for clean save
 
-    // Start Drawing on Canvas
+    // --- Start Drawing on Canvas ---
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     drawBaseImage();
 
@@ -1053,7 +1092,7 @@ function saveImage() {
         // --- Custom Mode Saving ---
         drawSignPolygonOnly(); // Draw custom color polygon first
 
-        // Correctly render DOM overlays onto canvas
+        // Get container dimensions for scaling
         const containerRect = container.getBoundingClientRect();
         if (!containerRect || containerRect.width === 0 || containerRect.height === 0) {
             console.error("Error getting container rect during save");
@@ -1061,7 +1100,7 @@ function saveImage() {
             if(previouslyActive && container.contains(previouslyActive)) setActiveElement(previouslyActive); // Restore active element if save fails
             return;
         }
-        // Calculate scaling factor from display size to canvas size
+        // Calculate scaling factor from display size (container) to canvas size
         const scaleX = canvasWidth / containerRect.width;
         const scaleY = canvasHeight / containerRect.height;
 
@@ -1079,7 +1118,7 @@ function saveImage() {
             const relativeCenterX = (elRect.left + elRect.width / 2) - containerRect.left;
             const relativeCenterY = (elRect.top + elRect.height / 2) - containerRect.top;
 
-            // Scale the center position to the canvas coordinates
+            // Scale the center position to the canvas coordinates (NO rounding here)
             const canvasX = relativeCenterX * scaleX;
             const canvasY = relativeCenterY * scaleY;
 
@@ -1088,29 +1127,34 @@ function saveImage() {
             ctx.rotate(rotationRad); // Rotate around the new origin
 
             if (el.classList.contains('textOverlay')) {
-                // Draw Text Overlay
+                // --- Draw Text Overlay ---
                 let textNode = Array.from(el.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
-                const text = textNode ? textNode.nodeValue.trim() : ''; // Get text, trim whitespace
+                const text = textNode ? textNode.nodeValue.trim() : '';
 
                 const color = el.style.color || '#ffffff';
                 const size = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE;
                 const font = el.style.fontFamily || 'Arial';
-                const domWidth = el.offsetWidth; // Use element's actual rendered width
+                // *** Use offsetWidth for wrapping constraint ***
+                const domWidth = el.offsetWidth;
 
-                // Scale font size and max width for the canvas
-                const canvasFontSize = size * scaleY; // Scale font size based on vertical scale
-                const canvasMaxWidth = domWidth * scaleX; // Max width for text wrapping on canvas
+                // Scale font size and max width for the canvas (NO rounding here)
+                const canvasFontSize = size * scaleY;
+                // *** Base the wrapping width on the scaled offsetWidth ***
+                const canvasMaxWidth = domWidth * scaleX;
 
-                if (canvasFontSize >= 1 && text) {
+                if (canvasFontSize >= 1 && text && canvasMaxWidth > 0) {
                     const fontStyle = `${canvasFontSize}px ${font}`;
-                    ctx.font = fontStyle;
-                    ctx.fillStyle = color;
-                    ctx.textAlign = "center"; // Center text horizontally at the transformed origin (0,0)
-                    ctx.textBaseline = "middle"; // Center text vertically
-
-                    // Wrap text based on scaled width and font size
+                    // Note: getWrappedTextLines sets ctx.font internally
                     const lines = getWrappedTextLines(text, canvasMaxWidth, fontStyle);
-                    const lineHeight = canvasFontSize * 1.2; // Use scaled line height
+
+                    // Set canvas styles for drawing
+                    ctx.fillStyle = color;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    // Ensure font is set again *for drawing* if getWrappedTextLines changed it elsewhere
+                    ctx.font = fontStyle;
+
+                    const lineHeight = canvasFontSize * 1.2; // Estimate line height
                     const totalTextHeight = lines.length * lineHeight;
 
                     // Calculate starting Y position to center the whole text block vertically
@@ -1122,13 +1166,14 @@ function saveImage() {
                     });
                 }
             } else if (el.classList.contains('imgOverlay')) {
-                // Draw Image Overlay
+                // --- Draw Image Overlay ---
                 const imgElement = el.querySelector('img');
                 if (imgElement && imgElement.complete && imgElement.naturalWidth > 0) {
+                    // *** Use offsetWidth and offsetHeight for scaling ***
                     const domWidth = el.offsetWidth;
                     const domHeight = el.offsetHeight;
 
-                    // Scale image dimensions for the canvas
+                    // Scale image dimensions for the canvas (NO rounding here)
                     const canvasDrawWidth = domWidth * scaleX;
                     const canvasDrawHeight = domHeight * scaleY;
 
@@ -1147,9 +1192,9 @@ function saveImage() {
             ctx.restore(); // Restore canvas state (removes transformation)
         });
     }
-    // End Drawing section
+    // --- End Drawing section ---
 
-    // Generate Download Link
+    // --- Generate Download Link (No changes needed here) ---
     try {
         const dataURL = canvas.toDataURL("image/png"); const link = document.createElement("a");
         let filename = ""; const safeCollection = currentCollection.replace(/[^a-z0-9]/gi, '_').toLowerCase(); const safeNftId = currentNftId.replace(/[^a-z0-9]/gi, '_');
@@ -1164,7 +1209,7 @@ function saveImage() {
         else { alert("An error occurred saving the image. Check console."); nftStatusEl.textContent = "Save Error. Check console."; }
     }
 
-    // Restore Canvas View & Active Element
+    // --- Restore Canvas View & Active Element (No changes needed here) ---
      setTimeout(() => {
          if (baseImage.src && baseImage.complete) {
              if (currentSignMode === 'prefix' && appliedPrefixSignImage) { drawBaseImage(); ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight); }
