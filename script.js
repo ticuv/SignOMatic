@@ -803,7 +803,7 @@ function setActiveElement(el) {
 
 
 // ===========================================================
-// removeActiveElement - Adjust text input handling (FIX APPLIED)
+// removeActiveElement - FIXED VERSION (Bug 1)
 // ===========================================================
 function removeActiveElement(event) {
     if (event) { event.stopPropagation(); }
@@ -811,10 +811,17 @@ function removeActiveElement(event) {
 
     if (activeElement && container.contains(activeElement) && currentSignMode === 'custom') {
         const elementType = activeElement.classList.contains('textOverlay') ? 'Text' : 'Image';
-        activeElement.remove();
-        setActiveElement(null); // Deselect and restore general text value if needed
+        const elementToRemove = activeElement; // Store reference before deselecting
+
+        // Deselect FIRST to update UI state (like text input field) correctly
+        setActiveElement(null);
+
+        // Now remove the element from the DOM
+        elementToRemove.remove(); // <<< --- FIX: Added this line to actually remove the element
+
         nftStatusEl.textContent = `${elementType} element removed.`;
         nftStatusEl.className = '';
+        // updateCustomActionButtons() is called within setActiveElement(null), no need to call again
     } else if (currentSignMode !== 'custom') {
         nftStatusEl.textContent = "Delete only works in Custom Sign mode.";
         nftStatusEl.className = 'error';
@@ -825,7 +832,7 @@ function removeActiveElement(event) {
         console.warn("Delete clicked with no active element.");
     } else {
          console.warn("Attempted to delete an element not in container or invalid state.", activeElement);
-         setActiveElement(null);
+         setActiveElement(null); // Ensure deselection even if removal fails unexpectedly
          nftStatusEl.textContent = "Could not delete element.";
          nftStatusEl.className = 'error';
     }
@@ -856,7 +863,9 @@ function rgb2hex(rgb) { if(!rgb)return'#ffffff'; if(rgb.startsWith('#'))return r
 function getWrappedTextLines(text, maxWidthPx, fontStyle) { if (!text || maxWidthPx <= 0) return []; ctx.font = fontStyle; const words = text.split(' '); const lines = []; let currentLine = ''; for (let i = 0; i < words.length; i++) { const word = words[i]; const testLine = currentLine ? currentLine + " " + word : word; const testWidth = ctx.measureText(testLine).width; if (testWidth <= maxWidthPx || !currentLine) { currentLine = testLine; } else { lines.push(currentLine); currentLine = word; if (ctx.measureText(currentLine).width > maxWidthPx) { let tempLine = ''; for(let char of currentLine) { if(ctx.measureText(tempLine + char).width > maxWidthPx && tempLine) { lines.push(tempLine); tempLine = char; } else { tempLine += char; } } currentLine = tempLine; } } } if (currentLine) { lines.push(currentLine); } return lines; }
 
 
-// --- Save Functionality ---
+// ===========================================================
+// saveImage - FIXED VERSION (Bug 2)
+// ===========================================================
 function saveImage() {
     const currentNftId = nftTokenIdInput.value || 'unknown';
     const currentCollection = nftCollectionSelect.value || 'unknown';
@@ -868,57 +877,117 @@ function saveImage() {
     nftStatusEl.textContent = `Generating final image...`; nftStatusEl.className = '';
     const previouslyActive = activeElement; if (activeElement) setActiveElement(null); // Deselect for clean save
 
-    // Start Drawing
+    // Start Drawing on Canvas
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     drawBaseImage();
 
     if (currentSignMode === 'prefix' && appliedPrefixSignImage && appliedPrefixSignImage.complete) {
-        try { ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight); } catch (e) { console.error("Error drawing prefix sign during save:", e); }
+        // --- Prefix Mode Saving ---
+        try { ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight); }
+        catch (e) { console.error("Error drawing prefix sign during save:", e); }
     } else if (currentSignMode === 'custom') {
-        drawSignPolygonOnly(); // Draw custom color polygon
+        // --- Custom Mode Saving ---
+        drawSignPolygonOnly(); // Draw custom color polygon first
 
+        // --- FIX: Correctly render DOM overlays onto canvas ---
         const containerRect = container.getBoundingClientRect();
-        if (!containerRect || containerRect.width === 0 || containerRect.height === 0) { console.error("Error getting container rect during save"); nftStatusEl.className='error'; nftStatusEl.textContent="Save Error: Container rect invalid."; if(previouslyActive && container.contains(previouslyActive)) setActiveElement(previouslyActive); return; }
+        if (!containerRect || containerRect.width === 0 || containerRect.height === 0) {
+            console.error("Error getting container rect during save");
+            nftStatusEl.className='error'; nftStatusEl.textContent="Save Error: Container rect invalid.";
+            if(previouslyActive && container.contains(previouslyActive)) setActiveElement(previouslyActive); // Restore active element if save fails
+            return;
+        }
+        // Calculate scaling factor from display size to canvas size
         const scaleX = canvasWidth / containerRect.width;
         const scaleY = canvasHeight / containerRect.height;
 
-        const allOverlays = Array.from(container.querySelectorAll(".textOverlay, .imgOverlay"));
+        // Get all visible custom overlays, sorted by z-index (visual stacking order)
+        const allOverlays = Array.from(container.querySelectorAll(".textOverlay:not(.hidden-overlay), .imgOverlay:not(.hidden-overlay)"));
         allOverlays.sort((a, b) => (parseInt(window.getComputedStyle(a).zIndex) || 0) - (parseInt(window.getComputedStyle(b).zIndex) || 0));
 
         allOverlays.forEach(el => {
-            if (!container.contains(el) || el.classList.contains('hidden-overlay')) return; // Skip hidden overlays
+            if (!container.contains(el)) return; // Should not happen with the querySelector, but safety check
 
-            const elRect = el.getBoundingClientRect(); const rotationRad = getRotationRad(el);
+            const elRect = el.getBoundingClientRect();
+            const rotationRad = getRotationRad(el); // Get rotation in radians
+
+            // Calculate center position of the element relative to the container
             const relativeCenterX = (elRect.left + elRect.width / 2) - containerRect.left;
             const relativeCenterY = (elRect.top + elRect.height / 2) - containerRect.top;
-            const canvasX = Math.round(relativeCenterX * scaleX); const canvasY = Math.round(relativeCenterY * scaleY);
 
-            ctx.save(); ctx.translate(canvasX, canvasY); ctx.rotate(rotationRad);
+            // Scale the center position to the canvas coordinates
+            const canvasX = relativeCenterX * scaleX;
+            const canvasY = relativeCenterY * scaleY;
+
+            ctx.save(); // Save canvas state before transforming
+            ctx.translate(canvasX, canvasY); // Move origin to the element's center on canvas
+            ctx.rotate(rotationRad); // Rotate around the new origin
 
             if (el.classList.contains('textOverlay')) {
-                let textNode = el.childNodes[0]; while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
-                const text = textNode ? textNode.nodeValue : (el.textContent || '').replace(/[↻⇦⇨]/g, '').trim(); // Get text, remove handle chars
-                const color = el.style.color || '#ffffff'; const size = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE; const font = el.style.fontFamily || 'Arial'; const domWidth = el.offsetWidth;
-                const canvasFontSize = Math.round(size * scaleY); const canvasMaxWidth = Math.round(domWidth * scaleX);
+                // --- Draw Text Overlay ---
+                // Extract text content cleanly (find the first text node)
+                let textNode = Array.from(el.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
+                const text = textNode ? textNode.nodeValue.trim() : ''; // Get text, trim whitespace
+
+                const color = el.style.color || '#ffffff';
+                const size = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE;
+                const font = el.style.fontFamily || 'Arial';
+                const domWidth = el.offsetWidth; // Use element's actual rendered width
+
+                // Scale font size and max width for the canvas
+                const canvasFontSize = size * scaleY; // Scale font size based on vertical scale
+                const canvasMaxWidth = domWidth * scaleX; // Max width for text wrapping on canvas
+
                 if (canvasFontSize >= 1 && text) {
-                    const fontStyle = `${canvasFontSize}px ${font}`; ctx.font = fontStyle; ctx.fillStyle = color; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                    const lines = getWrappedTextLines(text, canvasMaxWidth, fontStyle); const lineHeight = canvasFontSize * 1.2; const totalTextHeight = lines.length * lineHeight; let currentY = -(totalTextHeight / 2) + (lineHeight / 2);
-                    lines.forEach(line => { ctx.fillText(line, 0, currentY); currentY += lineHeight; });
+                    const fontStyle = `${canvasFontSize}px ${font}`;
+                    ctx.font = fontStyle;
+                    ctx.fillStyle = color;
+                    ctx.textAlign = "center"; // Center text horizontally at the transformed origin (0,0)
+                    ctx.textBaseline = "middle"; // Center text vertically
+
+                    // Wrap text based on scaled width and font size
+                    const lines = getWrappedTextLines(text, canvasMaxWidth, fontStyle);
+                    const lineHeight = canvasFontSize * 1.2; // Use scaled line height
+                    const totalTextHeight = lines.length * lineHeight;
+
+                    // Calculate starting Y position to center the whole text block vertically
+                    let currentY = -(totalTextHeight / 2) + (lineHeight / 2);
+
+                    lines.forEach(line => {
+                        ctx.fillText(line, 0, currentY); // Draw line centered at (0, currentY)
+                        currentY += lineHeight;
+                    });
                 }
             } else if (el.classList.contains('imgOverlay')) {
+                // --- Draw Image Overlay ---
                 const imgElement = el.querySelector('img');
                 if (imgElement && imgElement.complete && imgElement.naturalWidth > 0) {
-                    const domWidth = el.offsetWidth; const domHeight = el.offsetHeight;
-                    const canvasDrawWidth = Math.round(domWidth * scaleX); const canvasDrawHeight = Math.round(domHeight * scaleY);
-                    if (canvasDrawWidth > 0 && canvasDrawHeight > 0) { try { ctx.drawImage(imgElement, -canvasDrawWidth / 2, -canvasDrawHeight / 2, canvasDrawWidth, canvasDrawHeight); } catch (e) { console.error("Error drawing image overlay during save:", e); } }
-                } else { console.warn("Skipping unloaded/invalid image overlay during save:", imgElement?.src); }
-            }
-            ctx.restore();
-        });
-    }
-    // End Drawing
+                    const domWidth = el.offsetWidth;
+                    const domHeight = el.offsetHeight;
 
-    // Generate Download Link
+                    // Scale image dimensions for the canvas
+                    const canvasDrawWidth = domWidth * scaleX;
+                    const canvasDrawHeight = domHeight * scaleY;
+
+                    if (canvasDrawWidth > 0 && canvasDrawHeight > 0) {
+                        try {
+                            // Draw image centered at the transformed origin (0,0)
+                            ctx.drawImage(imgElement, -canvasDrawWidth / 2, -canvasDrawHeight / 2, canvasDrawWidth, canvasDrawHeight);
+                        } catch (e) {
+                            console.error("Error drawing image overlay during save:", e);
+                        }
+                    }
+                } else {
+                    console.warn("Skipping unloaded/invalid image overlay during save:", imgElement?.src);
+                }
+            }
+            ctx.restore(); // Restore canvas state (removes transformation)
+        });
+        // --- End FIX for rendering overlays ---
+    }
+    // End Drawing section
+
+    // --- Generate Download Link (No changes needed here) ---
     try {
         const dataURL = canvas.toDataURL("image/png"); const link = document.createElement("a");
         let filename = ""; const safeCollection = currentCollection.replace(/[^a-z0-9]/gi, '_').toLowerCase(); const safeNftId = currentNftId.replace(/[^a-z0-9]/gi, '_');
@@ -933,7 +1002,7 @@ function saveImage() {
         else { alert("An error occurred saving the image. Check console."); nftStatusEl.textContent = "Save Error. Check console."; }
     }
 
-     // Restore Canvas View & Active Element
+    // --- Restore Canvas View & Active Element (No changes needed here) ---
      setTimeout(() => {
          if (baseImage.src && baseImage.complete) {
              if (currentSignMode === 'prefix' && appliedPrefixSignImage) { drawBaseImage(); ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight); }
