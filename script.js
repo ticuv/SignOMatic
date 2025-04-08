@@ -11,27 +11,28 @@ const nftContracts = {
 const nftAbi = ["function tokenURI(uint256 tokenId) public view returns (string)"];
 const provider = new ethers.JsonRpcProvider("https://eth.llamarpc.com");
 const DEFAULT_FONT_SIZE = 15;
-const MIN_FONT_SIZE = 8; // Still needed for initial addText? Let's keep it for now.
-const FONT_SIZE_SENSITIVITY = 0.25; // Kept for reference, but font resize via handle is removed
+const MIN_FONT_SIZE = 8; // Keep for font resize logic
+const FONT_SIZE_SENSITIVITY = 0.25; // Keep for font resize logic
 const SIGNS_JSON_PATH = "signs.json"; // Path relative to index.html
 const DONATION_ADDRESSES = {
     sol: "2Vv3QHAJxZvViaY1HaWvJ5kbnNeUdN1MrZcRYog4ezHE",
     eth: "0xbD0dDE4175d8e854306a09dE4c184392b33a6d9C"
 };
+// Restore original help text for handles
 const HELP_TEXTS = {
     "nft-load": "Choose a collection (e.g., GHN) and enter the specific Token ID number of the NFT you want to load onto the canvas.",
     "gallery": "Click any pre-made sign below to instantly apply it over your loaded NFT image. Click again to remove it.",
     "custom": "Use these controls to customize the sign: change the sign's background color, add/style your own text, and upload/position additional images.",
-    "custom-text": "Select text on canvas to edit here. Use handles on canvas:\n← (Left): Adjust text box width.\n↻ (Bottom): Rotate text.", // Updated help text
-    "custom-image": "'Choose File' then 'Add Image'. Drag to move. Use handles on canvas:\n⤡ (Bottom-Left): Resize image.\n↑ (Bottom): Rotate image." // Updated help text
+    "custom-text": "Select text on canvas to edit here. Use handles on canvas: \n⇦ (Left): Adjust font size.\n⇨ (Right): Adjust text box width.\n↻ (Bottom): Rotate text.", // Original help text
+    "custom-image": "'Choose File' then 'Add Image'. Drag to move. Use handles on canvas:\n⤡ (Bottom-Left): Resize image.\n↻ (Top): Rotate image." // Original help text
 };
 
 
 // --- Global State ---
 let baseImage = new Image();
 let activeElement = null; // For custom mode overlays
-// REMOVED isResizingFontSize state
-let textInteractionState = { isDragging: false, isRotating: false, isResizingWidth: false, /* isResizingFontSize: false, */ startX: 0, startY: 0, startLeft: 0, startTop: 0, rotateCenterX: 0, rotateCenterY: 0, rotateStartAngle: 0, startWidth: 0, currentRotationRad: 0, startFontSize: DEFAULT_FONT_SIZE };
+// RE-ADD isResizingFontSize state
+let textInteractionState = { isDragging: false, isRotating: false, isResizingWidth: false, isResizingFontSize: false, startX: 0, startY: 0, startLeft: 0, startTop: 0, rotateCenterX: 0, rotateCenterY: 0, rotateStartAngle: 0, startWidth: 0, currentRotationRad: 0, startFontSize: DEFAULT_FONT_SIZE };
 let imageInteractionState = { isDragging: false, isRotating: false, isResizing: false, startX: 0, startY: 0, startLeft: 0, startTop: 0, centerX: 0, centerY: 0, startAngle: 0, currentRotationRad: 0, startWidth: 0, startHeight: 0, aspectRatio: 1 };
 let currentSignMode = null; // 'prefix' or 'custom'
 let signConfigData = null;
@@ -43,7 +44,7 @@ let isModalOpen = false; // Track if donation modal is open
 let activeHelpButton = null; // Track which help button triggered the current tooltip
 
 // --- DOM Element References ---
-// REMOVED removeBtn reference
+// removeBtn reference is still removed
 let canvas, ctx, container, textInput, textColor, fontFamily, /* removeBtn, */ nftStatusEl,
     nftCollectionSelect, nftTokenIdInput, loadNftBtn, overlayColorInput,
     addTextBtn, addImageBtn, resetCanvasBtn, imageUpload,
@@ -64,7 +65,7 @@ window.onload = () => {
     textInput = document.getElementById("textInput");
     textColor = document.getElementById("textColor");
     fontFamily = document.getElementById("fontFamily");
-    // REMOVED removeBtn assignment
+    // removeBtn reference remains removed
     // removeBtn = document.getElementById("removeBtn");
     nftStatusEl = document.getElementById("nftStatus");
     nftCollectionSelect = document.getElementById("nftCollection");
@@ -143,13 +144,13 @@ function setupEventListeners() {
     // Custom Controls
     overlayColorInput.addEventListener('input', () => { if (currentSignMode === 'custom') applyOverlay(false); });
     addTextBtn.addEventListener('click', addText);
-    textInput.addEventListener("input", handleTextControlChange); // Event listener for text input changes
-    textColor.addEventListener("input", handleTextControlChange); // Also trigger style updates
-    fontFamily.addEventListener("input", handleTextControlChange); // Also trigger style updates
+    textInput.addEventListener("input", (e) => handleTextControlChange(e)); // Pass event
+    textColor.addEventListener("input", (e) => handleTextControlChange(e)); // Pass event
+    fontFamily.addEventListener("input", (e) => handleTextControlChange(e)); // Pass event
     addImageBtn.addEventListener('click', addImage);
 
     // Custom Actions
-    // REMOVED removeBtn listener
+    // removeBtn listener remains removed
     // removeBtn.addEventListener('click', (event) => removeActiveElement(event));
 
     // General Actions
@@ -171,21 +172,22 @@ function setupEventListeners() {
      if (sendEthBtn) sendEthBtn.addEventListener('click', () => showDonationAddress('eth'));
      if (copyAddressBtn) copyAddressBtn.addEventListener('click', copyDonationAddress);
 
-     // --- Help Tooltip Listeners (NOW CLICK-BASED) ---
+     // --- Help Tooltip Listeners (CLICK BASED) ---
      const helpBtns = document.querySelectorAll('.help-btn');
      helpBtns.forEach(btn => {
-         btn.addEventListener('click', handleHelpClick); // ADDED click listener
+         btn.addEventListener('click', handleHelpClick);
      });
 
      // --- Global listener to close help tooltip on outside click ---
      document.addEventListener('click', (event) => {
          // Hide tooltip if click is outside the tooltip itself AND outside the button that opened it
          if (helpTooltip && helpTooltip.style.display === 'block' && activeHelpButton) {
-             if (!helpTooltip.contains(event.target) && event.target !== activeHelpButton) {
+             // Also check if click was on the inline delete button - don't close help if it was
+             if (!helpTooltip.contains(event.target) && event.target !== activeHelpButton && !event.target.classList.contains('overlay-delete-btn')) {
                  hideHelpTooltip();
              }
          }
-     }, false); // Use bubble phase is fine here
+     }, false); // Use bubble phase
 
 
      // --- Keyboard listener for ESC key to close modal AND tooltip ---
@@ -204,7 +206,6 @@ function setupEventListeners() {
 function handleOutsideClick(event) {
     // Modal Check first
     if (isModalOpen && donateModal && !donateModal.querySelector('.modal-content').contains(event.target) && event.target !== donateBtn) {
-         // Don't process deselect if click was related to the modal or its trigger button
          return;
     }
 
@@ -233,13 +234,10 @@ function handleOutsideClick(event) {
         if (activeElement && !clickedOnInteractiveControl && !clickedOnActiveElementHandle) {
              // Click was NOT on a handle or non-action button within the custom controls group
 
-             // Condition 1: Click outside the main canvas container entirely
              if (!clickedInsideContainer) {
                   setActiveElement(null); // Deselect
-             // Condition 2: Click directly on the canvas/container background
              } else if (clickedOnContainerOrCanvas) {
                   setActiveElement(null); // Deselect
-             // Condition 3: Click inside container, but not on the active element itself or another overlay
              } else if (!activeElement.contains(event.target) && !event.target.closest('.textOverlay, .imgOverlay')) {
                   setActiveElement(null); // Deselect
              }
@@ -249,7 +247,7 @@ function handleOutsideClick(event) {
 
 // --- Workflow Management ---
 function setControlsDisabled(isDisabled) {
-    // REMOVED removeBtn from customControls
+    // removeBtn remains removed from customControls
     const customControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn, /* removeBtn, */ saveFullBtn];
     const signChoiceRadios = [signTypePrefixRadio, signTypeCustomRadio];
     const prefixControls = [savePrefixBtn];
@@ -264,7 +262,7 @@ function setControlsDisabled(isDisabled) {
 
 
     if (isDisabled) {
-        // REMOVED removeBtn disabling
+        // removeBtn disabling remains removed
         // if(removeBtn) removeBtn.disabled = true;
         if(saveFullBtn) saveFullBtn.disabled = true;
         if(savePrefixBtn) savePrefixBtn.disabled = true;
@@ -285,6 +283,7 @@ function setSignMode(mode) {
     hideHelpTooltip(); // Hide any open help tooltip when changing mode
 
     if (previousMode === 'custom' && textInput) {
+        // Store text value only if switching away from custom or deselecting the active element
         if (!activeElement || !activeElement.classList.contains('textOverlay')) {
              lastCustomTextInputValue = textInput.value;
         }
@@ -315,7 +314,9 @@ function setSignMode(mode) {
         }
         if (textInput) {
             // Restore last general text value only if no element is currently selected
-            if(!activeElement) textInput.value = lastCustomTextInputValue;
+             if(!activeElement || !activeElement.classList.contains('textOverlay')) {
+                textInput.value = lastCustomTextInputValue;
+            }
         }
         if (baseImage.complete) {
             applyOverlay(false); // Redraw base + polygon
@@ -351,7 +352,7 @@ function setSignMode(mode) {
 // Updates Action Buttons based on current mode and state (Save buttons mainly)
 function updateCustomActionButtons() {
     const isImageLoaded = baseImage.src !== "" && baseImage.complete && baseImage.naturalWidth > 0;
-    // REMOVED logic for removeBtn
+    // removeBtn logic remains removed
     // const isElementActive = activeElement !== null && container.contains(activeElement);
     // const enableRemove = currentSignMode === 'custom' && isImageLoaded && isElementActive;
     // if (removeBtn) removeBtn.disabled = !enableRemove;
@@ -385,6 +386,9 @@ function handleTextControlChange(event) { // Added event parameter
             }
             console.warn("Created new text node in handleTextControlChange");
         }
+        // Also store this as the "last known good value" while active
+        lastCustomTextInputValue = textInput.value;
+
         // Update style attributes only if the event source was style-related
         if (event && (event.target === textColor || event.target === fontFamily)) {
             activeElement.style.color = textColor.value;
@@ -669,7 +673,7 @@ function applyPrefixSign(signImageUrl, signName) {
 
 
 // ===========================================================
-// addText - UPDATED with inline delete, changed handles
+// addText - RESTORED Handles, Keep Inline Delete
 // ===========================================================
 function addText() {
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
@@ -682,45 +686,48 @@ function addText() {
     textEl.style.color = textColor.value; textEl.style.fontSize = `${DEFAULT_FONT_SIZE}px`; textEl.style.fontFamily = fontFamily.value;
     textEl.style.transform = `translate(-50%, -50%) rotate(0deg)`; textEl.style.zIndex = "10"; textEl.style.width = 'auto'; textEl.style.whiteSpace = 'nowrap'; textEl.style.overflow = 'hidden';
 
-    // ADD Inline Delete Button
+    // Keep Inline Delete Button
     const deleteBtn = document.createElement("div");
     deleteBtn.className = "overlay-delete-btn";
     deleteBtn.innerHTML = "X";
     deleteBtn.title = "Delete Text";
-    deleteBtn.addEventListener("click", removeOverlayElement); // Use click for simplicity here
-    deleteBtn.addEventListener("mousedown", (e) => e.stopPropagation()); // Prevent drag start
-    deleteBtn.addEventListener("touchstart", (e) => e.stopPropagation()); // Prevent drag start
+    deleteBtn.addEventListener("click", removeOverlayElement);
+    deleteBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+    deleteBtn.addEventListener("touchstart", (e) => e.stopPropagation());
     textEl.appendChild(deleteBtn);
 
-    // Add Rotation Handle (Bottom)
+    // Restore Rotation Handle (Bottom)
     const rotateHandle = document.createElement("div");
     rotateHandle.className = "handle rotation-handle";
     rotateHandle.innerHTML = '↻';
     rotateHandle.title = "Rotate Text";
     textEl.appendChild(rotateHandle);
 
-    // REMOVE Right Resize Handle
-    // const resizeHandleRight = document.createElement("div");
-    // resizeHandleRight.className = "handle resize-handle-base resize-handle-right";
-    // resizeHandleRight.title = "Resize Width"; textEl.appendChild(resizeHandleRight);
+    // Restore Right Resize Handle (Width)
+    const resizeHandleRight = document.createElement("div");
+    resizeHandleRight.className = "handle resize-handle-base resize-handle-right";
+    resizeHandleRight.title = "Resize Width"; // Original title
+    textEl.appendChild(resizeHandleRight);
 
-    // Keep Left Resize Handle (now controls Width)
+    // Restore Left Resize Handle (Font Size)
     const resizeHandleLeft = document.createElement("div");
     resizeHandleLeft.className = "handle resize-handle-base resize-handle-left";
-    resizeHandleLeft.title = "Resize Width"; // Changed title
+    resizeHandleLeft.title = "Resize Font Size"; // Original title
     textEl.appendChild(resizeHandleLeft);
 
-    // Positioning logic
+    // Positioning logic (no change needed)
     const currentPolygon = getPolygonForSelectedCollection(); const minX = Math.min(...currentPolygon.map(p => p.x)); const maxX = Math.max(...currentPolygon.map(p => p.x)); const minY = Math.min(...currentPolygon.map(p => p.y)); const maxY = Math.max(...currentPolygon.map(p => p.y)); const signCenterXPercent = canvasWidth ? ((minX + maxX) / 2) / canvasWidth * 100 : 50; const signCenterYPercent = canvasHeight ? ((minY + maxY) / 2) / canvasHeight * 100 : 50; const { x: initialX, y: initialY } = calculateElementPosition(signCenterXPercent, signCenterYPercent);
     textEl.style.left = `${initialX}px`; textEl.style.top = `${initialY}px`;
 
-    // Add Event Listeners
+    // Restore Event Listeners
     textEl.addEventListener("mousedown", handleTextDragStart); textEl.addEventListener("touchstart", handleTextDragStart, { passive: true });
     rotateHandle.addEventListener("mousedown", handleTextRotateStart); rotateHandle.addEventListener("touchstart", handleTextRotateStart, { passive: true });
-    // REMOVED listener for right handle
-    // CHANGE listener for left handle to control width
-    resizeHandleLeft.addEventListener("mousedown", handleTextResizeWidthStart); // WAS handleTextResizeFontSizeStart
-    resizeHandleLeft.addEventListener("touchstart", handleTextResizeWidthStart, { passive: true }); // WAS handleTextResizeFontSizeStart
+    // Assign Width listener back to Right handle
+    resizeHandleRight.addEventListener("mousedown", handleTextResizeWidthStart);
+    resizeHandleRight.addEventListener("touchstart", handleTextResizeWidthStart, { passive: true });
+    // Assign Font Size listener back to Left handle
+    resizeHandleLeft.addEventListener("mousedown", handleTextResizeFontSizeStart); // RESTORED
+    resizeHandleLeft.addEventListener("touchstart", handleTextResizeFontSizeStart, { passive: true }); // RESTORED
 
     container.appendChild(textEl);
     requestAnimationFrame(() => {
@@ -733,7 +740,7 @@ function addText() {
 
 
 // ===========================================================
-// addImage - UPDATED with inline delete, changed handles
+// addImage - RESTORED Handles, Keep Inline Delete
 // ===========================================================
 function addImage() {
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
@@ -756,30 +763,30 @@ function addImage() {
         img.onerror = ()=>{ console.error("Error loading added image data."); nftStatusEl.textContent="Error displaying uploaded image."; nftStatusEl.className='error'; wrapper.remove(); };
         wrapper.appendChild(img);
 
-        // ADD Inline Delete Button
+        // Keep Inline Delete Button
         const deleteBtn = document.createElement("div");
         deleteBtn.className = "overlay-delete-btn";
         deleteBtn.innerHTML = "X";
         deleteBtn.title = "Delete Image";
-        deleteBtn.addEventListener("click", removeOverlayElement); // Use click for simplicity
-        deleteBtn.addEventListener("mousedown", (e) => e.stopPropagation()); // Prevent drag start
-        deleteBtn.addEventListener("touchstart", (e) => e.stopPropagation()); // Prevent drag start
+        deleteBtn.addEventListener("click", removeOverlayElement);
+        deleteBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+        deleteBtn.addEventListener("touchstart", (e) => e.stopPropagation());
         wrapper.appendChild(deleteBtn);
 
-        // Add Rotation Handle (Bottom, Up Arrow)
+        // Restore Rotation Handle (Top, '↻' Icon)
         const rotateHandle = document.createElement("div");
         rotateHandle.className = "handle rotation-handle";
-        rotateHandle.innerHTML = '↑'; // Changed icon
+        rotateHandle.innerHTML = '↻'; // RESTORED icon
         rotateHandle.title = "Rotate Image";
-        wrapper.appendChild(rotateHandle);
+        wrapper.appendChild(rotateHandle); // Positioned by CSS later
 
-        // Keep Resize Handle (Bottom-Left, uses .resize-handle-right class for positioning/icon)
+        // Restore Resize Handle (Bottom-Left, uses .resize-handle-right class for positioning/icon)
         const resizeHandle = document.createElement("div");
         resizeHandle.className = "handle resize-handle-base resize-handle-right"; // Class dictates CSS positioning/icon now
         resizeHandle.title = "Resize Image";
-        wrapper.appendChild(resizeHandle);
+        wrapper.appendChild(resizeHandle); // Positioned by CSS later
 
-        // Add Event Listeners
+        // Add Event Listeners (no change needed here)
         wrapper.addEventListener("mousedown", handleImageDragStart); wrapper.addEventListener("touchstart", handleImageDragStart, { passive: true });
         rotateHandle.addEventListener("mousedown", handleImageRotateStart); rotateHandle.addEventListener("touchstart", handleImageRotateStart, { passive: true });
         resizeHandle.addEventListener("mousedown", handleImageResizeStart); resizeHandle.addEventListener("touchstart", handleImageResizeStart, { passive: true });
@@ -906,28 +913,51 @@ function removeActiveElement(event) {
 // --- Interaction Handlers ---
 function getEventCoordinates(event) { let x,y; if(event.touches&&event.touches.length>0){x=event.touches[0].clientX;y=event.touches[0].clientY;}else if(event.changedTouches&&event.changedTouches.length>0){x=event.changedTouches[0].clientX;y=event.changedTouches[0].clientY;}else{x=event.clientX;y=event.clientY;} return{x,y}; }
 function getRotationRad(element) { if(!element||!element.style)return 0; const transform=element.style.transform; const rotateMatch=transform.match(/rotate\((-?\d+(\.\d+)?)deg\)/); const rotationDeg=rotateMatch?parseFloat(rotateMatch[1]):0; return rotationDeg*(Math.PI/180); }
-function handleTextDragStart(event) { if (event.target.classList.contains('handle') || event.target.classList.contains('overlay-delete-btn') || currentSignMode !== 'custom') return; hideHelpTooltip(); const el = event.currentTarget; setActiveElement(el); textInteractionState.isDragging = true; textInteractionState.isRotating = false; textInteractionState.isResizingWidth = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); textInteractionState.startX = coords.x - contRect.left; textInteractionState.startY = coords.y - contRect.top; textInteractionState.startLeft = parseFloat(el.style.left || "0"); textInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
-function handleTextRotateStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isRotating = true; textInteractionState.isDragging = false; textInteractionState.isResizingWidth = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); textInteractionState.rotateCenterX = rect.left + rect.width / 2; textInteractionState.rotateCenterY = rect.top + rect.height / 2; const dx = coords.x - textInteractionState.rotateCenterX; const dy = coords.y - textInteractionState.rotateCenterY; let startAngle = Math.atan2(dy, dx); const currentRotationRad = getRotationRad(el); textInteractionState.rotateStartAngle = startAngle - currentRotationRad; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
-function handleTextResizeWidthStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isResizingWidth = true; /* isResizingFontSize removed */ textInteractionState.isRotating = false; textInteractionState.isDragging = false; document.body.style.cursor = 'ew-resize'; const coords = getEventCoordinates(event); textInteractionState.startX = coords.x; textInteractionState.startY = coords.y; textInteractionState.startWidth = el.offsetWidth; textInteractionState.currentRotationRad = getRotationRad(el); el.style.whiteSpace = 'normal'; el.style.overflow = 'hidden'; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextDragStart(event) { if (event.target.classList.contains('handle') || event.target.classList.contains('overlay-delete-btn') || currentSignMode !== 'custom') return; hideHelpTooltip(); const el = event.currentTarget; setActiveElement(el); textInteractionState.isDragging = true; textInteractionState.isRotating = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); textInteractionState.startX = coords.x - contRect.left; textInteractionState.startY = coords.y - contRect.top; textInteractionState.startLeft = parseFloat(el.style.left || "0"); textInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextRotateStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isRotating = true; textInteractionState.isDragging = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); textInteractionState.rotateCenterX = rect.left + rect.width / 2; textInteractionState.rotateCenterY = rect.top + rect.height / 2; const dx = coords.x - textInteractionState.rotateCenterX; const dy = coords.y - textInteractionState.rotateCenterY; let startAngle = Math.atan2(dy, dx); const currentRotationRad = getRotationRad(el); textInteractionState.rotateStartAngle = startAngle - currentRotationRad; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextResizeWidthStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isResizingWidth = true; textInteractionState.isResizingFontSize = false; textInteractionState.isRotating = false; textInteractionState.isDragging = false; document.body.style.cursor = 'ew-resize'; const coords = getEventCoordinates(event); textInteractionState.startX = coords.x; textInteractionState.startY = coords.y; textInteractionState.startWidth = el.offsetWidth; textInteractionState.currentRotationRad = getRotationRad(el); el.style.whiteSpace = 'normal'; el.style.overflow = 'hidden'; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
 
-// REMOVE handleTextResizeFontSizeStart function entirely
-/*
-function handleTextResizeFontSizeStart(event) { ... }
-*/
+// RESTORE handleTextResizeFontSizeStart function
+function handleTextResizeFontSizeStart(event) {
+    if (currentSignMode !== 'custom') return;
+    hideHelpTooltip();
+    event.stopPropagation();
+    const el = event.currentTarget.parentElement;
+    setActiveElement(el);
+    textInteractionState.isResizingFontSize = true;
+    textInteractionState.isResizingWidth = false;
+    textInteractionState.isRotating = false;
+    textInteractionState.isDragging = false;
+    document.body.style.cursor = 'ns-resize'; // Restore original cursor
+    const coords = getEventCoordinates(event);
+    textInteractionState.startX = coords.x;
+    textInteractionState.startY = coords.y;
+    textInteractionState.startFontSize = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE;
+    document.addEventListener("mousemove", handleTextInteractionMove);
+    document.addEventListener("mouseup", handleTextInteractionEnd);
+    document.addEventListener("touchmove", handleTextInteractionMove, { passive: false });
+    document.addEventListener("touchend", handleTextInteractionEnd);
+    document.addEventListener("touchcancel", handleTextInteractionEnd);
+    if (event.type === 'mousedown') event.preventDefault();
+}
 
-// Modify handleTextInteractionMove: Remove font size logic
+
+// Modify handleTextInteractionMove: RESTORE font size logic
 function handleTextInteractionMove(event) {
-    if (!activeElement || !activeElement.classList.contains('textOverlay') || (!textInteractionState.isDragging && !textInteractionState.isRotating && !textInteractionState.isResizingWidth /* REMOVED: && !textInteractionState.isResizingFontSize */)) return;
+    // RE-ADD isResizingFontSize check
+    if (!activeElement || !activeElement.classList.contains('textOverlay') || (!textInteractionState.isDragging && !textInteractionState.isRotating && !textInteractionState.isResizingWidth && !textInteractionState.isResizingFontSize)) return;
     if (event.type === 'touchmove') event.preventDefault(); // Prevent scrolling on touch devices during interaction
     const coords = getEventCoordinates(event);
     const contRect = container.getBoundingClientRect();
 
     if (textInteractionState.isDragging) {
+        // ... (keep dragging logic) ...
         const currentX = coords.x - contRect.left;
         const currentY = coords.y - contRect.top;
         activeElement.style.left = `${textInteractionState.startLeft + (currentX - textInteractionState.startX)}px`;
         activeElement.style.top = `${textInteractionState.startTop + (currentY - textInteractionState.startY)}px`;
     } else if (textInteractionState.isRotating) {
+        // ... (keep rotating logic) ...
         const dx = coords.x - textInteractionState.rotateCenterX;
         const dy = coords.y - textInteractionState.rotateCenterY;
         let angle = Math.atan2(dy, dx);
@@ -935,25 +965,31 @@ function handleTextInteractionMove(event) {
         let rotationDeg = rotationRad * (180 / Math.PI);
         activeElement.style.transform = `translate(-50%, -50%) rotate(${rotationDeg}deg)`;
     } else if (textInteractionState.isResizingWidth) {
+        // ... (keep width resizing logic) ...
         const dx = coords.x - textInteractionState.startX;
         const dy = coords.y - textInteractionState.startY;
         const rotation = textInteractionState.currentRotationRad;
         const cosR = Math.cos(rotation);
         const sinR = Math.sin(rotation);
-        // Project mouse movement onto the element's local X axis
         const projectedDx = dx * cosR + dy * sinR;
         let newWidth = textInteractionState.startWidth + projectedDx;
-        activeElement.style.width = `${Math.max(30, newWidth)}px`; // Min width 30px
+        activeElement.style.width = `${Math.max(30, newWidth)}px`;
     }
-    // REMOVED font size block
+    // RESTORE font size block
+    else if (textInteractionState.isResizingFontSize) {
+        const dy = coords.y - textInteractionState.startY;
+        // Adjust size based on vertical movement (more intuitive for ns-resize)
+        let newSize = textInteractionState.startFontSize - (dy * FONT_SIZE_SENSITIVITY);
+        activeElement.style.fontSize = `${Math.max(MIN_FONT_SIZE, newSize)}px`;
+    }
 }
 
-// Modify handleTextInteractionEnd: Remove font size logic
+// Modify handleTextInteractionEnd: RESTORE font size logic
 function handleTextInteractionEnd(event) {
     if (activeElement && activeElement.classList.contains('textOverlay')) {
         activeElement.style.cursor = 'grab';
-        // Ensure overflow is visible after width resize
-        if (textInteractionState.isResizingWidth) {
+        // RE-ADD font size check to overflow reset condition
+        if (textInteractionState.isResizingWidth || textInteractionState.isResizingFontSize) {
              activeElement.style.overflow = 'visible';
         }
     }
@@ -961,8 +997,8 @@ function handleTextInteractionEnd(event) {
     textInteractionState.isDragging = false;
     textInteractionState.isRotating = false;
     textInteractionState.isResizingWidth = false;
-    // REMOVED font size state reset
-    // textInteractionState.isResizingFontSize = false;
+    // RE-ADD font size state reset
+    textInteractionState.isResizingFontSize = false;
     document.removeEventListener("mousemove", handleTextInteractionMove);
     document.removeEventListener("mouseup", handleTextInteractionEnd);
     document.removeEventListener("touchmove", handleTextInteractionMove);
@@ -970,6 +1006,8 @@ function handleTextInteractionEnd(event) {
     document.removeEventListener("touchcancel", handleTextInteractionEnd);
 }
 
+
+// --- Image Interaction Handlers (No changes needed from previous version) ---
 function handleImageDragStart(event) { if (event.target.classList.contains('handle') || event.target.classList.contains('overlay-delete-btn') || currentSignMode !== 'custom') return; hideHelpTooltip(); const el = event.currentTarget; setActiveElement(el); imageInteractionState.isDragging = true; imageInteractionState.isRotating = false; imageInteractionState.isResizing = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); imageInteractionState.startX = coords.x - contRect.left; imageInteractionState.startY = coords.y - contRect.top; imageInteractionState.startLeft = parseFloat(el.style.left || "0"); imageInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
 function handleImageRotateStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isRotating = true; imageInteractionState.isDragging = false; imageInteractionState.isResizing = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let startAngle = Math.atan2(dy, dx); imageInteractionState.currentRotationRad = getRotationRad(el); imageInteractionState.startAngle = startAngle - imageInteractionState.currentRotationRad; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
 function handleImageResizeStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isResizing = true; imageInteractionState.isRotating = false; imageInteractionState.isDragging = false; document.body.style.cursor = 'nwse-resize'; // Corner resize cursor
@@ -979,6 +1017,7 @@ function handleImageInteractionMove(event) { if (!activeElement || !activeElemen
          activeElement.style.height = `${Math.max(30 / (imageInteractionState.aspectRatio || 1), newHeight)}px`; // Min height based on aspect ratio
      } }
 function handleImageInteractionEnd(event) { if (activeElement && activeElement.classList.contains('imgOverlay')) { activeElement.style.cursor = 'grab'; } document.body.style.cursor = 'default'; imageInteractionState.isDragging = false; imageInteractionState.isRotating = false; imageInteractionState.isResizing = false; document.removeEventListener("mousemove", handleImageInteractionMove); document.removeEventListener("mouseup", handleImageInteractionEnd); document.removeEventListener("touchmove", handleImageInteractionMove); document.removeEventListener("touchend", handleImageInteractionEnd); document.removeEventListener("touchcancel", handleImageInteractionEnd); }
+
 
 // --- Utility Functions ---
 function calculateElementPosition(percentX, percentY) { const contRect=container.getBoundingClientRect();if(!contRect||contRect.width===0||contRect.height===0)return{x:0,y:0}; return { x: contRect.width * (percentX/100), y: contRect.height * (percentY/100) }; }
