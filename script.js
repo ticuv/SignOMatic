@@ -14,6 +14,16 @@ const DEFAULT_FONT_SIZE = 15;
 const MIN_FONT_SIZE = 8;
 const FONT_SIZE_SENSITIVITY = 0.25;
 const SIGNS_JSON_PATH = "signs.json"; // Path relative to index.html
+const DONATION_ADDRESSES = {
+    sol: "2Vv3QHAJxZvViaY1HaWvJ5kbnNeUdN1MrZcRYog4ezHE",
+    eth: "0xbD0dDE4175d8e854306a09dE4c184392b33a6d9C"
+};
+const HELP_TEXTS = {
+    "nft-load": "Choose a collection (e.g., GHN) and enter the specific Token ID number of the NFT you want to load onto the canvas.",
+    "gallery": "Click any pre-made sign below to instantly apply it over your loaded NFT image. Click again to remove it.",
+    "custom": "Use these controls to customize the sign: change the sign's background color, add/style your own text, and upload/position additional images."
+};
+
 
 // --- Global State ---
 let baseImage = new Image();
@@ -26,15 +36,19 @@ let isSignConfigLoading = false;
 let selectedSignItem = null; // Track selected sign DOM element in gallery
 let appliedPrefixSignImage = null; // Keep track of the currently applied prefix sign Image object
 let lastCustomTextInputValue = ""; // Represents text input value when NO element is selected
+let isModalOpen = false; // Track if donation modal is open
 
 // --- DOM Element References ---
 let canvas, ctx, container, textInput, textColor, fontFamily, removeBtn, nftStatusEl,
     nftCollectionSelect, nftTokenIdInput, loadNftBtn, overlayColorInput,
     addTextBtn, addImageBtn, resetCanvasBtn, imageUpload,
     saveFullBtn, // Save button for Custom mode
-    signTypeChoiceGroup, signTypePrefixRadio, signTypeCustomRadio,
+    signTypeChoiceGroup, signTypePrefixRadio, signTypeCustomRadio, signTypeChoiceHeader, // Added header ref
     prefixOptionsGroup, customOptionsGroup,
-    signGalleryContainer, savePrefixBtn, prefixFinalActions;
+    signGalleryContainer, savePrefixBtn, prefixFinalActions,
+    donateBtn, donateModal, donateModalCloseBtn, sendSolBtn, sendEthBtn,
+    donateNetworkChoiceDiv, donateAddressDisplayDiv, donateAddressCode, copyAddressBtn,
+    helpTooltip, helpTooltipText; // New elements
 
 // --- Initialization ---
 window.onload = () => {
@@ -57,6 +71,7 @@ window.onload = () => {
     resetCanvasBtn = document.getElementById("resetCanvas");
     saveFullBtn = document.getElementById("saveFullBtn"); // Custom Save
     signTypeChoiceGroup = document.getElementById("sign-type-choice-group");
+    signTypeChoiceHeader = document.getElementById("sign-type-choice-header"); // Added
     signTypePrefixRadio = document.getElementById("signTypePrefix");
     signTypeCustomRadio = document.getElementById("signTypeCustom");
     prefixOptionsGroup = document.getElementById("prefix-options-group");
@@ -64,6 +79,22 @@ window.onload = () => {
     signGalleryContainer = document.getElementById("sign-gallery-container");
     savePrefixBtn = document.getElementById("savePrefixBtn");
     prefixFinalActions = document.getElementById("prefix-final-actions"); // Container for prefix save button
+
+    // Donation Modal Elements
+    donateBtn = document.getElementById("donateBtn");
+    donateModal = document.getElementById("donateModal");
+    donateModalCloseBtn = donateModal.querySelector(".modal-close");
+    sendSolBtn = document.getElementById("sendSolBtn");
+    sendEthBtn = document.getElementById("sendEthBtn");
+    donateNetworkChoiceDiv = document.getElementById("donateNetworkChoice");
+    donateAddressDisplayDiv = document.getElementById("donateAddressDisplay");
+    donateAddressCode = document.getElementById("donateAddress");
+    copyAddressBtn = document.getElementById("copyAddressBtn");
+
+    // Help Tooltip Elements
+    helpTooltip = document.getElementById("helpTooltip");
+    helpTooltipText = document.getElementById("helpTooltipText");
+
 
     // Initial Setup
     setControlsDisabled(true); // Start with most controls disabled
@@ -75,7 +106,7 @@ window.onload = () => {
 };
 
 // ===========================================================
-// setupEventListeners - Include stopPropagation for Delete
+// setupEventListeners - Added listeners for Modal and Help
 // ===========================================================
 function setupEventListeners() {
     if (!loadNftBtn) { console.error("Load button not found!"); return; }
@@ -83,28 +114,19 @@ function setupEventListeners() {
     // NFT Loading
     loadNftBtn.addEventListener('click', loadNftToCanvas);
     nftCollectionSelect.addEventListener("change", () => {
-        // When collection changes *after* loading, clear the specific mode's additions
+        // When collection changes *after* loading, adjust view
         if (baseImage.src && baseImage.complete) {
             if (currentSignMode === 'custom') {
-                // Re-apply overlay for new collection polygon
-                 applyOverlay(false);
+                 applyOverlay(false); // Re-apply overlay for new collection polygon
             } else if (currentSignMode === 'prefix') {
-                // Reset prefix state for the new collection
                 appliedPrefixSignImage = null;
-                if (selectedSignItem) {
-                    selectedSignItem.classList.remove('selected');
-                    selectedSignItem = null;
-                }
-                drawBaseImage(); // Redraw just the base
+                if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
+                drawBaseImage();
                 if(savePrefixBtn) savePrefixBtn.disabled = true;
                 populateSignGallery(); // Refresh gallery for the new collection
             }
-            // If no mode is active yet, just redraw base
-            else {
-                drawBaseImage();
-            }
+            else { drawBaseImage(); }
         }
-         // NOTE: Custom overlays are NOT removed on collection change, only hidden/shown by mode change
     });
 
     // Sign Type Choice
@@ -119,124 +141,149 @@ function setupEventListeners() {
     fontFamily.addEventListener("input", handleTextControlChange); // Also trigger style updates
     addImageBtn.addEventListener('click', addImage);
 
-    // Attach listener for delete, passing the event object
+    // Custom Actions
     removeBtn.addEventListener('click', (event) => removeActiveElement(event));
 
     // General Actions
     resetCanvasBtn.addEventListener('click', handleReset);
     saveFullBtn.addEventListener('click', saveImage); // Custom Save
-    savePrefixBtn.addEventListener('click', saveImage); // Prefix Save (uses same function)
+    savePrefixBtn.addEventListener('click', saveImage); // Prefix Save
 
-     // Deselect active element when clicking outside (Global Listener)
-     document.addEventListener('click', (event) => {
+     // Deselect active element when clicking outside
+     document.addEventListener('click', handleOutsideClick, true); // Use capture phase
+
+     // --- Donation Modal Listeners ---
+     if (donateBtn) donateBtn.addEventListener('click', openDonateModal);
+     if (donateModalCloseBtn) donateModalCloseBtn.addEventListener('click', closeDonateModal);
+     if (donateModal) donateModal.addEventListener('click', (event) => {
+         // Close if clicked on the background overlay
+         if (event.target === donateModal) { closeDonateModal(); }
+     });
+     if (sendSolBtn) sendSolBtn.addEventListener('click', () => showDonationAddress('sol'));
+     if (sendEthBtn) sendEthBtn.addEventListener('click', () => showDonationAddress('eth'));
+     if (copyAddressBtn) copyAddressBtn.addEventListener('click', copyDonationAddress);
+
+     // --- Help Tooltip Listeners ---
+     const helpBtns = document.querySelectorAll('.help-btn');
+     helpBtns.forEach(btn => {
+         btn.addEventListener('mouseenter', showHelpTooltip);
+         btn.addEventListener('mouseleave', hideHelpTooltip);
+         btn.addEventListener('focus', showHelpTooltip); // Accessibility
+         btn.addEventListener('blur', hideHelpTooltip);  // Accessibility
+     });
+
+     // --- Keyboard listener for ESC key to close modal ---
+     document.addEventListener('keydown', (event) => {
+         if (event.key === 'Escape' && isModalOpen) {
+             closeDonateModal();
+         }
+     });
+}
+
+// --- Click Outside Handler ---
+function handleOutsideClick(event) {
+    // Modal Check first
+    if (isModalOpen && donateModal && !donateModal.querySelector('.modal-content').contains(event.target) && event.target !== donateBtn) {
+         // Don't process deselect if click was related to the modal or its trigger button
+         return;
+    }
+
+    // Deselect Active Element Logic
+    if (currentSignMode === 'custom') {
         const clickedInsideContainer = container.contains(event.target);
         const clickedOnContainerOrCanvas = event.target === container || event.target === canvas;
-        const clickedOnButton = event.target.tagName === 'BUTTON' || event.target.closest('button');
+        // Check if click was on controls that *should not* cause deselect
+        const clickedOnInteractiveControl = event.target.closest('#custom-options-group input, #custom-options-group select, #custom-options-group button:not(#removeBtn):not(#saveFullBtn)');
+        const clickedOnActiveElementHandle = event.target.classList.contains('handle');
 
-        // Condition 1: Click is NOT on a button AND (outside container OR directly on container/canvas)
-        if (!clickedOnButton && (!clickedInsideContainer || clickedOnContainerOrCanvas)) {
-             if (activeElement && currentSignMode === 'custom') {
-                 setActiveElement(null); // Deselect
+        if (activeElement && !clickedOnInteractiveControl && !clickedOnActiveElementHandle) {
+             // Click was NOT on a handle or non-action button within the custom controls group
+
+             // Condition 1: Click outside the main canvas container entirely
+             if (!clickedInsideContainer) {
+                  setActiveElement(null); // Deselect
+             // Condition 2: Click directly on the canvas/container background
+             } else if (clickedOnContainerOrCanvas) {
+                  setActiveElement(null); // Deselect
+             // Condition 3: Click inside container, but not on the active element itself or another overlay
+             } else if (!activeElement.contains(event.target) && !event.target.closest('.textOverlay, .imgOverlay')) {
+                  setActiveElement(null); // Deselect
              }
-        // Condition 2: Click is NOT on a button AND inside container AND NOT on the active element itself
-        } else if (!clickedOnButton && activeElement && !activeElement.contains(event.target)) {
-             const clickedOverlay = event.target.closest('.textOverlay, .imgOverlay');
-             // If click was inside container but NOT on any overlay -> deselect
-             if (!clickedOverlay && currentSignMode === 'custom') {
-                 setActiveElement(null);
-             }
-             // If click was on *another* overlay, its own start handler will call setActiveElement
         }
-     }, true); // Use capture phase
+    }
 }
 
 // --- Workflow Management ---
 function setControlsDisabled(isDisabled) {
     const customControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn, removeBtn, saveFullBtn];
     const signChoiceRadios = [signTypePrefixRadio, signTypeCustomRadio];
-    const prefixControls = [savePrefixBtn]; // Only the prefix save button needs specific handling here
+    const prefixControls = [savePrefixBtn];
 
     customControls.forEach(el => { if(el) el.disabled = isDisabled; });
     prefixControls.forEach(el => { if(el) el.disabled = isDisabled; });
-    // Disable radios initially, they get re-enabled if needed
     signChoiceRadios.forEach(el => { if(el) el.disabled = isDisabled; });
 
-    // Ensure action buttons are definitely disabled if 'isDisabled' is true
     if (isDisabled) {
         if(removeBtn) removeBtn.disabled = true;
         if(saveFullBtn) saveFullBtn.disabled = true;
         if(savePrefixBtn) savePrefixBtn.disabled = true;
     }
-    // Specific enabling logic happens in setSignMode and updateCustomActionButtons
 }
 
 // ===========================================================
-// setSignMode - Adjust text input handling (FIX APPLIED)
+// setSignMode - Adjust text input handling & show header (FIX APPLIED)
 // ===========================================================
 function setSignMode(mode) {
     const previousMode = currentSignMode;
-    if (mode === previousMode) return; // No change needed
+    if (mode === previousMode) return;
 
-    // --- Save State from Previous Mode (if needed) ---
     if (previousMode === 'custom' && textInput) {
-        // If NO text element was active, save the current input value as the general state
         if (!activeElement || !activeElement.classList.contains('textOverlay')) {
              lastCustomTextInputValue = textInput.value;
         }
-        // If a text element WAS active, its value is already saved in its own DOM node.
-        // No need to save it to lastCustomTextInputValue here.
     }
 
-    // --- Set new mode state FIRST ---
     currentSignMode = mode;
-
     const customOverlays = container.querySelectorAll('.textOverlay, .imgOverlay');
 
-    // --- Cleanup/Transition Logic ---
     if (mode === 'prefix') {
-        // Switching TO Prefix: Hide custom elements, deselect active element
         customOverlays.forEach(el => el.classList.add('hidden-overlay'));
         if (activeElement) {
-            setActiveElement(null); // Deselects active element visually & updates buttons/input field
+            setActiveElement(null);
         }
-        // Restore prefix sign image on canvas if one was applied before
         if (appliedPrefixSignImage && baseImage.complete) {
             drawBaseImage();
             ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight);
         } else if (baseImage.complete) {
-            drawBaseImage(); // Just draw base if no prefix sign was active
+            drawBaseImage();
         }
-        populateSignGallery(); // Refresh gallery view
+        populateSignGallery();
 
     } else if (mode === 'custom') {
-        // Switching TO Custom: Show custom elements, clear prefix state, restore text input
         customOverlays.forEach(el => el.classList.remove('hidden-overlay'));
-        appliedPrefixSignImage = null; // Clear prefix image state
+        appliedPrefixSignImage = null;
         if (selectedSignItem) {
             selectedSignItem.classList.remove('selected');
             selectedSignItem = null;
         }
-
-        // Restore last GENERAL text input value (for when nothing is selected yet)
         if (textInput) {
             textInput.value = lastCustomTextInputValue;
         }
-
-        // Redraw canvas with base image + custom color overlay
         if (baseImage.complete) {
             applyOverlay(false);
         }
     }
 
-    // --- Update UI text and visibility ---
     nftStatusEl.textContent = `Mode selected: ${mode === 'prefix' ? 'Signs Gallery' : 'Custom Sign'}.`;
     nftStatusEl.className = '';
     prefixOptionsGroup.classList.toggle('hidden', mode !== 'prefix');
     customOptionsGroup.classList.toggle('hidden', mode !== 'custom');
 
-    // --- Enable/Disable Controls ---
-    setControlsDisabled(true); // Disable everything first
-    signTypePrefixRadio.disabled = false; // Always allow switching modes
+    // Show/Hide the "Choose Sign Mode" Header
+    if(signTypeChoiceHeader) signTypeChoiceHeader.classList.remove('hidden'); // Always show if mode is chosen
+
+    setControlsDisabled(true);
+    signTypePrefixRadio.disabled = false;
     signTypeCustomRadio.disabled = false;
     if (mode === 'custom' && baseImage.complete) {
         const customEditControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn];
@@ -245,19 +292,16 @@ function setSignMode(mode) {
     updateCustomActionButtons();
 }
 
-
 // Updates ALL action buttons based on current mode and state
 function updateCustomActionButtons() {
     const isImageLoaded = baseImage.src !== "" && baseImage.complete && baseImage.naturalWidth > 0;
     const isElementActive = activeElement !== null && container.contains(activeElement);
 
-    // Custom Mode Buttons
     const enableRemove = currentSignMode === 'custom' && isImageLoaded && isElementActive;
     const enableSaveFullCustom = currentSignMode === 'custom' && isImageLoaded;
     if (removeBtn) removeBtn.disabled = !enableRemove;
     if (saveFullBtn) saveFullBtn.disabled = !enableSaveFullCustom;
 
-    // Prefix Mode Button
     const enableSavePrefix = currentSignMode === 'prefix' && isImageLoaded && appliedPrefixSignImage;
     if (savePrefixBtn) savePrefixBtn.disabled = !enableSavePrefix;
 }
@@ -268,81 +312,72 @@ function updateCustomActionButtons() {
 // ===========================================================
 function handleTextControlChange() {
     if (activeElement && activeElement.classList.contains('textOverlay') && currentSignMode === 'custom') {
-        // --- Update Active Element Directly ---
+        // Update Active Element Directly
         let textNode = activeElement.childNodes[0];
         while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
 
         if (textNode) {
             textNode.nodeValue = textInput.value || " "; // Update the DOM node directly
-            // console.log("Updated textNode value to:", textNode.nodeValue); // For debugging
         } else {
-            // Fallback (rare)
             activeElement.insertBefore(document.createTextNode(textInput.value || " "), activeElement.querySelector('.handle'));
             console.warn("Created new text node in handleTextControlChange");
         }
-        // Update style attributes
-        activeElement.style.color = textColor.value;
-        activeElement.style.fontFamily = fontFamily.value;
+        // Update style attributes only if the event source was style-related
+        if (event && (event.target === textColor || event.target === fontFamily)) {
+            activeElement.style.color = textColor.value;
+            activeElement.style.fontFamily = fontFamily.value;
+        }
 
-        // Auto-adjust width after text change
-        requestAnimationFrame(() => {
-            if (activeElement && activeElement.classList.contains('textOverlay') && container.contains(activeElement)) {
-                const originalWidthStyle = activeElement.style.width;
-                const hadManualWidth = originalWidthStyle && originalWidthStyle !== 'auto';
-                activeElement.style.width = 'auto'; // Let it expand naturally
-                const naturalWidth = activeElement.offsetWidth;
-                // Restore previous width OR set to natural width if it was 'auto' or not set
-                activeElement.style.width = hadManualWidth ? originalWidthStyle : `${Math.max(30, naturalWidth)}px`;
-            }
-        });
-        // DO NOT update lastCustomTextInputValue here; the active element's nodeValue is the source of truth.
+        // Auto-adjust width after text change (only if textInput changed)
+        if (!event || event.target === textInput) {
+            requestAnimationFrame(() => {
+                if (activeElement && activeElement.classList.contains('textOverlay') && container.contains(activeElement)) {
+                    const originalWidthStyle = activeElement.style.width;
+                    const hadManualWidth = originalWidthStyle && originalWidthStyle !== 'auto';
+                    activeElement.style.width = 'auto';
+                    const naturalWidth = activeElement.offsetWidth;
+                    activeElement.style.width = hadManualWidth ? originalWidthStyle : `${Math.max(30, naturalWidth)}px`;
+                }
+            });
+        }
 
     } else if (currentSignMode === 'custom' && textInput) {
-        // --- Update General Stored Value (No active text element) ---
-        // This happens if user types while no text overlay is selected
+        // Update General Stored Value (No active text element)
         lastCustomTextInputValue = textInput.value;
-        // console.log("Updated lastCustomTextInputValue to:", lastCustomTextInputValue); // For debugging
     }
 }
 
 
 function handleReset() {
     if (confirm("Are you sure you want to clear the canvas and all added elements/signs? This cannot be undone.")) {
-        clearCanvasAndOverlays(); // Clears custom overlays from DOM & resets activeElement
-        appliedPrefixSignImage = null; // Clear applied prefix sign state
-        if (selectedSignItem) {
-            selectedSignItem.classList.remove('selected');
-            selectedSignItem = null;
-        }
-        // Clear custom controls input fields
+        clearCanvasAndOverlays();
+        appliedPrefixSignImage = null;
+        if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
         if (textInput) textInput.value = '';
-        lastCustomTextInputValue = ""; // <<< RESET stored text value
-        if (overlayColorInput) overlayColorInput.value = '#00ff00'; // Reset color
+        lastCustomTextInputValue = "";
+        if (overlayColorInput) overlayColorInput.value = '#00ff00';
         if (textColor) textColor.value = '#ffffff';
-        if (fontFamily) fontFamily.value = "'Comic Neue', cursive"; // Reset font
-        if (imageUpload) imageUpload.value = ''; // Clear file selection
+        if (fontFamily) fontFamily.value = "'Comic Neue', cursive";
+        if (imageUpload) imageUpload.value = '';
 
-        // Reset display based on whether base image exists
         if (baseImage.src && baseImage.complete && baseImage.naturalWidth > 0) {
-            drawBaseImage(); // Redraw only base image
+            drawBaseImage();
             signTypeChoiceGroup.classList.remove('hidden');
+            if(signTypeChoiceHeader) signTypeChoiceHeader.classList.remove('hidden');
             signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false;
             signTypePrefixRadio.checked = false; signTypeCustomRadio.checked = false;
             prefixOptionsGroup.classList.add('hidden'); customOptionsGroup.classList.add('hidden');
-            currentSignMode = null; // Reset mode
-            setControlsDisabled(true); // Disables all action buttons initially
-            signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false; // Re-enable radios
+            currentSignMode = null;
+            setControlsDisabled(true);
+            signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false;
             nftStatusEl.textContent = "Canvas reset. Choose sign type."; nftStatusEl.className = '';
             if(signGalleryContainer) signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Loading gallery...</p>';
-            // Re-fetch config if needed
             if (!signConfigData) fetchSignConfig();
 
         } else {
-            // No base image loaded, reset to initial state
             enableNftLoadControlsOnly();
             nftStatusEl.textContent = "Select collection and ID, then load NFT."; nftStatusEl.className = '';
         }
-         // Ensure buttons are correctly disabled after reset
          updateCustomActionButtons();
     }
 }
@@ -352,9 +387,8 @@ function clearCanvasAndOverlays() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     ctx.fillStyle = '#444';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-    // Remove only custom overlays from DOM
     container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove());
-    setActiveElement(null); // Deselect any active custom element & update buttons
+    setActiveElement(null); // Call setActiveElement with null to reset state
 }
 function clearCanvas() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -362,17 +396,15 @@ function clearCanvas() {
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 }
 function enableNftLoadControlsOnly() {
-    setControlsDisabled(true); // Disable everything first
-    // Enable only NFT loading controls
+    setControlsDisabled(true);
     if(loadNftBtn) loadNftBtn.disabled = false;
     if(nftCollectionSelect) nftCollectionSelect.disabled = false;
     if(nftTokenIdInput) nftTokenIdInput.disabled = false;
-    // Hide mode-specific sections
     if(signTypeChoiceGroup) signTypeChoiceGroup.classList.add('hidden');
+    if(signTypeChoiceHeader) signTypeChoiceHeader.classList.add('hidden');
     if(prefixOptionsGroup) prefixOptionsGroup.classList.add('hidden');
     if(customOptionsGroup) customOptionsGroup.classList.add('hidden');
-    currentSignMode = null; // Reset mode state
-     // Ensure action buttons are disabled
+    currentSignMode = null;
      updateCustomActionButtons();
 }
 
@@ -385,48 +417,53 @@ async function loadNftToCanvas() {
     if (!tokenId || parseInt(tokenId) < 0) { nftStatusEl.textContent = "Please enter a valid, non-negative Token ID."; nftStatusEl.className = 'error'; return; }
     if (!nftContracts[selectedCollection]) { console.error(`Selected collection "${selectedCollection}" not found.`); nftStatusEl.textContent = `Error: Collection definition "${selectedCollection}" not found.`; nftStatusEl.className = 'error'; return; }
 
-    // Reset everything including custom elements when loading a *new* NFT
     clearCanvasAndOverlays();
     appliedPrefixSignImage = null;
     if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
     baseImage = new Image();
-    lastCustomTextInputValue = ""; // Reset stored text on new NFT load
+    lastCustomTextInputValue = "";
 
     loadNftBtn.disabled = true; nftCollectionSelect.disabled = true; nftTokenIdInput.disabled = true;
     setControlsDisabled(true);
-    signTypeChoiceGroup.classList.add('hidden'); prefixOptionsGroup.classList.add('hidden'); customOptionsGroup.classList.add('hidden');
+    signTypeChoiceGroup.classList.add('hidden');
+    if(signTypeChoiceHeader) signTypeChoiceHeader.classList.add('hidden');
+    prefixOptionsGroup.classList.add('hidden'); customOptionsGroup.classList.add('hidden');
     nftStatusEl.textContent = `Loading ${nftContracts[selectedCollection].name} #${tokenId}...`; nftStatusEl.className = '';
     clearCanvas();
 
     const contractInfo = nftContracts[selectedCollection];
     const contract = new ethers.Contract(contractInfo.address, nftAbi, provider);
     try {
-        let tokenURI;
-        try { tokenURI = await contract.tokenURI(tokenId); }
-        catch (contractError) {
-            console.error(`Contract error fetching URI for ${tokenId}:`, contractError);
-            if (contractError.message?.includes('invalid token ID') || contractError.message?.includes('URI query for nonexistent token')) { throw new Error(`Token ID ${tokenId} invalid or does not exist for ${contractInfo.name}.`); }
-            else if (contractError.code === 'CALL_EXCEPTION') { throw new Error(`Contract call failed. Check network/address or if Token ID ${tokenId} exists.`); }
-            throw contractError;
-        }
+        let tokenURI = await contract.tokenURI(tokenId).catch(contractError => {
+             console.error(`Contract error fetching URI for ${tokenId}:`, contractError);
+             if (contractError.message?.includes('invalid token ID') || contractError.message?.includes('URI query for nonexistent token')) { throw new Error(`Token ID ${tokenId} invalid or does not exist for ${contractInfo.name}.`); }
+             else if (contractError.code === 'CALL_EXCEPTION') { throw new Error(`Contract call failed. Check network/address or if Token ID ${tokenId} exists.`); }
+             throw contractError;
+         });
         tokenURI = resolveIpfsUrl(tokenURI);
         if (!tokenURI) throw new Error("Received empty Token URI from contract.");
 
         nftStatusEl.textContent = "Fetching metadata...";
-        const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 20000);
-        const response = await fetch(tokenURI, { signal: controller.signal }); clearTimeout(timeoutId);
+        const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+        const response = await fetch(tokenURI, { signal: controller.signal }).finally(() => clearTimeout(timeoutId));
         if (!response.ok) throw new Error(`Metadata fetch error: ${response.status} ${response.statusText} (URL: ${tokenURI.substring(0, 100)}...)`);
         const metadata = await response.json();
 
         let imageUrl = resolveIpfsUrl(metadata.image || metadata.image_url || metadata.imageUrl || metadata.uri);
         if (!imageUrl) throw new Error("Image URL missing in metadata");
+        // Enhanced check for nested metadata (common in some contracts)
         if (imageUrl.startsWith('http') && !imageUrl.match(/\.(jpeg|jpg|gif|png|svg|webp)$/i)) {
             try {
-                nftStatusEl.textContent = "Fetching secondary metadata..."; const imgJsonResponse = await fetch(imageUrl);
+                nftStatusEl.textContent = "Fetching secondary metadata...";
+                const imgJsonResponseController = new AbortController();
+                const imgJsonTimeoutId = setTimeout(() => imgJsonResponseController.abort(), 15000); // Shorter timeout for secondary
+                const imgJsonResponse = await fetch(imageUrl, { signal: imgJsonResponseController.signal }).finally(() => clearTimeout(imgJsonTimeoutId));
+
                 if (!imgJsonResponse.ok) throw new Error(`Secondary metadata fetch failed: ${imgJsonResponse.status}`);
-                const imgJson = await imgJsonResponse.json(); imageUrl = resolveIpfsUrl(imgJson.image || imgJson.image_url || imgJson.imageUrl || imgJson.uri);
-                if (!imageUrl) throw new Error("Image URL missing in secondary metadata");
-            } catch (nestedError) { console.error("Error fetching secondary metadata:", nestedError); throw new Error("Failed to resolve image URL from nested metadata."); }
+                const imgJson = await imgJsonResponse.json();
+                imageUrl = resolveIpfsUrl(imgJson.image || imgJson.image_url || imgJson.imageUrl || imgJson.uri);
+                if (!imageUrl || !imageUrl.startsWith('http')) throw new Error("Image URL missing or invalid in secondary metadata");
+            } catch (nestedError) { console.error("Error fetching/parsing secondary metadata:", nestedError); throw new Error("Failed to resolve image URL from nested metadata."); }
         }
 
         nftStatusEl.textContent = "Loading image...";
@@ -434,11 +471,13 @@ async function loadNftToCanvas() {
         baseImage.onload = () => {
             nftStatusEl.textContent = "Drawing image..."; drawBaseImage();
             nftStatusEl.textContent = `${nftContracts[selectedCollection].name} #${tokenId} loaded! Choose sign type below.`; nftStatusEl.className = 'success';
-            signTypeChoiceGroup.classList.remove('hidden'); signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false;
+            signTypeChoiceGroup.classList.remove('hidden');
+            if(signTypeChoiceHeader) signTypeChoiceHeader.classList.remove('hidden');
+            signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false;
             signTypePrefixRadio.checked = false; signTypeCustomRadio.checked = false; currentSignMode = null;
             loadNftBtn.disabled = false; nftCollectionSelect.disabled = false; nftTokenIdInput.disabled = false;
             if (!signConfigData) fetchSignConfig();
-            updateCustomActionButtons(); // Update buttons now that image is loaded
+            updateCustomActionButtons();
         };
         baseImage.onerror = (err) => {
              console.error("Error loading NFT image:", err, "Attempted URL:", imageUrl); nftStatusEl.textContent = `Error loading image. Check console. (URL: ${imageUrl.substring(0,100)}...)`; nftStatusEl.className = 'error';
@@ -464,12 +503,10 @@ function drawBaseImage() {
 }
 function applyOverlay(clearExistingOverlays = true) { // For CUSTOM sign color overlay
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) return;
-    // Always check if we are actually in custom mode before drawing overlay
     if (currentSignMode === 'custom') {
-        drawBaseImage(); // Redraw base first
-        drawSignPolygonOnly(); // Draw polygon on top
+        drawBaseImage();
+        drawSignPolygonOnly();
     } else {
-         // If somehow called when not in custom mode, just draw base image
          drawBaseImage();
     }
 }
@@ -483,7 +520,7 @@ function drawSignPolygonOnly() {
 }
 
 // --- Sign Gallery Functions ---
-async function fetchSignConfig() { /* Presumed OK */
+async function fetchSignConfig() {
     if (signConfigData || isSignConfigLoading) return signConfigData;
     isSignConfigLoading = true; const configUrl = SIGNS_JSON_PATH;
     try {
@@ -495,7 +532,7 @@ async function fetchSignConfig() { /* Presumed OK */
         console.error("Error fetching/parsing sign config:", error); nftStatusEl.textContent = `Error loading sign gallery: ${error.message}. Check console.`; nftStatusEl.className = 'error'; if (signGalleryContainer) signGalleryContainer.innerHTML = `<p style="color: var(--error-red);">Error loading signs config. Check console.</p>`; signConfigData = null; return null;
     } finally { isSignConfigLoading = false; }
 }
-function populateSignGallery() { /* Presumed OK */
+function populateSignGallery() {
     if (!signGalleryContainer) return; if (isSignConfigLoading) { signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Loading gallery config...</p>'; return; }
     if (!signConfigData) { fetchSignConfig().then(config => { if (config) { populateSignGallery(); } else { signGalleryContainer.innerHTML = '<p style="color: var(--error-red);">Failed to load gallery config.</p>'; } }); signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Fetching gallery config...</p>'; return; }
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--error-red);">Load NFT first.</p>'; return; }
@@ -516,7 +553,7 @@ function populateSignGallery() { /* Presumed OK */
         signGalleryContainer.appendChild(itemDiv);
         if (appliedPrefixSignImage && appliedPrefixSignImage.src === signImageUrl) { itemDiv.classList.add('selected'); selectedSignItem = itemDiv; if (savePrefixBtn && baseImage.complete && baseImage.naturalWidth > 0) { savePrefixBtn.disabled = false; } }
     });
-    updateCustomActionButtons(); // Ensure button state is correct after populating
+    updateCustomActionButtons();
 }
 
 // ===========================================================
@@ -526,9 +563,6 @@ function applyPrefixSign(signImageUrl, signName) {
     if (!baseImage.src || !baseImage.complete || currentSignMode !== 'prefix') return;
     nftStatusEl.textContent = `Applying sign: ${signName}...`; nftStatusEl.className = '';
     if(savePrefixBtn) savePrefixBtn.disabled = true;
-
-    // <<< REMOVED CODE BLOCK THAT DELETED CUSTOM OVERLAYS >>>
-    // Visibility of custom overlays is now solely handled by setSignMode using CSS.
 
     const signImage = new Image(); signImage.crossOrigin = "Anonymous";
     signImage.onload = () => {
@@ -549,7 +583,7 @@ function applyPrefixSign(signImageUrl, signName) {
             selectedSignItem.classList.remove('selected');
             selectedSignItem = null;
         }
-        drawBaseImage(); // Redraw base without the failed sign
+        drawBaseImage();
         if(savePrefixBtn) savePrefixBtn.disabled = true;
     };
     signImage.src = signImageUrl;
@@ -563,7 +597,6 @@ function addText() {
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
 
-    // Use the current general text input value OR default
     const textValue = textInput.value || "New Text";
 
     const textEl = document.createElement("div"); textEl.className = "textOverlay";
@@ -587,11 +620,9 @@ function addText() {
     requestAnimationFrame(() => {
         if (textEl && container.contains(textEl)) {
             const initialWidth = textEl.offsetWidth; textEl.style.width = `${Math.max(initialWidth, 30)}px`; textEl.style.whiteSpace = 'normal'; textEl.style.overflow = 'visible';
-            // Select the newly added element, this will update textInput correctly
             setActiveElement(textEl);
         }
     });
-     // No need to explicitly update lastCustomTextInputValue here, setActiveElement handles it.
 }
 
 
@@ -608,7 +639,7 @@ function addImage() {
              if(container.offsetWidth > 0 && img.naturalWidth > 0 && img.naturalHeight > 0){ const contW = container.offsetWidth; const initialWidth = Math.min(img.naturalWidth * 0.5, contW * 0.4, 150); const aspectRatio = img.naturalWidth / img.naturalHeight; wrapper.style.width=`${initialWidth}px`; wrapper.style.height=`${initialWidth / aspectRatio}px`; }
              else { wrapper.style.width='100px'; wrapper.style.height='auto'; console.warn("Could not determine container/image size for initial scaling, using fallback."); }
              const currentPolygon = getPolygonForSelectedCollection(); const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x)); const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y)); const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50; const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50; const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent); wrapper.style.left=`${initialX}px`; wrapper.style.top=`${initialY}px`;
-             setActiveElement(wrapper); // Select the new image
+             setActiveElement(wrapper);
          };
         img.onerror = ()=>{ console.error("Error loading added image data."); nftStatusEl.textContent="Error displaying uploaded image."; nftStatusEl.className='error'; wrapper.remove(); };
         wrapper.appendChild(img);
@@ -629,40 +660,31 @@ function addImage() {
 function setActiveElement(el) {
     const previouslyActiveElement = activeElement;
 
-    // --- Deselect Previous ---
+    // Deselect Previous
     if (previouslyActiveElement && previouslyActiveElement !== el) {
         if (container.contains(previouslyActiveElement)) {
             previouslyActiveElement.classList.remove("active");
             previouslyActiveElement.style.zIndex = previouslyActiveElement.classList.contains('imgOverlay') ? '20' : '10';
         }
-        // If deselecting (either by clicking outside or selecting a DIFFERENT element),
-        // restore the general text input value.
          if (currentSignMode === 'custom' && textInput) {
-            textInput.value = lastCustomTextInputValue;
+            textInput.value = lastCustomTextInputValue; // Restore general text value
         }
     }
 
-    // --- Select New Element ---
+    // Select New Element
     if (el && currentSignMode === 'custom' && container.contains(el)) {
         el.classList.add("active");
-        activeElement = el; // Set the new active element
+        activeElement = el;
         el.style.zIndex = el.classList.contains('imgOverlay') ? '101' : '100';
 
         if (el.classList.contains('textOverlay')) {
-            // --- Set controls FROM selected TEXT element ---
+            // Set controls FROM selected TEXT element
             let textNode = el.childNodes[0];
             while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
-            let currentTextValue = "";
-            if (textNode) {
-                currentTextValue = textNode.nodeValue; // Get exact value from node
-            } else {
-                currentTextValue = (el.textContent || ''); // Fallback
-            }
+            let currentTextValue = textNode ? textNode.nodeValue : (el.textContent || '');
 
             textInput.value = currentTextValue; // Set input field FROM the element
-            // DO NOT update lastCustomTextInputValue when selecting an element
 
-            // Update style controls
             textColor.value = rgb2hex(el.style.color || '#ffffff');
             const currentFont = (el.style.fontFamily || 'Arial').split(',')[0].replace(/['"]/g, "").trim();
             let foundFont = false;
@@ -677,15 +699,12 @@ function setActiveElement(el) {
         }
 
     } else {
-        // --- Deselecting Completely ---
-        // (e.g., clicking outside, switching modes, reset)
-        activeElement = null; // Clear active element
-        // Restore the general text value to the input field
+        // Deselecting Completely
+        activeElement = null;
         if (currentSignMode === 'custom' && textInput) {
-            textInput.value = lastCustomTextInputValue;
+            textInput.value = lastCustomTextInputValue; // Restore general text value
         }
     }
-    // Always update button states
     updateCustomActionButtons();
 }
 
@@ -694,18 +713,12 @@ function setActiveElement(el) {
 // removeActiveElement - Adjust text input handling (FIX APPLIED)
 // ===========================================================
 function removeActiveElement(event) {
-    // Stop click from bubbling up to the document listener
-    if (event) {
-        event.stopPropagation();
-    }
+    if (event) { event.stopPropagation(); }
 
     if (activeElement && container.contains(activeElement) && currentSignMode === 'custom') {
         const elementType = activeElement.classList.contains('textOverlay') ? 'Text' : 'Image';
-        activeElement.remove(); // Remove from DOM
-
-        // Deselecting will call setActiveElement(null) which restores the general text value
-        setActiveElement(null);
-
+        activeElement.remove();
+        setActiveElement(null); // Deselect and restore general text value
         nftStatusEl.textContent = `${elementType} element removed.`;
         nftStatusEl.className = '';
     } else if (currentSignMode !== 'custom') {
@@ -718,7 +731,7 @@ function removeActiveElement(event) {
         console.warn("Delete clicked with no active element.");
     } else {
          console.warn("Attempted to delete an element not in container or invalid state.", activeElement);
-         setActiveElement(null); // Clear state and restore general text input
+         setActiveElement(null);
          nftStatusEl.textContent = "Could not delete element.";
          nftStatusEl.className = 'error';
     }
@@ -768,18 +781,16 @@ function saveImage() {
     } else if (currentSignMode === 'custom') {
         drawSignPolygonOnly(); // Draw custom color polygon
 
-        // Draw custom overlays (Iterate over *all* overlays, even if hidden by CSS)
         const containerRect = container.getBoundingClientRect();
         if (!containerRect || containerRect.width === 0 || containerRect.height === 0) { console.error("Error getting container rect during save"); nftStatusEl.className='error'; nftStatusEl.textContent="Save Error: Container rect invalid."; if(previouslyActive && container.contains(previouslyActive)) setActiveElement(previouslyActive); return; }
         const scaleX = canvasWidth / containerRect.width;
         const scaleY = canvasHeight / containerRect.height;
 
-        // Query ALL overlays, regardless of visibility class, as we need to draw them
         const allOverlays = Array.from(container.querySelectorAll(".textOverlay, .imgOverlay"));
         allOverlays.sort((a, b) => (parseInt(window.getComputedStyle(a).zIndex) || 0) - (parseInt(window.getComputedStyle(b).zIndex) || 0));
 
         allOverlays.forEach(el => {
-            if (!container.contains(el)) return; // Skip if somehow detached
+            if (!container.contains(el)) return;
 
             const elRect = el.getBoundingClientRect(); const rotationRad = getRotationRad(el);
             const relativeCenterX = (elRect.left + elRect.width / 2) - containerRect.left;
@@ -790,7 +801,7 @@ function saveImage() {
 
             if (el.classList.contains('textOverlay')) {
                 let textNode = el.childNodes[0]; while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
-                const text = textNode ? textNode.nodeValue : (el.textContent || ''); // Get text directly from node
+                const text = textNode ? textNode.nodeValue : (el.textContent || '');
                 const color = el.style.color || '#ffffff'; const size = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE; const font = el.style.fontFamily || 'Arial'; const domWidth = el.offsetWidth;
                 const canvasFontSize = Math.round(size * scaleY); const canvasMaxWidth = Math.round(domWidth * scaleX);
                 if (canvasFontSize >= 1 && text) {
@@ -828,23 +839,140 @@ function saveImage() {
 
      // Restore Canvas View & Active Element
      setTimeout(() => {
-         // Redraw the canvas based on the current mode
          if (baseImage.src && baseImage.complete) {
              if (currentSignMode === 'prefix' && appliedPrefixSignImage) { drawBaseImage(); ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight); }
-             else if (currentSignMode === 'custom') { applyOverlay(false); } // Redraws base + polygon
-             else { drawBaseImage(); } // If no mode active after save? Unlikely but safe.
+             else if (currentSignMode === 'custom') { applyOverlay(false); }
+             else { drawBaseImage(); }
          } else { clearCanvas(); }
-         // Re-select the element that was active before saving
          if (previouslyActive && container.contains(previouslyActive)) {
-             setActiveElement(previouslyActive); // This will also update buttons and text input if needed
+             setActiveElement(previouslyActive);
          } else {
-             // If nothing was active, ensure text input still shows the last general value
              if (currentSignMode === 'custom' && textInput) {
                  textInput.value = lastCustomTextInputValue;
              }
-             updateCustomActionButtons(); // Ensure buttons are correct
+             updateCustomActionButtons();
          }
      }, 100);
 }
+
+
+// --- Donation Modal Functions ---
+function openDonateModal() {
+    if (!donateModal) return;
+    // Reset view
+    donateNetworkChoiceDiv.classList.remove('hidden');
+    donateAddressDisplayDiv.classList.add('hidden');
+    donateAddressCode.textContent = '';
+    copyAddressBtn.textContent = 'Copy';
+    copyAddressBtn.classList.remove('copied');
+    // Show modal
+    document.body.classList.add('modal-open');
+    isModalOpen = true;
+}
+
+function closeDonateModal() {
+    if (!donateModal) return;
+    document.body.classList.remove('modal-open');
+    isModalOpen = false;
+}
+
+function showDonationAddress(network) {
+    const address = DONATION_ADDRESSES[network];
+    if (!address || !donateNetworkChoiceDiv || !donateAddressDisplayDiv || !donateAddressCode) return;
+
+    donateAddressCode.textContent = address;
+    donateNetworkChoiceDiv.classList.add('hidden');
+    donateAddressDisplayDiv.classList.remove('hidden');
+    copyAddressBtn.textContent = 'Copy'; // Reset copy button text
+    copyAddressBtn.classList.remove('copied');
+}
+
+function copyDonationAddress() {
+    const address = donateAddressCode.textContent;
+    if (!address || !navigator.clipboard) {
+        // Fallback for older browsers or insecure contexts
+        try {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = address;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            copyAddressBtn.textContent = 'Copied!';
+            copyAddressBtn.classList.add('copied');
+            setTimeout(() => { if (copyAddressBtn.classList.contains('copied')) { copyAddressBtn.textContent = 'Copy'; copyAddressBtn.classList.remove('copied'); } }, 2000);
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            alert("Failed to copy address automatically. Please select and copy manually.");
+        }
+        return;
+    }
+    // Use Clipboard API
+    navigator.clipboard.writeText(address).then(() => {
+        copyAddressBtn.textContent = 'Copied!';
+        copyAddressBtn.classList.add('copied');
+        setTimeout(() => { if (copyAddressBtn.classList.contains('copied')) { copyAddressBtn.textContent = 'Copy'; copyAddressBtn.classList.remove('copied'); } }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy address: ', err);
+        alert("Failed to copy address. You may need to grant clipboard permission or copy manually.");
+    });
+}
+
+
+// --- Help Tooltip Functions ---
+function showHelpTooltip(event) {
+    const btn = event.currentTarget;
+    const helpKey = btn.dataset.helpKey;
+    const text = HELP_TEXTS[helpKey];
+
+    if (!text || !helpTooltip || !helpTooltipText) return;
+
+    helpTooltipText.textContent = text;
+
+    const btnRect = btn.getBoundingClientRect();
+    // Get tooltip dimensions *before* displaying it to calculate position correctly
+    helpTooltip.style.display = 'block'; // Temporarily show to measure
+    helpTooltip.style.visibility = 'hidden'; // But keep invisible
+    const tooltipRect = helpTooltip.getBoundingClientRect();
+    helpTooltip.style.display = 'none'; // Hide again immediately
+    helpTooltip.style.visibility = 'visible'; // Make visible for actual display later
+
+    const spaceAbove = btnRect.top;
+    const spaceBelow = window.innerHeight - btnRect.bottom;
+    const tooltipHeight = tooltipRect.height;
+    const tooltipWidth = tooltipRect.width;
+    let top, left;
+
+    // Decide vertical position (prefer above if enough space)
+    if (spaceAbove > tooltipHeight + 10 && spaceAbove > spaceBelow) {
+        top = btnRect.top - tooltipHeight - 8; // Position above button + arrow space
+        helpTooltip.classList.remove('point-down');
+    } else {
+        top = btnRect.bottom + 8; // Position below button + arrow space
+        helpTooltip.classList.add('point-down');
+    }
+
+    // Calculate initial horizontal position (centered on button)
+    left = btnRect.left + (btnRect.width / 2) - (tooltipWidth / 2);
+
+    // Prevent going off left edge
+    if (left < 5) {
+        left = 5;
+    }
+    // Prevent going off right edge
+    if (left + tooltipWidth > window.innerWidth - 5) {
+        left = window.innerWidth - tooltipWidth - 5;
+    }
+
+    helpTooltip.style.left = `${left}px`;
+    helpTooltip.style.top = `${top}px`;
+    helpTooltip.style.display = 'block'; // Now display it
+}
+
+function hideHelpTooltip() {
+    if (!helpTooltip) return;
+    helpTooltip.style.display = 'none';
+}
+
 
 // --- END OF FILE script.js ---
