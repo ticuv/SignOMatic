@@ -22,6 +22,10 @@
 
     <!-- 1. NFT Loading Area -->
     <div id="controls">
+        <div class="section-header"> <!-- Added wrapper for title + help -->
+            <h4>Load Your NFT</h4>
+            <button class="help-btn" data-help-key="nft-load" title="How to load NFT">?</button>
+        </div>
         <div class="control-group" id="nft-load-group">
             <label for="nftCollection">Collection:</label>
             <select id="nftCollection">
@@ -36,8 +40,12 @@
         <p id="nftStatus">Select collection & ID, then load NFT.</p>
 
         <!-- 2. Sign Type Choice (Initially Hidden) -->
+         <div class="section-header hidden" id="sign-type-choice-header"> <!-- Added wrapper for title + help -->
+             <h4>Choose Sign Mode</h4>
+             <!-- No help button needed here as options are self-explanatory -->
+         </div>
         <div class="control-group hidden" id="sign-type-choice-group">
-            <label>Sign Type:</label>
+            <!-- Removed label, using section header now -->
             <div> <!-- Wrapper for radios -->
                 <input type="radio" name="signType" value="prefix" id="signTypePrefix" disabled>
                 <label for="signTypePrefix">Signs Gallery</label>
@@ -47,7 +55,11 @@
         </div>
 
         <!-- 3. Signs Gallery Options (Initially Hidden) -->
-        <div class="control-group hidden" id="prefix-options-group">
+        <div class="control-group hidden section-content" id="prefix-options-group">
+             <div class="section-header"> <!-- Added wrapper for title + help -->
+                 <h4>Signs Gallery</h4>
+                 <button class="help-btn" data-help-key="gallery" title="How to use gallery">?</button>
+             </div>
             <div id="sign-gallery-container">
                 <p style="font-style: italic; color: var(--portal-blue);">Loading gallery...</p>
             </div>
@@ -58,7 +70,11 @@
         </div>
 
         <!-- 4. Custom Sign Options (Initially Hidden) -->
-        <div class="control-group hidden" id="custom-options-group">
+        <div class="control-group hidden section-content" id="custom-options-group">
+             <div class="section-header"> <!-- Added wrapper for title + help -->
+                 <h4>Custom Sign</h4>
+                 <button class="help-btn" data-help-key="custom" title="How to use custom sign">?</button>
+             </div>
             <!-- Sign Color -->
             <div>
                  <label for="overlayColor">Sign Color:</label>
@@ -109,7 +125,37 @@
         <!-- Overlays will be added here -->
     </div>
 
+    <!-- Donation Button -->
+    <button id="donateBtn" title="Support the project!">☕ Buy Ticuv a Virtual Coffee</button>
+
 </div> <!-- End .main-container -->
+
+<!-- Donation Modal -->
+<div id="donateModal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" title="Close">×</button>
+        <h4>Buy Ticuv a virtual coffee</h4>
+        <p class="modal-message">Every little bit helps support the project.<br>If you like the tool, consider sending a virtual coffee to keep it going!</p>
+        <div id="donateNetworkChoice">
+            <button id="sendSolBtn">Send SOL</button>
+            <button id="sendEthBtn">Send ETH</button>
+        </div>
+        <div id="donateAddressDisplay" class="hidden">
+            <p>Send to this address:</p>
+            <div class="address-box">
+                 <code id="donateAddress"></code>
+                 <button id="copyAddressBtn" title="Copy Address">Copy</button>
+            </div>
+            <p class="modal-thanks">Thank you for your support! 🙏</p>
+        </div>
+    </div>
+</div>
+
+<!-- Help Tooltip -->
+<div id="helpTooltip">
+    <span id="helpTooltipText"></span>
+</div>
+
 
 <!-- Link to external JavaScript file -->
 <script src="script.js"></script>
