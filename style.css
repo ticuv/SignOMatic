@@ -104,17 +104,22 @@ h3 {
     border: 1.5px solid var(--outline-black);
     background-color: var(--portal-blue);
     color: var(--off-white);
-    cursor: help;
+    cursor: pointer; /* Change cursor to pointer */
     box-shadow: 1px 1px 0px var(--outline-black);
     transition: all 0.15s ease-out;
     flex-shrink: 0;
     text-align: center;
+    user-select: none; /* Prevent text selection */
 }
 .help-btn:hover:not(:disabled) {
     transform: scale(1.1);
     background-color: var(--rick-green);
     color: var(--outline-black);
     box-shadow: 1.5px 1.5px 0px var(--outline-black);
+}
+.help-btn:active:not(:disabled) {
+    transform: scale(0.95);
+    box-shadow: 0.5px 0.5px 0px var(--outline-black);
 }
 /* Specific margin for help buttons next to labels */
 .text-editing-row .help-btn,
@@ -561,7 +566,7 @@ body.modal-open .modal {
     line-height: 1.3;
     max-width: 200px;
     z-index: 1100; /* Above everything */
-    pointer-events: none; /* Don't block clicks on elements underneath */
+    /* pointer-events: none; <-- REMOVED this */
     white-space: normal; /* Allow wrapping within tooltip */
 }
 /* Optional: Arrow for tooltip */
