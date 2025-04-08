@@ -11,7 +11,7 @@
     --glow-green: rgba(151, 206, 76, 0.7); --glow-blue: rgba(0, 176, 200, 0.7);
     --glow-purple: rgba(170, 107, 209, 0.5);
     --disabled-text: #888; --disabled-border: #555; --disabled-shadow: #444;
-    --handle-active-bg: yellow; --handle-image-active-bg: cyan;
+    --handle-active-bg: yellow; --handle-image-active-bg: cyan; /* Color for image rotate icon */
 
     /* UI adjustments */
     --control-padding: 0.4rem 0.6rem;
@@ -24,11 +24,6 @@
     --handle-size: 24px; /* Base size for handles */
     --handle-icon-size: 14px; /* Base size for icons within handles */
     --min-font-size: 8px;
-
-    /* Icon Colors (used in embedded SVGs) */
-    --icon-yellow: #f0e14a; /* Morty Yellow */
-    --icon-green: #97ce4c; /* Rick Green */
-    --icon-stroke: #1a1a1a; /* Outline Black */
 
     /* Gallery Styles */
     --sign-item-bg: rgba(60, 60, 80, 0.5);
@@ -325,7 +320,7 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
     cursor: alias;
 }
 
-/* Rotation Handle - TEXT Specific (Bottom, '↻' Icon) - RESTORED */
+/* Rotation Handle - TEXT Specific (Bottom, '↻' Icon) */
 .textOverlay .rotation-handle {
     left: 50%;
     bottom: calc(-0.7 * var(--handle-size) - 3px);
@@ -337,47 +332,43 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
     font-size: var(--handle-icon-size);
     line-height: calc(var(--handle-size) - 3px);
     text-shadow: 1px 1px 1px var(--outline-black);
-    background-image: none; /* Remove SVG background if previously set */
+    background-image: none; /* Ensure no bg image */
 }
 .textOverlay .rotation-handle:hover {
     background-color: var(--interdimensional-purple);
 }
 
-/* Rotation Handle - IMAGE Specific (Bottom-Center, Yellow Arrow SVG) - NEW */
+/* Rotation Handle - IMAGE Specific (Bottom-Center, '↻' Icon) - MODIFIED */
 .imgOverlay .rotation-handle {
     left: 50%;
     bottom: calc(-0.7 * var(--handle-size) - 3px); /* Position bottom-center */
     top: auto; /* Remove top positioning */
     transform: translateX(-50%); /* Center horizontally */
-    background-color: transparent; /* No background color, icon provides it */
-    background-repeat: no-repeat;
-    background-position: center center;
-    background-size: 80% 80%; /* Adjust icon size */
-    /* Yellow circular arrow SVG */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9' fill='var(--icon-yellow, %23f0e14a)' stroke='var(--icon-stroke, %231a1a1a)' stroke-width='1.5'/%3E%3Cpath d='M15.9 10.5A5.9 5.9 0 1 1 10 4.1' stroke='var(--icon-stroke, %231a1a1a)' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M13 1.5 L10 4.5 L7 1.5' stroke='var(--icon-stroke, %231a1a1a)' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round' transform='rotate(90 10 10)' /%3E%3C/svg%3E");
-    /* Remove text properties */
-    color: transparent;
-    font-size: 0;
-    line-height: 0;
-    text-shadow: none;
+    /* Use text handle styles */
+    background-color: rgba(170, 107, 209, 0.7);
+    color: var(--handle-image-active-bg); /* Cyan icon color */
+    font-family: sans-serif;
+    font-weight: bold;
+    font-size: var(--handle-icon-size);
+    line-height: calc(var(--handle-size) - 3px);
+    text-shadow: 1px 1px 1px var(--outline-black);
+    background-image: none; /* Ensure no bg image */
 }
 .imgOverlay .rotation-handle:hover {
-     opacity: 0.85;
-     transform: translateX(-50%) scale(1.05);
+    background-color: var(--interdimensional-purple);
 }
 
 
 /* --- Resize Handle --- */
 
-/* Resize Handle Common Base - Define Green Diagonal Arrow Icon for potential use */
+/* Resize Handle Common Base */
 .resize-handle-base {
     background-color: var(--rick-green); /* Base green background */
     background-repeat: no-repeat;
     background-position: center center;
-    background-size: 65% 65%; /* Default size for diagonal arrow */
     transition: background-color 0.2s ease, transform 0.1s ease;
-    /* Green Diagonal Arrow SVG - used by image resize */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 5 L15 15 M5 5 L9 5 M5 5 L5 9 M15 15 L11 15 M15 15 L15 11' stroke='var(--icon-stroke, %231a1a1a)' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    /* Base icon size - overridden by specific handles */
+    background-size: 60% 60%;
 }
 .resize-handle-base:hover { background-color: #7cac3a; transform: scale(1.1); }
 .resize-handle-base:active { background-color: #5f832d; transform: scale(0.95); }
@@ -388,28 +379,26 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
     position: absolute;
     bottom: calc(-0.5 * var(--handle-size) - 1px);
 }
-/* TEXT Specific: Position Right, EW Cursor, Width Icon - RESTORED */
+/* TEXT Specific: Position Right, EW Cursor, Width Icon */
 .textOverlay .resize-handle-right {
     display: block;
     right: calc(-0.5 * var(--handle-size) - 1px);
     cursor: ew-resize;
-    /* Restore original width SVG icon */
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3 10 H17 M3 10 L7 6 M3 10 L7 14 M17 10 L13 6 M17 10 L13 14' stroke='%231a1a1a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-color: var(--rick-green); /* Ensure green background */
-    background-size: 60% 60%; /* Restore original size */
 }
-/* IMAGE Specific: Position Bottom-Left, NWSE Cursor, Green Diagonal Arrow Icon - MODIFIED */
+/* IMAGE Specific: Position Bottom-Left, NWSE Cursor, Rotated Width Icon - MODIFIED */
 .imgOverlay .resize-handle-right {
     right: auto; /* Remove right positioning */
     left: calc(-0.5 * var(--handle-size) - 1px); /* Position Left */
     cursor: nwse-resize; /* Corner resize cursor */
-    /* Icon IS inherited from .resize-handle-base */
-    background-image: inherit;
-    background-color: var(--rick-green); /* Ensure green background */
-    background-size: 65% 65%; /* Use size defined in base */
+    /* Use the text width icon */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3 10 H17 M3 10 L7 6 M3 10 L7 14 M17 10 L13 6 M17 10 L13 14' stroke='%231a1a1a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    /* Rotate the handle visually */
+    transform: rotate(45deg);
+    transform-origin: center center;
 }
 
-/* Left Resize Handle (Font Size for Text, Hidden for Image) - RESTORED */
+/* Left Resize Handle (Font Size for Text, Hidden for Image) */
 .resize-handle-left {
     position: absolute;
     bottom: calc(-0.5 * var(--handle-size) - 1px);
@@ -419,8 +408,6 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
     cursor: ns-resize; /* Restore cursor */
     /* Restore original font-size SVG icon */
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 3 V17 M10 3 L6 7 M10 3 L14 7 M10 17 L6 13 M10 17 L14 13' stroke='%231a1a1a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-color: var(--rick-green); /* Ensure green background */
-    background-size: 60% 60%; /* Restore original size */
 }
 .imgOverlay .resize-handle-left { display: none; } /* Still hidden for images */
 
@@ -691,9 +678,13 @@ body.modal-open .modal {
     input[type="file"] { font-size: 0.7rem;}
     .file-upload-row input[type="file"] { max-width: 150px; }
     :root { --handle-size: 20px; --handle-icon-size: 11px; --min-font-size: 6px;} /* Adjusted handle size */
-    .resize-handle-base { background-size: 60% 60%; } /* Original scale for smaller handle */
-    .imgOverlay .resize-handle-right { background-size: 65% 65%; } /* Keep diagonal slightly larger */
-    .imgOverlay .rotation-handle { background-size: 75% 75%; } /* Adjust rotate icon size */
+    /* Adjust icon sizes for smaller handles */
+    .textOverlay .resize-handle-right,
+    .textOverlay .resize-handle-left { background-size: 55% 55%; }
+    .imgOverlay .resize-handle-right { background-size: 55% 55%; }
+    .imgOverlay .rotation-handle,
+    .textOverlay .rotation-handle { font-size: var(--handle-icon-size); line-height: calc(var(--handle-size) - 4px); }
+
     #final-actions, #prefix-final-actions { gap: 5px; }
     .text-style-row { gap: 4px 6px; }
     .text-style-row select { min-width: 90px; }
@@ -732,9 +723,9 @@ body.modal-open .modal {
      #final-actions, #prefix-final-actions { flex-direction: column; gap: 4px; margin-bottom: 0.3rem;}
      #final-actions button, #savePrefixBtn { width: 100%; }
      /* Further adjust icon sizes if needed */
-     /* .resize-handle-base { background-size: 50% 50%; } */
-     /* .imgOverlay .resize-handle-right { background-size: 60% 60%; } */
-     /* .imgOverlay .rotation-handle { background-size: 70% 70%; } */
+     .resize-handle-base { background-size: 50% 50%; }
+     .imgOverlay .resize-handle-right { background-size: 50% 50%; }
+
      #sign-gallery-container { max-height: 180px; }
      .sign-item { width: 65px; }
      .sign-item img { height: 35px; }
