@@ -1,3 +1,5 @@
+// --- START OF FILE script.js ---
+
 // --- Global Constants ---
 const canvasWidth = 2048;
 const canvasHeight = 2048;
@@ -169,11 +171,15 @@ function setControlsDisabled(isDisabled) {
 }
 
 // ===========================================================
-// setSignMode - Manages visibility and state between modes
+// setSignMode - Manages visibility and state between modes (FIX APPLIED)
 // ===========================================================
 function setSignMode(mode) {
     const previousMode = currentSignMode;
     if (mode === previousMode) return; // No change needed
+
+    // --- Set new mode state FIRST ---
+    // This ensures subsequent checks/functions know the *intended* new mode
+    currentSignMode = mode; // <-- MOVED HERE
 
     const customOverlays = container.querySelectorAll('.textOverlay, .imgOverlay');
 
@@ -202,13 +208,14 @@ function setSignMode(mode) {
             selectedSignItem = null;
         }
         // Redraw canvas with base image + custom color overlay
+        // Now applyOverlay will correctly see currentSignMode is 'custom'
         if (baseImage.complete) {
-            applyOverlay(false);
+            applyOverlay(false); // <-- This should now work correctly
         }
     }
 
-    // --- Set new mode and update UI ---
-    currentSignMode = mode;
+    // --- Update UI text and visibility ---
+    // currentSignMode is already set
     nftStatusEl.textContent = `Mode selected: ${mode === 'prefix' ? 'Signs Gallery' : 'Custom Sign'}.`;
     nftStatusEl.className = '';
 
@@ -228,6 +235,7 @@ function setSignMode(mode) {
     // Always update the final action buttons based on the new mode and state
     updateCustomActionButtons();
 }
+
 
 // Updates ALL action buttons based on current mode and state
 function updateCustomActionButtons() {
@@ -504,7 +512,7 @@ function addText() { /* ... code from previous response ... */
     textEl.style.color = textColor.value; textEl.style.fontSize = `${DEFAULT_FONT_SIZE}px`; textEl.style.fontFamily = fontFamily.value;
     textEl.style.transform = `translate(-50%, -50%) rotate(0deg)`; textEl.style.zIndex = "10"; textEl.style.width = 'auto'; textEl.style.whiteSpace = 'nowrap'; textEl.style.overflow = 'hidden';
 
-    const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = 'â»'; textEl.appendChild(rotateHandle);
+    const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = '↻'; textEl.appendChild(rotateHandle);
     const resizeHandleRight = document.createElement("div"); resizeHandleRight.className = "handle resize-handle-base resize-handle-right"; resizeHandleRight.title = "Resize Width"; textEl.appendChild(resizeHandleRight);
     const resizeHandleLeft = document.createElement("div"); resizeHandleLeft.className = "handle resize-handle-base resize-handle-left"; resizeHandleLeft.title = "Resize Font Size"; textEl.appendChild(resizeHandleLeft);
 
@@ -540,7 +548,7 @@ function addImage() { /* ... code from previous response ... */
          };
         img.onerror = ()=>{ console.error("Error loading added image data."); nftStatusEl.textContent="Error displaying uploaded image."; nftStatusEl.className='error'; wrapper.remove(); };
         wrapper.appendChild(img);
-        const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = 'â»'; wrapper.appendChild(rotateHandle);
+        const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = '↻'; wrapper.appendChild(rotateHandle);
         const resizeHandleRight = document.createElement("div"); resizeHandleRight.className = "handle resize-handle-base resize-handle-right"; resizeHandleRight.title = "Resize Image"; wrapper.appendChild(resizeHandleRight);
         wrapper.addEventListener("mousedown", handleImageDragStart); wrapper.addEventListener("touchstart", handleImageDragStart, { passive: true });
         rotateHandle.addEventListener("mousedown", handleImageRotateStart); rotateHandle.addEventListener("touchstart", handleImageRotateStart, { passive: true });
@@ -734,3 +742,5 @@ function saveImage() {
          }
      }, 100);
 }
+
+// --- END OF FILE script.js ---
