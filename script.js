@@ -1,193 +1,767 @@
-// --- Obținere Elemente ---
-const doNotClick = document.getElementById("doNotClickBtn");
-const realOptions = document.getElementById("realOptions");
-const crazyTextEl = document.getElementById("crazyText");
-const createSignBtn = document.getElementById("createSignBtn");
-const galleryBtn = document.getElementById("galleryBtn");
-const msgBox = document.getElementById("messageBox");
-const consoleOut = document.getElementById("consoleOutput");
-const bodyEl = document.body;
-const titleEl = document.querySelector('h1');
-const alienEl = document.getElementById('alienImage');
-const scoreDisplay = document.getElementById('scoreDisplay');
-const jumpscareVisualEl = document.getElementById('jumpscareVisual');
-const imageFlashOverlay = document.getElementById("imageFlashOverlay");
-const loadingBarContainer = document.getElementById("fakeLoadingBarContainer");
-const loadingBarProgress = document.getElementById("fakeLoadingBarProgress");
-const centerStage = document.getElementById("centerStage");
-const rootEl = document.documentElement;
-const madeByBtn = document.getElementById('madeByBtn');
-const madeByPopup = document.getElementById('madeByPopup');
-const closeMadeByPopup = document.getElementById('closeMadeByPopup');
-const copyBtns = document.querySelectorAll('.copy-btn');
+// --- Global Constants ---
+const canvasWidth = 2048;
+const canvasHeight = 2048;
+// ENSURE KEYS MATCH <option value="..."> EXACTLY
+const nftContracts = {
+    "GHN": { address: "0xe6d48bf4ee912235398b96e16db6f310c21e82cb", name: "GHN" },
+    "AHC": { address: "0x9370045ce37f381500ac7d6802513bb89871e076", name: "AHC" }
+};
+const nftAbi = ["function tokenURI(uint256 tokenId) public view returns (string)"];
+const provider = new ethers.JsonRpcProvider("https://eth.llamarpc.com");
+const DEFAULT_FONT_SIZE = 15;
+const MIN_FONT_SIZE = 8;
+const FONT_SIZE_SENSITIVITY = 0.25;
+const SIGNS_JSON_PATH = "signs.json"; // Path relative to index.html
 
-// --- Stare Joc ---
-let clickCount = 0;
-const phrases = [ "Don't.", "Seriously, what part of 'Don't' is confusing?", "Your cursor is hovering. I see it. Stop.", "Okay, last chance saloon. Back away slowly.", "FINE! YOU BROKE IT! HAPPY NOW?! RUUUUUUN!" ];
-const MAX_CLICKS_BEFORE_UNLOCK = 5;
-let score = 0;
-let audioContext;
-let originalAlienSrc = 'https://ticuv.github.io/SignOMatic/assets/images/alien.png'; // Path absolut corect
-let originalTitle = document.title;
-const AVAILABLE_FONTS = ["'Roboto', sans-serif", "'Luckiest Guy', cursive", "'Comic Sans MS', cursive", "'Courier Prime', monospace", "'Special Elite', cursive", "serif", "sans-serif", "monospace", "cursive"];
+// --- Global State ---
+let baseImage = new Image();
+let activeElement = null; // For custom mode overlays
+let textInteractionState = { isDragging: false, isRotating: false, isResizingWidth: false, isResizingFontSize: false, startX: 0, startY: 0, startLeft: 0, startTop: 0, rotateCenterX: 0, rotateCenterY: 0, rotateStartAngle: 0, startWidth: 0, currentRotationRad: 0, startFontSize: DEFAULT_FONT_SIZE };
+let imageInteractionState = { isDragging: false, isRotating: false, isResizing: false, startX: 0, startY: 0, startLeft: 0, startTop: 0, centerX: 0, centerY: 0, startAngle: 0, currentRotationRad: 0, startWidth: 0, startHeight: 0, aspectRatio: 1 };
+let currentSignMode = null; // 'prefix' or 'custom'
+let signConfigData = null;
+let isSignConfigLoading = false;
+let selectedSignItem = null; // Track selected sign DOM element in gallery
+let appliedPrefixSignImage = null; // Keep track of the currently applied prefix sign Image object
 
-// --- Stare Cooldown ---
-const effectCooldowns = {};
-const MAJOR_EFFECT_COOLDOWN_CLICKS = 15;
-const FILTER_EFFECT_COOLDOWN_CLICKS = 8;
+// --- DOM Element References ---
+let canvas, ctx, container, textInput, textColor, fontFamily, removeBtn, nftStatusEl,
+    nftCollectionSelect, nftTokenIdInput, loadNftBtn, overlayColorInput,
+    addTextBtn, addImageBtn, resetCanvasBtn, imageUpload,
+    saveFullBtn, // Save button for Custom mode
+    signTypeChoiceGroup, signTypePrefixRadio, signTypeCustomRadio,
+    prefixOptionsGroup, customOptionsGroup,
+    signGalleryContainer, savePrefixBtn, prefixFinalActions;
 
-// URL de bază pentru asset-uri (corect pentru GitHub Pages)
-const GITHUB_PAGES_ASSET_BASE_URL = 'https://ticuv.github.io/SignOMatic/assets/';
+// --- Initialization ---
+window.onload = () => {
+    // Get Element References
+    canvas = document.getElementById("canvas");
+    ctx = canvas.getContext("2d", { willReadFrequently: true });
+    container = document.getElementById("canvas-container");
+    textInput = document.getElementById("textInput");
+    textColor = document.getElementById("textColor");
+    fontFamily = document.getElementById("fontFamily");
+    removeBtn = document.getElementById("removeBtn");
+    nftStatusEl = document.getElementById("nftStatus");
+    nftCollectionSelect = document.getElementById("nftCollection");
+    nftTokenIdInput = document.getElementById("nftTokenId");
+    loadNftBtn = document.getElementById("loadNftBtn");
+    overlayColorInput = document.getElementById("overlayColor");
+    addTextBtn = document.getElementById("addTextBtn");
+    imageUpload = document.getElementById("imageUpload");
+    addImageBtn = document.getElementById("addImageBtn");
+    resetCanvasBtn = document.getElementById("resetCanvas");
+    saveFullBtn = document.getElementById("saveFullBtn"); // Custom Save
+    signTypeChoiceGroup = document.getElementById("sign-type-choice-group");
+    signTypePrefixRadio = document.getElementById("signTypePrefix");
+    signTypeCustomRadio = document.getElementById("signTypeCustom");
+    prefixOptionsGroup = document.getElementById("prefix-options-group");
+    customOptionsGroup = document.getElementById("custom-options-group");
+    signGalleryContainer = document.getElementById("sign-gallery-container");
+    savePrefixBtn = document.getElementById("savePrefixBtn");
+    prefixFinalActions = document.getElementById("prefix-final-actions"); // Container for prefix save button
 
-// --- Funcții Utilitare ---
-function updateConsole(message) { consoleOut.innerText+=message+"\n";const e=consoleOut.innerText.split("\n");e.length>100&&(consoleOut.innerText=e.slice(e.length-100).join("\n")),consoleOut.scrollTop=consoleOut.scrollHeight}
-function updateScoreDisplay() { scoreDisplay.innerText = `Score: ${score}`; }
-function addScore(change) { score += change; updateScoreDisplay(); scoreDisplay.classList.remove('score-pulse', 'score-penalty'); void scoreDisplay.offsetWidth; if (change > 0) { scoreDisplay.classList.add('score-pulse'); } else if (change < 0) { scoreDisplay.classList.add('score-penalty'); } setTimeout(() => { scoreDisplay.classList.remove('score-pulse', 'score-penalty'); }, 350); }
-function getRandomWord() { const words = ["the", "be", "to", "of", "and", "a", "in", "that", "have", "I", "it", "for", "not", "on", "with", "he", "as", "you", "do", "at", "brain", "rot", "meme", "skibidi", "sigma", "click", "button", "chaos", "dimension", "why", "random", "gyatt", "rizz", "game", "banana", "toilet", "sus", "among", "based", "cringe", "noob", "pro", "hack", "glitch", "pixel", "score", "what", "is", "happening", "sign", "create", "gallery", "ticuv", "error", "warning", "system", "file", "delete", "yes", "no", "maybe", "run", "stop", "wait", "go", "red", "blue", "green", "acid", "trip", "explode", "kaboom", "ohio", "fanum", "tax", "uwu", "bruh", "yeet", "vibe", "meta", "doom", "real?", "fake?", "jinx", "huh?", "font", "color", "style", "css", "js", "html", "debug", "compile", "render"]; return words[Math.floor(Math.random() * words.length)]; }
-function getRandomColor() { return `hsl(${Math.random() * 360}, ${Math.random()*70+30}%, ${Math.random() * 50 + 25}%)`; }
+    // Initial Setup
+    setControlsDisabled(true);
+    loadNftBtn.disabled = false;
+    nftCollectionSelect.disabled = false;
+    nftTokenIdInput.disabled = false;
+    clearCanvas();
+    setupEventListeners();
+};
 
-// --- Funcții Efecte (Toate funcțiile din codul original) ---
-function playSimpleSound(frequency = 440, duration = 0.1, type = 'sine', volume = 0.3) { if (typeof audioContext === 'undefined') { return; } if (!audioContext) { return; } try { const oscillator = audioContext.createOscillator(); const gainNode = audioContext.createGain(); oscillator.type = type; oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime); gainNode.gain.setValueAtTime(volume, audioContext.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration); oscillator.connect(gainNode); gainNode.connect(audioContext.destination); oscillator.start(audioContext.currentTime); oscillator.stop(audioContext.currentTime + duration); } catch (e) { updateConsole(">> Audio Error: " + e.message); } }
-function shakePage(intensity = 8, duration = 180) { if (!bodyEl) return; bodyEl.style.setProperty('--shake-intensity', `${intensity}px`); const animationName = `screenShake-${Date.now()}`; bodyEl.style.animation = `${animationName} ${duration}ms ease-in-out`; setTimeout(() => { if (bodyEl.style.animation.includes(animationName) || bodyEl.style.animation.includes('screenShake')) { bodyEl.style.animation = ''; } }, duration); }
-function createFallingEmoji() { const emojis = ['💀','😂','🔥','💯','✨','💩','👻','👽','👾','🤖','🧠','🍌','🍕','🍔','🍟','🚽','👀','🤔','🤯','💥','❓','❗','💸','📈','📉','☢️','☣️','✔️','❌','📢','🔔','⚠️','🪿','🖱️','💾','💿','❤️‍🔥','🫠','💥','💣','🧱','🧯','💸','🐸','🐢','🌵','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍁','🍂','🍃']; const emoji = document.createElement('span'); emoji.innerText = emojis[Math.floor(Math.random() * emojis.length)]; emoji.style.position = 'fixed'; emoji.style.left = `${Math.random() * 100}vw`; emoji.style.top = `-60px`; emoji.style.fontSize = `${Math.random() * 3.5 + 2}rem`; emoji.style.userSelect = 'none'; emoji.style.zIndex = `${Math.floor(Math.random() * 500) + 1000}`; emoji.style.pointerEvents = 'none'; emoji.style.filter = `hue-rotate(${Math.random()*360}deg) drop-shadow(2px 2px 3px rgba(0,0,0,0.5))`; const fallDuration = Math.random() * 1.5 + 1.2; emoji.style.animation = `fall ${fallDuration}s linear forwards`; document.body.appendChild(emoji); setTimeout(() => emoji.remove(), fallDuration * 1000 + 500); }
-function changeBackgroundColor() { const randomColor = getRandomColor(); updateConsole(`   -> Changing background color to ${randomColor}`); bodyEl.style.backgroundColor = randomColor; }
-function flashMessageBox() { const originalColor = getComputedStyle(msgBox).borderColor; msgBox.style.transition = 'all 0.04s ease-in-out'; const flashColor = `hsl(${Math.random() * 360}, 100%, 75%)`; msgBox.style.borderColor = flashColor; msgBox.style.transform = 'scale(1.12) rotate(2.5deg)'; setTimeout(() => { msgBox.style.borderColor = originalColor; msgBox.style.transform = 'scale(1) rotate(0deg)'; }, 40); setTimeout(() => { msgBox.style.borderColor = flashColor; msgBox.style.transform = 'scale(1.12) rotate(-2.5deg)'; setTimeout(() => { msgBox.style.borderColor = originalColor; msgBox.style.transform = 'scale(1) rotate(0deg)'; }, 40); }, 100); }
-function changeElementStyle(element, property, values) { if (!element) return; const randomValue = values[Math.floor(Math.random() * values.length)]; element.style[property] = randomValue; }
-function toggleBodyFilter(filterClass) { updateConsole(`   -> Applying filter: ${filterClass}`); bodyEl.classList.add(filterClass); }
-const asciiArt = [ "`(o o) / \n ( V )\\ \n /---\\", "<(^.^<) \n (> ^.^)>", "[ Z A P ! ]", "ERROR 418:\nI'm a teapot", " /\\_/\\ \n( o.o ) \n > ^ <", "Loading...\n | | | |\n @ @ @ @", "YOU CLICKED\nTHE BUTTON", "WHY THO???", "BRAIN.EXE\nNOT FOUND", "SKIBIDI\nBOP BOP\nYES YES", "SIGMA\nDETECTED", "GYATT LEVEL:\nOVER 9000", "ERROR:\nEXPLOSION\nIMMINENT?"];
-function displayAsciiArt() { const art = asciiArt[Math.floor(Math.random() * asciiArt.length)]; updateConsole(`   -> Displaying ASCII Art.`); msgBox.innerText = art; msgBox.style.fontFamily = 'monospace'; msgBox.style.whiteSpace = 'pre'; msgBox.style.fontSize = '1.4rem'; msgBox.style.textAlign = 'center'; msgBox.style.fontStyle = 'normal'; msgBox.style.color = 'var(--slime-green)'; }
-function toggleGlitchEffect(element, intensity = 4) { if (!element) return; updateConsole(`   -> Applying glitch to ${element.id || element.tagName} (Intensity: ${intensity})`); element.style.setProperty('--glitch-x', `${intensity*1.8}px`); element.style.setProperty('--glitch-y', `${intensity * 1.5}px`); element.classList.add('glitch-effect'); }
-function makeElementFly(element) { if (!element || element.classList.contains('fly-animation')) return; updateConsole(`   -> Making ${element.id || element.tagName} fly! WHOOSH!`); element.classList.add('fly-animation'); setTimeout(() => { if(element) element.classList.remove('fly-animation'); }, 1800 + 100); }
-function triggerVisualJumpscare() { const imageUrl = GITHUB_PAGES_ASSET_BASE_URL + 'images/scare.png'; const soundUrl = GITHUB_PAGES_ASSET_BASE_URL + 'sounds/scream.mp3'; const duration = 3000 + Math.random() * 1000; updateConsole("!!! VISUAL JUMPSCARE TRIGGERED (Longer + Scream) !!!"); console.warn("Jumpscare Image Triggered!"); jumpscareVisualEl.style.backgroundImage = `url('${imageUrl}')`; jumpscareVisualEl.classList.add('visible'); try { const audio = new Audio(soundUrl); audio.volume = 0.9; audio.play().catch(e => updateConsole(" >> Failed to play scream sound: " + e.message)); } catch (e) { updateConsole(" >> Error creating Audio object for scream sound: " + e.message); triggerAuditoryJumpscare(0.95); } bodyEl.style.transition = 'background-color 0.05s ease'; bodyEl.style.backgroundColor = '#900'; setTimeout(() => { bodyEl.style.backgroundColor = getComputedStyle(bodyEl).getPropertyValue('--dark-matter'); }, 50); setTimeout(() => { jumpscareVisualEl.classList.remove('visible'); updateConsole("   -> Jumpscare visual faded."); }, duration); if (Math.random() < 0.8) { const penalty = Math.floor(Math.random() * 76 + 25); updateConsole(`   -> Lost ${penalty} points from maximum shock!`); addScore(-penalty); } }
-function triggerAuditoryJumpscare(volume = 0.75) { updateConsole("!!! AUDITORY JUMPSCARE TRIGGERED !!!"); console.warn("Auditory Jumpscare Triggered!"); playSimpleSound(Math.random() * 200 + 40, 0.5 + Math.random() * 0.4, 'square', volume * 1.3); setTimeout(() => playSimpleSound(Math.random() * 1500 + 800, 0.25 + Math.random() * 0.15, 'sawtooth', volume * 1.1), 30); }
-function changeCursor() { const cursors = ['wait', 'crosshair', 'pointer', 'help', 'grab', 'not-allowed', 'zoom-in', 'zoom-out', 'none', 'progress', 'cell', 'text', 'vertical-text', 'alias', 'copy', 'move', 'no-drop', 'all-scroll', 'col-resize', 'row-resize', 'n-resize', 'e-resize', 's-resize', 'w-resize', 'ne-resize', 'nw-resize', 'se-resize', 'sw-resize', 'ew-resize', 'ns-resize', 'nesw-resize', 'nwse-resize', 'context-menu']; const randomCursor = cursors[Math.floor(Math.random() * cursors.length)]; updateConsole(`   -> Changing cursor to: ${randomCursor}`); bodyEl.style.cursor = randomCursor; }
-function scrambleText(element) { if (!element || !element.innerText || element.classList.contains('text-scrambled')) return; const originalText = element.innerText; updateConsole(`   -> Scrambling text in ${element.id || element.tagName}`); element.classList.add('text-scrambled'); const chars = originalText.split(''); for (let i = chars.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [chars[i], chars[j]] = [chars[j], chars[i]]; } element.innerText = chars.join(''); setTimeout(() => { if (element && element.classList.contains('text-scrambled')) { element.innerText = originalText; element.classList.remove('text-scrambled'); updateConsole(`   -> Unscrambled ${element.id || element.tagName}`); } }, 700 + Math.random() * 500); }
-function showFakeError() { updateConsole("   -> Displaying Fake Error Message"); console.error("Fake System Error Displayed!"); const errorEl = document.createElement('div'); errorEl.className = 'fake-error'; const titles = ["Critical Stop", "Dimension Error", "Sanity Check Failed", "System Warning", "Brain Leak", "Meme Overflow", "Rizz Levels Unstable"]; const messages = ["Operation failed due to unexpected button clicks.", "Cannot compute chaos level. Abort?", "Your reality license has expired. Please click OK to panic.", "Stack overflow in fun-dimension.exe.", "Error: Too much brain rot detected.", "Skibidi Rizz calculation failed.", "Ohio dimension not responding."]; errorEl.innerHTML = `<div class="fake-error-title">${titles[Math.floor(Math.random()*titles.length)]}</div><div>${messages[Math.floor(Math.random()*messages.length)]}</div><div class="fake-error-button"><button>OK?</button></div>`; errorEl.querySelector('button').onclick = () => { updateConsole("   -> Fake error 'OK?' clicked. Or was it?"); playSimpleSound(Math.random() * 600 + 600, 0.05, 'triangle'); errorEl.style.opacity = '0'; errorEl.style.transform = 'translate(-50%, -50%) scale(0.6) rotate(25deg)'; setTimeout(() => errorEl.remove(), 200); addScore(Math.random() > 0.4 ? Math.floor(Math.random()*16)+5 : -Math.floor(Math.random()*11)-5); }; document.body.appendChild(errorEl); void errorEl.offsetWidth; errorEl.classList.add('visible'); setTimeout(() => { if (document.body.contains(errorEl)) { errorEl.style.opacity = '0'; errorEl.style.transform = 'translate(-50%, -50%) scale(0.6) rotate(-25deg)'; setTimeout(() => errorEl.remove(), 200); updateConsole("   -> Fake error auto-closed. Probably."); } }, 2200 + Math.random() * 1300); }
-function spawnCrazyButton() { const btn = document.createElement('button'); const messages = ["+?", "-?", "Click?", "Risk?", "Reward!", "???", "Void", "Don't!", "Do It!", "YES", "NO", "Maybe", "Error", "Meme?", "Rot?", "Again!", "Skibidi?", "Sigma?", "Rizz?", "Sign?", "Corrupt?", "Kaboom?", "Font?", "Color?", "Hide?", "Sound?"]; const points = Math.random() > 0.45 ? (Math.floor(Math.random()*46)+15) : -(Math.floor(Math.random()*36)+10); const message = messages[Math.floor(Math.random() * messages.length)]; btn.innerText = message; btn.className = 'btn crazy-spawned-button'; btn.style.left = `${Math.random() * 88 + 4}vw`; btn.style.top = `${Math.random() * 88 + 4}vh`; btn.style.backgroundColor = `hsl(${Math.random() * 360}, ${Math.random() * 50 + 50}%, ${Math.random() * 50 + 35}%)`; btn.style.transform = `rotate(${Math.random() * 120 - 60}deg) scale(${Math.random() * 0.7 + 0.6})`; btn.style.filter = `blur(${Math.random()*2}px) hue-rotate(${Math.random()*60-30}deg)`; btn.onclick = (e) => { e.stopPropagation(); const actionText = points > 0 ? `Gained ${points} points!` : `Lost ${Math.abs(points)} points!`; msgBox.innerText = `You clicked "${message}"! ${actionText}`; addScore(points); playSimpleSound(points > 0 ? Math.random()*500+1500 : Math.random()*100+50, 0.18, points > 0 ? 'triangle' : 'sawtooth', 0.45); btn.remove(); }; document.body.appendChild(btn); setTimeout(() => { if (document.body.contains(btn)) { btn.style.transition = 'opacity 0.25s ease, transform 0.25s ease'; btn.style.opacity = '0'; btn.style.transform += ' scale(2) rotate(90deg)'; setTimeout(() => btn.remove(), 250); } }, Math.random() * 1800 + 1000); }
-function flashRandomImage() { const images = [ GITHUB_PAGES_ASSET_BASE_URL + 'images/banana.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/brainrot.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/toilet.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/face.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/tv%20error.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/pizza.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/chicken.png', ]; const randomImg = images[Math.floor(Math.random() * images.length)]; updateConsole(`   -> Flashing image: ${randomImg.split('/').pop()}`); imageFlashOverlay.style.backgroundImage = `url('${randomImg}')`; imageFlashOverlay.classList.add('visible'); playSimpleSound(Math.random() * 300 + 900, 0.08, 'square', 0.25); setTimeout(() => { imageFlashOverlay.classList.remove('visible'); }, 80 + Math.random() * 120); }
-function distortElementText(element) { if (!element || element.classList.contains('element-distorted')) return; updateConsole(`   -> Distorting ${element.id || element.tagName}`); element.classList.add('element-distorted'); setTimeout(() => { if (element) element.classList.remove('element-distorted'); }, 500 + Math.random() * 600); }
-function shiftElementLayout(element) { if (!element || element.classList.contains('layout-shifted')) return; updateConsole(`   -> Shifting layout of ${element.id || element.tagName}`); const shiftX = Math.random() * 130 - 65; const shiftY = Math.random() * 90 - 45; const shiftRot = Math.random() * 30 - 15; element.style.setProperty('--shift-x', `${shiftX}px`); element.style.setProperty('--shift-y', `${shiftY}px`); element.style.setProperty('--shift-rot', `${shiftRot}deg`); element.classList.add('layout-shifted'); setTimeout(() => { if (element) { element.classList.remove('layout-shifted'); element.style.transform = ''; } }, 650 + Math.random() * 550); }
-function playMemeSound() { const sounds = [ GITHUB_PAGES_ASSET_BASE_URL + 'sounds/poweful-dark-vine-boom-sfx_130bpm_A%23_minor.wav', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/scream.mp3', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/windows-error-sound.wav', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/chicken_wk5y8jIL.mp3', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/wrong-answer_F%23_major.wav', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/glitch-processing-error-betacut-1-00-01.mp3', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/button-202966.mp3', GITHUB_PAGES_ASSET_BASE_URL + 'sounds/in-game-level-uptype-2-230567.mp3' ]; const randomSound = sounds[Math.floor(Math.random() * sounds.length)]; updateConsole(`   -> Playing sound: ${randomSound.split('/').pop()}`); try { const audio = new Audio(randomSound); audio.volume = 0.5 + Math.random() * 0.3; audio.play().catch(e => updateConsole(" >> Failed to play sound: " + e.message)); } catch (e) { updateConsole(" >> Error creating Audio object for sound: " + e.message); } }
-function generateWordSalad() { updateConsole("   -> Generating Word Salad..."); let salad = ""; const len = Math.floor(Math.random() * 25) + 10; for (let i = 0; i < len; i++) { salad += getRandomWord() + " "; } const endChars = ["?", "!", ".", "...", "???", "!!", "WTF", ":)", ":(", "💀", "🔥"]; msgBox.innerText = salad.trim() + endChars[Math.floor(Math.random()*endChars.length)]; msgBox.style.fontFamily = "'Comic Sans MS', cursive, sans-serif"; msgBox.style.fontWeight = 'bold'; msgBox.style.fontStyle = 'normal'; msgBox.style.textAlign = 'left'; msgBox.style.color = `hsl(${Math.random() * 360}, 100%, 80%)`; }
-function simulateMouseInvert() { updateConsole("   -> Mouse Input Reversed? Maybe?"); msgBox.innerText = "CRITICAL ERROR: Mouse input polarity reversed! Good luck clicking! (not really)"; bodyEl.style.cursor = 'not-allowed'; setTimeout(() => { if (bodyEl.style.cursor === 'not-allowed') { bodyEl.style.cursor = 'auto'; updateConsole("   -> Mouse polarity restored. I think."); } }, 1800 + Math.random() * 1800); }
-function showFakeLoadingBar() { if (loadingBarContainer.classList.contains('visible')) return; updateConsole("   -> Displaying Fake Loading Bar..."); loadingBarContainer.classList.add('visible'); loadingBarProgress.style.width = '0%'; loadingBarProgress.style.transition = 'none'; loadingBarProgress.style.backgroundColor = 'var(--slime-green)'; let progress = 0; const intervalTime = 90 + Math.random() * 130; const interval = setInterval(() => { const jump = Math.random() * 12 + 3; progress += jump; if (progress >= 100) { progress = 100; loadingBarProgress.style.transition = `width ${0.1 + Math.random() * 0.15}s linear`; loadingBarProgress.style.width = `${progress}%`; clearInterval(interval); updateConsole("   -> Fake Loading Complete... probably loaded more chaos."); setTimeout(() => { loadingBarContainer.classList.remove('visible'); setTimeout(() => { loadingBarProgress.style.width = '0%'; loadingBarProgress.style.transition = 'none';}, 300); }, 400 + Math.random() * 400); if (Math.random() > 0.35) addScore(Math.floor(Math.random()*21)+10); } else { loadingBarProgress.style.transition = `width ${intervalTime / 1000 * (0.8 + Math.random()*0.4)}s linear`; loadingBarProgress.style.width = `${progress}%`; } if (progress < 95 && Math.random() < 0.04) { clearInterval(interval); updateConsole("   -> LOADING FAILED! RETREATING... OR NOT."); console.warn("Fake loading bar failed!"); loadingBarProgress.style.backgroundColor = 'var(--dumb-red)'; setTimeout(() => { loadingBarContainer.classList.remove('visible'); setTimeout(() => { loadingBarProgress.style.width = '0%'; loadingBarProgress.style.backgroundColor = 'var(--slime-green)'; loadingBarProgress.style.transition = 'none'; }, 300); addScore(-Math.floor(Math.random()*16)-5); }, 700 + Math.random() * 500); } }, intervalTime); }
-function toggleButtonClickability() { let targetButton = doNotClick; let targetName = "DO NOT CLICK"; if (realOptions.style.display === 'block' && Math.random() < 0.25) { targetButton = Math.random() < 0.5 ? createSignBtn : galleryBtn; targetName = targetButton.id === 'createSignBtn' ? "Create Sign" : "Gallery"; } if (!targetButton || targetButton.classList.contains('button-unclickable')) return; updateConsole(`   -> Button jammed! (${targetName}) Dimensional interference?`); const originalText = targetButton.innerText; targetButton.classList.add('button-unclickable'); const jammedTexts = ["JAMMED", "NOPE", "DEFECT", "???", ":(", "ERROR", "NOT NOW", "BUSY", "LOCKED", "DENIED", "WAIT"]; targetButton.innerText = jammedTexts[Math.floor(Math.random() * jammedTexts.length)]; setTimeout(() => { if (!targetButton) return; targetButton.classList.remove('button-unclickable'); const currentTextUpper = targetButton.innerText.toUpperCase(); let wasJammedText = false; for(const jammed of jammedTexts){ if(currentTextUpper === jammed) { wasJammedText = true; break;}} if (wasJammedText) { targetButton.innerText = originalText; } updateConsole(`   -> Button unjammed! (${targetName}) For now?`); playSimpleSound(600, 0.15, 'sine', 0.3); }, 1100 + Math.random() * 1600); }
-function displayExplosionWarning() { updateConsole("!!! CRITICAL WARNING ISSUED !!!"); console.warn("!!! DEVICE EXPLOSION IMMINENT WARNING DISPLAYED !!!"); msgBox.innerText = "WARNING! CONTINUED INTERACTION DETECTED! UNSTABLE ENERGY SPIKE! DEVICE MAY EXPLODE IN T-MINUS... CLICKING AGAIN IS ILL-ADVISED!"; msgBox.style.fontFamily = "'Luckiest Guy', cursive"; msgBox.style.color = 'var(--dumb-red)'; msgBox.style.fontWeight = 'bold'; msgBox.style.fontSize = '1.5rem'; msgBox.style.textAlign = 'center'; msgBox.style.fontStyle = 'normal'; msgBox.style.border = '4px solid var(--dumb-red)'; msgBox.style.textShadow = '1px 1px 2px black'; shakePage(15, 1500); playSimpleSound(50, 1.5, 'sawtooth', 0.8); setTimeout(showFakeExplosionPopup, 1800 + Math.random() * 1000); }
-function showFakeExplosionPopup() { if (document.querySelector('.fake-warning-popup')) return; updateConsole("   -> Displaying Fake 'Just Kidding' Popup"); const popupEl = document.createElement('div'); popupEl.className = 'fake-warning-popup'; popupEl.innerHTML = `<div class="fake-warning-title">Just Kidding!</div><div>Your device is perfectly fine! Probably. That was just a simulation to test your reaction. Or was it? Keep clicking to find out... or don't. It's your funeral... metaphorically speaking.</div><button id="fakeWarningOk">Okay...? 🤔</button>`; popupEl.querySelector('#fakeWarningOk').onclick = () => { updateConsole("   -> Fake warning 'Okay...?' clicked. Confusion++. "); playSimpleSound(Math.random() * 400 + 800, 0.08, 'triangle', 0.5); popupEl.style.opacity = '0'; popupEl.style.transform = 'translate(-50%, -50%) scale(0.5) rotate(-30deg)'; setTimeout(() => popupEl.remove(), 250); addScore(Math.random() > 0.2 ? Math.floor(Math.random()*21)+5 : -Math.floor(Math.random()*16)-5); }; document.body.appendChild(popupEl); void popupEl.offsetWidth; popupEl.classList.add('visible'); playSimpleSound(1200, 0.3, 'sine', 0.4); setTimeout(() => { if (document.body.contains(popupEl)) { popupEl.style.opacity = '0'; popupEl.style.transform = 'translate(-50%, -50%) scale(0.5) rotate(30deg)'; setTimeout(() => popupEl.remove(), 250); updateConsole("   -> Fake warning auto-closed. The mystery remains."); } }, 4500 + Math.random() * 2500); }
-function changePageTitle() { const titles = ["BRAIN ROT SIMULATOR", "CLICK FASTER!", "ERROR 404: SANITY NOT FOUND", "Skibidi Sign Creator?", "Are you Sigma?", "Ohio Official Website", "ticuv was here", "My CPU is Melting", "WHY?", "Just One More Click...", "Score: ???", "Dimension C-137", "Loading Memes...", "Do Not Click This Tab", originalTitle ]; const newTitle = titles[Math.floor(Math.random() * titles.length)]; updateConsole(`   -> Changing page title to: ${newTitle}`); document.title = newTitle; }
-function changeAlienImageTemporarily() { const alienImages = [ GITHUB_PAGES_ASSET_BASE_URL + 'images/glitch.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/eye.png', GITHUB_PAGES_ASSET_BASE_URL + 'images/circle.png', originalAlienSrc ]; const newSrc = alienImages[Math.floor(Math.random() * alienImages.length)]; if (alienEl && alienEl.src !== newSrc) { updateConsole(`   -> Changing alien image temporarily.`); alienEl.src = newSrc; setTimeout(() => { if (alienEl && alienEl.src === newSrc && newSrc !== originalAlienSrc) { alienEl.src = originalAlienSrc; updateConsole(`   -> Restored original alien image.`); } }, 1500 + Math.random() * 2000); } }
-function fillConsoleWithGibberish() { updateConsole("   -> Injecting console gibberish..."); const gibberishChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?@#$%^&*()[]{}/\\|;:<>.,`~ "; let gibberish = ">> SYSTEM OVERLOAD: KERNEL PANIC IMMINENT! <<\n"; const lines = Math.floor(Math.random() * 8) + 4; for (let i=0; i<lines; i++) { const lineLen = Math.floor(Math.random() * 60) + 10; for (let j=0; j<lineLen; j++) { gibberish += gibberishChars.charAt(Math.floor(Math.random() * gibberishChars.length)); } gibberish += "\n"; } consoleOut.innerText += gibberish; consoleOut.scrollTop = consoleOut.scrollHeight; playSimpleSound(Math.random() * 100 + 20, 0.8, 'square', 0.2); }
-function changeRootColorVar() { const colorVars = ['--rick-green', '--morty-yellow', '--portal-blue', '--interdimensional-purple', '--slime-green', '--dark-matter', '--outline-black', '--dumb-red', '--dumb-pink', '--score-color']; const varToChange = colorVars[Math.floor(Math.random() * colorVars.length)]; const newValue = getRandomColor(); updateConsole(`   -> Changing CSS variable ${varToChange} to ${newValue}`); rootEl.style.setProperty(varToChange, newValue); setTimeout(() => { if (Math.random() < 0.3) { const varToReset = colorVars[Math.floor(Math.random() * colorVars.length)]; let resetVal = '#ffffff'; if (varToReset === '--dark-matter') resetVal = '#1e1e2f'; else if (varToReset === '--rick-green') resetVal = '#97ce4c'; else if (varToReset === '--morty-yellow' || varToReset === '--score-color') resetVal = '#f0e14a'; if(resetVal) { updateConsole(`   -> Resetting CSS variable ${varToReset} to default (${resetVal})`); rootEl.style.setProperty(varToReset, resetVal); } } }, 1500 + Math.random() * 2000); }
-function randomizeElementFont(element) { if (!element) return; const randomFont = AVAILABLE_FONTS[Math.floor(Math.random() * AVAILABLE_FONTS.length)]; updateConsole(`   -> Changing font for ${element.id || element.tagName} to ${randomFont}`); element.style.fontFamily = randomFont; }
-function toggleElementVisibility(element) { if (!element) return; const isHidden = element.classList.contains('hidden-by-chaos'); if (isHidden) { element.classList.remove('hidden-by-chaos'); updateConsole(`   -> Making ${element.id || element.tagName} visible again.`); playSimpleSound(700, 0.05, 'sine', 0.2); } else { element.classList.add('hidden-by-chaos'); updateConsole(`   -> Hiding ${element.id || element.tagName}... poof!`); playSimpleSound(300, 0.1, 'square', 0.2); setTimeout(() => { if (element && element.classList.contains('hidden-by-chaos') && Math.random() < 0.6) { element.classList.remove('hidden-by-chaos'); updateConsole(`   -> ${element.id || element.tagName} auto-reappeared.`); playSimpleSound(750, 0.05, 'sine', 0.2); } }, 1800 + Math.random() * 2500); } }
-function logBrowserGibberish() { updateConsole(`   -> Logging nonsense to browser dev console (F12)...`); const type = Math.random(); const messages = ["Ignoring user input.", "Calculating skibidi factor...", "Reality matrix unstable.", "Memory leak detected... or is it?", "Segmentation fault (core dumped)... just kidding.", "TODO: Fix everything.", { data: getRandomWord(), value: Math.random() * 1000 }, ["Array", "of", "random", getRandomWord(), 42] ]; const msg = messages[Math.floor(Math.random() * messages.length)]; if (type < 0.4) { console.log("CHAOS LOG:", msg); } else if (type < 0.7) { console.warn("POTENTIAL ISSUE:", msg); } else { console.error("DEFINITELY AN ERROR:", msg); } if (Math.random() < 0.2) { console.table([{ word1: getRandomWord(), word2: getRandomWord(), value: Math.random() }, { word1: getRandomWord(), word2: getRandomWord(), value: Math.random() }]); } }
-function multiSoundChaos() { updateConsole("   -> Multi-sound chaos!"); const numSounds = Math.floor(Math.random() * 4) + 2; for (let i = 0; i < numSounds; i++) { setTimeout(() => { playSimpleSound( Math.random() * 1500 + 50, Math.random() * 0.4 + 0.1, ['sine', 'square', 'sawtooth', 'triangle'][Math.floor(Math.random() * 4)], Math.random() * 0.25 + 0.05 ); }, Math.random() * 150); } }
-function addFakeStatusText() { document.querySelectorAll('.fake-status-text').forEach(el => el.remove()); updateConsole("   -> Adding fake status text..."); const statusEl = document.createElement('div'); statusEl.className = 'fake-status-text'; const statuses = [ `System Status: ${getRandomWord().toUpperCase()}`, `Brain Rot Level: ${Math.floor(Math.random()*100)}%`, `Chaos Sync: ${Math.random().toFixed(4)}`, `Rizz Calibration: PENDING`, `Dimension: ${getRandomWord()}-${Math.floor(Math.random()*900+100)}`, `WARNING: ${getRandomWord()} detected`, `ticuv_connection: ${Math.random() < 0.5 ? 'STABLE' : 'DROPPED'}` ]; statusEl.innerText = statuses[Math.floor(Math.random() * statuses.length)]; document.body.appendChild(statusEl); void statusEl.offsetWidth; statusEl.classList.add('visible'); setTimeout(() => { statusEl.style.opacity = '0'; setTimeout(() => statusEl.remove(), 400); }, 2000 + Math.random() * 3000); }
-function changeCrazyText() { if (!crazyTextEl) return; updateConsole("   -> Changing 'crazy text' content..."); const texts = [ "Brain waves nominal... wait, no.", "Engage MAXIMUM RIZZ!", "Skibidi levels approaching critical!", "Is this real life?", "More clicks required for... something.", "Sanity optional.", "Do you feel it yet?", "The button compels you.", "Ohio network online.", `Current objective: ${getRandomWord()}` ]; crazyTextEl.innerText = texts[Math.floor(Math.random() * texts.length)]; }
+function setupEventListeners() {
+    if (!loadNftBtn) { console.error("Load button not found!"); return; }
 
-// --- Funcție Curățare (Îmbunătățită) ---
-function cleanupPersistentEffects() { updateConsole(">> Cleaning up previous persistent effects..."); const filterClasses = ['filter-invert', 'filter-blur', 'filter-sepia', 'filter-contrast', 'filter-hue', 'filter-pixelate']; filterClasses.forEach(cls => bodyEl.classList.remove(cls)); const glitchTargets = [titleEl, doNotClick, alienEl, msgBox, scoreDisplay, createSignBtn, galleryBtn, consoleOut, crazyTextEl]; glitchTargets.forEach(el => { if (el) el.classList.remove('glitch-effect'); }); const distortedTargets = [titleEl, msgBox, doNotClick, alienEl, scoreDisplay, createSignBtn, galleryBtn, consoleOut, crazyTextEl]; distortedTargets.forEach(el => { if (el) el.classList.remove('element-distorted'); }); const shiftedTargets = [titleEl, centerStage, consoleOut, msgBox, alienEl, scoreDisplay, realOptions]; shiftedTargets.forEach(el => { if (el) { el.classList.remove('layout-shifted'); el.style.transform = ''; } }); document.querySelectorAll('.hidden-by-chaos').forEach(el => { el.classList.remove('hidden-by-chaos'); }); const fontTargets = [bodyEl, titleEl, doNotClick, createSignBtn, galleryBtn, msgBox, consoleOut, scoreDisplay, crazyTextEl]; fontTargets.forEach(el => { if (el) { const defaultFont = el.id === 'consoleOutput' ? 'monospace' : (el.tagName === 'H1' || el.id === 'scoreDisplay' || el.classList.contains('btn')) ? "'Luckiest Guy', cursive" : "'Roboto', sans-serif"; if (el.style.fontFamily && el.style.fontFamily !== defaultFont) { el.style.fontFamily = ''; } } }); if (msgBox && (msgBox.style.fontFamily.includes('monospace') || msgBox.style.fontFamily.includes('Comic Sans MS') || msgBox.style.fontFamily.includes('Luckiest Guy'))) { msgBox.style.fontFamily = "'Roboto', sans-serif"; msgBox.style.whiteSpace = 'normal'; msgBox.style.fontSize = '1rem'; msgBox.style.textAlign = ''; msgBox.style.fontWeight = 'normal'; msgBox.style.fontStyle = 'italic'; msgBox.style.color = 'var(--dumb-pink)'; msgBox.style.border = '2px dashed var(--slime-green)'; msgBox.style.textShadow = 'none'; } if (bodyEl.style.cursor !== 'auto' && bodyEl.style.cursor !== '') { bodyEl.style.cursor = 'auto'; } if (alienEl && alienEl.src !== originalAlienSrc) { alienEl.src = originalAlienSrc; } document.querySelectorAll('.fake-error, .fake-warning-popup, .crazy-spawned-button, .fake-status-text').forEach(el => el.remove()); if (Math.random() < 0.05) { rootEl.style.cssText = ''; } }
+    // NFT Loading
+    loadNftBtn.addEventListener('click', loadNftToCanvas);
+    nftCollectionSelect.addEventListener("change", () => {
+        if (currentSignMode === 'custom' && container.querySelectorAll('.textOverlay, .imgOverlay').length > 0) {
+            container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove());
+            setActiveElement(null);
+            applyOverlay(false);
+        } else if (currentSignMode === 'prefix') {
+            appliedPrefixSignImage = null;
+            if (baseImage.src && baseImage.complete) drawBaseImage();
+            if(savePrefixBtn) savePrefixBtn.disabled = true; // Disable save on collection change
+            populateSignGallery(); // Repopulate gallery
+        }
+    });
 
-// --- Catalog Efecte (Extins Masiv & Categorizat pentru Cooldown) ---
-const effectsCatalog = [
-    { name: "SmallShake", func: shakePage, params: () => [Math.random() * 8 + 3, Math.random() * 120 + 40] }, { name: "RandomSound", func: playSimpleSound, params: () => [Math.random() * 1800 + 40, Math.random() * 0.12 + 0.02, ['sine', 'triangle', 'square'][Math.floor(Math.random()*3)]] }, { name: "FlashMsgBox", func: flashMessageBox, params: () => [] }, { name: "ChangeButtonColor", func: changeElementStyle, params: () => [doNotClick, 'backgroundColor', ['#FF1111', '#11FF11', '#1111FF', '#FFFF11', '#FF11FF', '#11FFFF', '#FFFFFF', '#222222', '#FF8800', '#8800FF']] }, { name: "RandomizeButtonText", func: changeElementStyle, params: () => [doNotClick, 'innerText', ["CLICK", "WHY?", "ROT", "BRAIN", "???", "YES", "NO", "GO", "STOP", "HELP", "MORE", "LESS", "404", "SKIBIDI", "SIGMA", "SIGN?", "OHIO", "EXPLODE?", "FAKE?", "FONT?", "COLOR?"]]}, { name: "ChangeCursor", func: changeCursor, params: () => [] }, { name: "TinyGlitchButton", func: toggleGlitchEffect, params: () => [doNotClick, Math.random() * 4 + 2] }, { name: "SingleEmoji", func: createFallingEmoji, params: () => [], count: () => 1 }, { name: "RandomizeScoreColor", func: changeElementStyle, params: () => [scoreDisplay, 'color', ['#FF1111', '#11FF11', '#1111FF', '#FFFF11', '#FF11FF', '#11FFFF', '#FFFFFF', '#FF8800', '#8800FF', '#000000', 'var(--score-color)']]}, { name: "RandomizeTitleColor", func: changeElementStyle, params: () => [titleEl, 'color', ['#FF1111', '#11FF11', '#1111FF', '#FFFF11', '#FF11FF', '#11FFFF', '#FFFFFF', '#FF8800', '#8800FF', 'var(--rick-green)']]}, { name: "MultiSound", func: multiSoundChaos, params: () => [] }, { name: "ChangeCrazyText", func: changeCrazyText, params: () => [] }, { name: "EmojiRain", func: createFallingEmoji, params: () => [], count: () => Math.floor(Math.random() * 25 + 10) }, { name: "CrazyButton", func: spawnCrazyButton, params: () => [] }, { name: "ChangeBgColor", func: changeBackgroundColor, params: () => [] }, { name: "ScrambleTitle", func: scrambleText, params: () => [titleEl]}, { name: "DistortTitle", func: distortElementText, params: () => [titleEl] }, { name: "ShiftLayoutCenter", func: shiftElementLayout, params: () => [centerStage] }, { name: "WordSalad", func: generateWordSalad, params: () => [] }, { name: "PlayMemeSound", func: playMemeSound, params: () => [] }, { name: "LoudSquareSound", func: playSimpleSound, params: () => [Math.random() * 350 + 30, Math.random() * 0.6 + 0.3, 'square', 0.7] }, { name: "GlitchTitle", func: toggleGlitchEffect, params: () => [titleEl, Math.random() * 7 + 5] }, { name: "DistortMessageBox", func: distortElementText, params: () => [msgBox] }, { name: "ShiftLayoutConsole", func: shiftElementLayout, params: () => [consoleOut] }, { name: "GlitchScore", func: toggleGlitchEffect, params: () => [scoreDisplay, Math.random() * 6 + 3] }, { name: "ChangePageTitle", func: changePageTitle, params: () => [] }, { name: "ChangeAlienImage", func: changeAlienImageTemporarily, params: () => [] }, { name: "ConsoleGibberish", func: fillConsoleWithGibberish, params: () => [] }, { name: "RandomizeScoreSize", func: changeElementStyle, params: () => [scoreDisplay, 'fontSize', ['1rem', '1.5rem', '2.5rem', '3rem', '0.5rem', '4rem']]}, { name: "ChangeCSSVar", func: changeRootColorVar, params: () => [] }, { name: "RandomFontConsole", func: randomizeElementFont, params: () => [consoleOut] }, { name: "RandomFontMsgBox", func: randomizeElementFont, params: () => [msgBox] }, { name: "HideAlien", func: toggleElementVisibility, params: () => [alienEl] }, { name: "HideConsole", func: toggleElementVisibility, params: () => [consoleOut] }, { name: "LogBrowserGibberish", func: logBrowserGibberish, params: () => [] }, { name: "AddFakeStatus", func: addFakeStatusText, params: () => [] }, { name: "MultiCrazyButtons", func: spawnCrazyButton, params: () => [], count: () => Math.floor(Math.random() * 5 + 3) }, { name: "FlyAlien", func: makeElementFly, params: () => [alienEl] }, { name: "DisplayAscii", func: displayAsciiArt, params: () => [] }, { name: "BigScoreBonus", func: () => { const bonus = Math.floor(Math.random() * 71) + 30; updateConsole(`   -> !!! BRAIN BONUS: +${bonus} !!!`); addScore(bonus); playSimpleSound(1800, 0.4, 'triangle', 0.5); }, params: () => [] }, { name: "ToggleButtonClick", func: toggleButtonClickability, params: () => [] }, { name: "FlashRandomImage", func: flashRandomImage, params: () => [] }, { name: "IntenseGlitchAlien", func: toggleGlitchEffect, params: () => [alienEl, Math.random() * 10 + 8] }, { name: "ScrambleMessageBox", func: scrambleText, params: () => [msgBox] }, { name: "ShiftLayoutAlien", func: shiftElementLayout, params: () => [alienEl] }, { name: "FlyScore", func: makeElementFly, params: () => [scoreDisplay] }, { name: "RandomFontTitle", func: randomizeElementFont, params: () => [titleEl] }, { name: "RandomFontButton", func: randomizeElementFont, params: () => [doNotClick] }, { name: "HideScore", func: toggleElementVisibility, params: () => [scoreDisplay] }, { name: "Pixelate", func: toggleBodyFilter, params: () => ['filter-pixelate'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "BlurPage", func: toggleBodyFilter, params: () => ['filter-blur'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "HueRotate", func: toggleBodyFilter, params: () => ['filter-hue'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "ContrastBoost", func: toggleBodyFilter, params: () => ['filter-contrast'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "InvertColors", func: toggleBodyFilter, params: () => ['filter-invert'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "SepiaTone", func: toggleBodyFilter, params: () => ['filter-sepia'], cooldown: FILTER_EFFECT_COOLDOWN_CLICKS }, { name: "AuditoryJumpscare", func: triggerAuditoryJumpscare, params: () => [0.85 + Math.random() * 0.4], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "VisualJumpscare", func: triggerVisualJumpscare, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "FakeError", func: showFakeError, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "ExplosionWarning", func: displayExplosionWarning, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "FakeLoadingBar", func: showFakeLoadingBar, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "SimulateMouseInvert", func: simulateMouseInvert, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "MASSIVEScoreBonus", func: () => { const bonus = Math.floor(Math.random() * 251) + 100; updateConsole(`   -> !!! PEAK ROT BONUS: +${bonus} !!!`); addScore(bonus); playSimpleSound(2500, 0.8, 'triangle', 0.7); shakePage(18,500);}, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "MASSIVEScorePenalty", func: () => { const penalty = Math.floor(Math.random() * 151) + 50; updateConsole(`   -> !!! CRINGE OVERLOAD PENALTY: -${penalty} !!!`); addScore(-penalty); playSimpleSound(60, 1.0, 'sawtooth', 0.8); shakePage(20, 600);}, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "ULTIMATE_GLITCH", func: () => { updateConsole("!!! ULTIMATE GLITCH PROTOCOL !!!"); console.error("!!! ULTIMATE GLITCH TRIGGERED !!!"); toggleGlitchEffect(titleEl, 15); toggleGlitchEffect(doNotClick, 12); toggleGlitchEffect(msgBox, 14); toggleGlitchEffect(alienEl, 16); toggleGlitchEffect(scoreDisplay, 13); toggleGlitchEffect(createSignBtn, 10); toggleGlitchEffect(galleryBtn, 11); toggleGlitchEffect(consoleOut, 13); }, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }, { name: "FLY_EVERYTHING", func: () => { updateConsole("!!! EVACUATE! EVERYTHING IS FLYING !!!"); console.warn("!!! FLY EVERYTHING TRIGGERED !!!"); makeElementFly(titleEl); makeElementFly(alienEl); makeElementFly(msgBox); makeElementFly(doNotClick); makeElementFly(scoreDisplay); makeElementFly(createSignBtn); makeElementFly(galleryBtn); makeElementFly(consoleOut); }, params: () => [], cooldown: MAJOR_EFFECT_COOLDOWN_CLICKS }
-];
+    // Sign Type Choice
+    signTypePrefixRadio.addEventListener('change', () => setSignMode('prefix'));
+    signTypeCustomRadio.addEventListener('change', () => setSignMode('custom'));
 
+    // Custom Controls
+    overlayColorInput.addEventListener('input', () => { if (currentSignMode === 'custom') applyOverlay(false); });
+    addTextBtn.addEventListener('click', addText);
+    textInput.addEventListener("input", handleTextControlChange);
+    textColor.addEventListener("input", handleTextControlChange);
+    fontFamily.addEventListener("input", handleTextControlChange);
+    addImageBtn.addEventListener('click', addImage);
+    removeBtn.addEventListener('click', removeActiveElement);
 
-// --- Funcție Declanșare (Include Cooldowns) ---
-function triggerRandomEffectRevised() { cleanupPersistentEffects(); const numEffects = Math.floor(Math.random() * 7) + 3; updateConsole(`>> Triggering ${numEffects} BRAIN ROT effect(s)... (Click ${clickCount})`); const triggeredNames = new Set(); const commonEnd = 12; const mediumEnd = commonEnd + 24; const rareEnd = mediumEnd + 13; const filterEnd = rareEnd + 6; const maxRotEnd = filterEnd + 10; const disruptiveEffects = ['FakeError', 'ExplosionWarning', 'SimulateMouseInvert', 'FLY_EVERYTHING', 'ULTIMATE_GLITCH', 'VisualJumpscare', 'AuditoryJumpscare', 'FakeLoadingBar']; for (let i = 0; i < numEffects; i++) { let chosenEffect = null; let attempts = 0; const MAX_PICK_ATTEMPTS = 8; while (!chosenEffect && attempts < MAX_PICK_ATTEMPTS) { attempts++; let candidateEffect = null; const randChance = Math.random(); if (randChance < 0.35) { candidateEffect = effectsCatalog[Math.floor(Math.random() * commonEnd)]; } else if (randChance < 0.70) { candidateEffect = effectsCatalog[Math.floor(Math.random() * (mediumEnd - commonEnd)) + commonEnd]; } else if (randChance < 0.90) { candidateEffect = effectsCatalog[Math.floor(Math.random() * (rareEnd - mediumEnd)) + mediumEnd]; } else if (randChance < 0.95) { candidateEffect = effectsCatalog[Math.floor(Math.random() * (filterEnd - rareEnd)) + rareEnd]; } else { candidateEffect = effectsCatalog[Math.floor(Math.random() * (maxRotEnd - filterEnd)) + filterEnd]; } if (!candidateEffect) { candidateEffect = effectsCatalog[Math.floor(Math.random() * effectsCatalog.length)]; } const cooldownDuration = candidateEffect.cooldown; let isOnCooldown = false; if (cooldownDuration && effectCooldowns[candidateEffect.name]) { const clicksSinceLast = clickCount - effectCooldowns[candidateEffect.name]; if (clicksSinceLast < cooldownDuration) { isOnCooldown = true; } } if (isOnCooldown) { continue; } const isDisruptive = disruptiveEffects.includes(candidateEffect.name); const alreadyTriggeredThisBurst = triggeredNames.has(candidateEffect.name); const popupActive = (candidateEffect.name === 'FakeError' || candidateEffect.name === 'ExplosionWarning') && (document.querySelector('.fake-error') || document.querySelector('.fake-warning-popup')); if (isDisruptive && alreadyTriggeredThisBurst && Math.random() < 0.9) { continue; } if (popupActive) { continue; } const isFilter = candidateEffect.cooldown === FILTER_EFFECT_COOLDOWN_CLICKS; let filterAlreadyApplied = false; if(isFilter) { triggeredNames.forEach(name => { const existingEffect = effectsCatalog.find(e => e.name === name); if(existingEffect && existingEffect.cooldown === FILTER_EFFECT_COOLDOWN_CLICKS) { filterAlreadyApplied = true; } }); } if (filterAlreadyApplied && Math.random() < 0.7) { continue; } chosenEffect = candidateEffect; } if (!chosenEffect) { updateConsole(` -> Failed to pick valid effect ${i+1}/${numEffects} (cooldowns/duplicates?), skipping.`); continue; } triggeredNames.add(chosenEffect.name); const params = chosenEffect.params(); updateConsole(` -> Effect ${i+1}/${numEffects}: ${chosenEffect.name}`); try { if (chosenEffect.count) { const count = chosenEffect.count(); for (let j = 0; j < count; j++) { setTimeout(() => { if(typeof chosenEffect.func === 'function') { chosenEffect.func(...params); } else { updateConsole(`>> ERROR: effect.func is not a function for ${chosenEffect.name}`); } }, Math.random() * (30 + count * 2)); } } else { if(typeof chosenEffect.func === 'function') { chosenEffect.func(...params); } else { updateConsole(`>> ERROR: effect.func is not a function for ${chosenEffect.name}`); } } if (chosenEffect.cooldown) { effectCooldowns[chosenEffect.name] = clickCount; } } catch (e) { updateConsole(`>> ERROR executing effect ${chosenEffect.name}: ${e.message} `); console.error(`Effect Error (${chosenEffect.name}):`, e); } } addScore(1); }
+    // General Actions
+    resetCanvasBtn.addEventListener('click', handleReset);
+    saveFullBtn.addEventListener('click', saveImage); // Custom Save
+    savePrefixBtn.addEventListener('click', saveImage); // Prefix Save (uses same function)
 
-// --- Inițializare Audio Context ---
-function initAudioContext() { if (!audioContext && (window.AudioContext || window.webkitAudioContext)) { try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); if (audioContext.state === 'suspended') { audioContext.resume().then(() => { updateConsole(">> AudioContext Resumed."); }).catch(e => updateConsole(`>> AudioContext Resume failed: ${e.message}`)); } updateConsole(">> AudioContext Initialized."); } catch (e) { updateConsole(">> Warning: Could not create AudioContext: " + e.message); audioContext = null; } } }
+     // Deselect active element when clicking outside
+     document.addEventListener('click', (event) => {
+        if (!container.contains(event.target) || event.target === container || event.target === canvas) {
+             if (activeElement && currentSignMode === 'custom') { setActiveElement(null); }
+        } else if (activeElement && !activeElement.contains(event.target)) {
+             let clickedOverlay = event.target.closest('.textOverlay, .imgOverlay');
+             if (!clickedOverlay && currentSignMode === 'custom') { setActiveElement(null); }
+         }
+     }, true);
+}
 
+// --- Workflow Management ---
+function setControlsDisabled(isDisabled) {
+    const customControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn, removeBtn, saveFullBtn];
+    const signChoiceRadios = [signTypePrefixRadio, signTypeCustomRadio];
+    const prefixControls = [savePrefixBtn]; // Only the prefix save button needs specific handling here
 
-// --- Listener Principal pentru Butonul "DO NOT CLICK" ---
-doNotClick.addEventListener("click", () => {
-    initAudioContext();
-    clickCount++;
-    if (clickCount < MAX_CLICKS_BEFORE_UNLOCK) {
-        updateConsole(`>> Button clicked ${clickCount} times (Initial Phase)`);
-        msgBox.innerText = phrases[clickCount - 1];
-        playSimpleSound(200 + clickCount * 60, 0.06, 'triangle');
-        if (clickCount > 1) flashMessageBox();
-        if (clickCount > 2) shakePage(clickCount * 1.5, clickCount * 30);
-    } else if (clickCount === MAX_CLICKS_BEFORE_UNLOCK) {
-        updateConsole(">> THRESHOLD REACHED! Unlocking options...");
-        msgBox.innerText = phrases[MAX_CLICKS_BEFORE_UNLOCK - 1];
-        realOptions.style.display = "block";
-        doNotClick.innerText = "KEEP CLICKING?";
-        doNotClick.style.animation = 'none';
-        void doNotClick.offsetWidth;
-        doNotClick.style.animation = 'shake 0.04s infinite alternate';
-        scoreDisplay.classList.add('visible');
-        updateScoreDisplay();
-        updateConsole(">> MAXIMUM BRAIN ROT ENGAGED! SCORE ONLINE! SIGN OPTIONS AVAILABLE!");
-        console.warn("Chaos Mode Activated!");
-        playSimpleSound(1400, 0.6, 'sawtooth', 0.7);
-        shakePage(25, 600);
-        flashMessageBox();
-        changeBackgroundColor();
-        createFallingEmoji(); createFallingEmoji();
-    } else {
-        updateConsole(` `);
-        triggerRandomEffectRevised();
+    customControls.forEach(el => { if(el) el.disabled = isDisabled; });
+    prefixControls.forEach(el => { if(el) el.disabled = isDisabled; });
+    signChoiceRadios.forEach(el => { if(el) el.disabled = isDisabled; });
+
+    // Ensure buttons are definitely disabled if 'isDisabled' is true
+    if (isDisabled) {
+        if(removeBtn) removeBtn.disabled = true;
+        if(saveFullBtn) saveFullBtn.disabled = true;
+        if(savePrefixBtn) savePrefixBtn.disabled = true;
     }
-});
-
-// --- Listeneri de Bază pentru Butoanele Creatorului de Semne ---
-// Linkurile absolute sunt corecte pentru versiunea deployed pe GitHub Pages
-createSignBtn.addEventListener("click", () => { initAudioContext(); updateConsole(">> 'Create Sign' clicked. Redirecting to live creator page..."); msgBox.innerText = "Redirecting to Sign Creation page..."; playSimpleSound(800, 0.1, 'sine', 0.4); addScore(1); flashMessageBox(); shakePage(4,80); window.location.href = 'https://ticuv.github.io/SignOMatic/create-sign/'; });
-galleryBtn.addEventListener("click", () => { initAudioContext(); updateConsole(">> 'Gallery' clicked. Redirecting to live gallery page..."); msgBox.innerText = "Redirecting to Sign Gallery page..."; playSimpleSound(700, 0.1, 'square', 0.3); addScore(1); shakePage(5, 100); window.location.href = 'https://ticuv.github.io/SignOMatic/choose-sign/'; });
-
-// --- Listeneri Evenimente pentru Popup ---
-if (madeByBtn && madeByPopup) {
-    madeByBtn.addEventListener('click', () => {
-        initAudioContext();
-        updateConsole(">> Showing 'Made by ticuv' popup.");
-        madeByPopup.classList.add('visible');
-        playSimpleSound(600, 0.05, 'triangle', 0.3);
-        shakePage(3, 50);
-    });
-} else {
-    if (!madeByBtn) console.error("Made By Button not found");
-    if (!madeByPopup) console.error("Made By Popup not found");
+    // Specific enabling logic is in setSignMode
 }
 
-if (closeMadeByPopup && madeByPopup) {
-    closeMadeByPopup.addEventListener('click', () => {
-        initAudioContext();
-        updateConsole(">> Closing 'Made by ticuv' popup.");
-        madeByPopup.classList.remove('visible');
-        playSimpleSound(400, 0.05, 'square', 0.2);
-    });
-} else {
-     if (!closeMadeByPopup) console.error("Popup Close Button not found");
+function setSignMode(mode) {
+    // Clear things from the *other* mode
+    if (mode === 'prefix' && activeElement) {
+        container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove());
+        setActiveElement(null);
+    } else if (mode === 'custom' && appliedPrefixSignImage) {
+        appliedPrefixSignImage = null;
+        if (selectedSignItem) {
+            selectedSignItem.classList.remove('selected');
+            selectedSignItem = null;
+        }
+        if (baseImage.src && baseImage.complete) drawBaseImage(); // Redraw base only
+    }
+
+    currentSignMode = mode;
+    nftStatusEl.textContent = `Mode selected: ${mode === 'prefix' ? 'Signs Gallery' : 'Custom Sign'}.`;
+    nftStatusEl.className = '';
+
+    prefixOptionsGroup.classList.toggle('hidden', mode !== 'prefix');
+    customOptionsGroup.classList.toggle('hidden', mode !== 'custom');
+
+    setControlsDisabled(true); // Disable all initially
+    signTypePrefixRadio.disabled = false;
+    signTypeCustomRadio.disabled = false;
+
+    if (mode === 'prefix') {
+         if (baseImage.src && baseImage.complete) {
+             if(appliedPrefixSignImage && appliedPrefixSignImage.complete) { // Restore applied sign view
+                 drawBaseImage();
+                 ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight);
+                 if(savePrefixBtn) savePrefixBtn.disabled = false; // Enable save if sign is applied
+             } else { // Just show base image
+                 drawBaseImage();
+                 if(savePrefixBtn) savePrefixBtn.disabled = true;
+             }
+             populateSignGallery(); // Load gallery content
+         } else { // No NFT loaded
+             if(signGalleryContainer) signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--error-red);">Load NFT first.</p>';
+             if(savePrefixBtn) savePrefixBtn.disabled = true;
+         }
+    } else if (mode === 'custom') {
+         const customControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn];
+         customControls.forEach(el => { if(el) el.disabled = false; });
+         updateCustomActionButtons(); // Enable/disable remove/save based on state
+         applyOverlay(false); // Redraw base + color polygon
+    }
+
+    // Ensure active custom element is cleared unless already in custom mode
+    if (mode !== 'custom') {
+         setActiveElement(null);
+    } else {
+        // If switching back to custom, re-enable buttons if applicable
+         updateCustomActionButtons();
+    }
 }
 
-if (copyBtns && copyBtns.length > 0) {
-    copyBtns.forEach(button => {
-        button.addEventListener('click', () => {
-            const textToCopy = button.getAttribute('data-clipboard-text');
-            if (navigator.clipboard && textToCopy) {
-                navigator.clipboard.writeText(textToCopy).then(() => {
-                    updateConsole(`>> Copied: ${textToCopy.substring(0,10)}...`);
-                    const originalText = button.innerText; button.innerText = 'Copied!'; button.disabled = true;
-                    setTimeout(() => { button.innerText = originalText; button.disabled = false; }, 1500);
-                    playSimpleSound(1200, 0.08, 'sine', 0.2);
-                }).catch(err => {
-                    updateConsole('>> Failed to copy: ', err); alert('Failed to copy. Manual copy needed.'); playSimpleSound(200, 0.15, 'sawtooth', 0.3);
-                });
-            } else { updateConsole(">> Clipboard API not supported or text missing."); alert('Clipboard copy not supported.'); playSimpleSound(200, 0.15, 'sawtooth', 0.3); }
+function updateCustomActionButtons() { // Only for CUSTOM mode buttons
+    if (currentSignMode !== 'custom') return;
+    const isElementActive = activeElement !== null;
+    const isImageLoaded = baseImage.src !== "" && baseImage.complete && baseImage.naturalWidth > 0;
+    if(removeBtn) removeBtn.disabled = !isElementActive || !isImageLoaded;
+    if(saveFullBtn) saveFullBtn.disabled = !isImageLoaded;
+}
+
+// --- Event Handlers ---
+function handleTextControlChange() {
+    if (activeElement && activeElement.classList.contains('textOverlay') && currentSignMode === 'custom') {
+        const textNode = activeElement.childNodes[0];
+        if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+            textNode.nodeValue = textInput.value || " "; // Use space if empty to maintain element size
+        } else {
+            // Fallback if first child is not a text node (shouldn't happen with current setup)
+            while (activeElement.firstChild) { activeElement.removeChild(activeElement.firstChild); } // Clear existing
+            activeElement.insertBefore(document.createTextNode(textInput.value || " "), activeElement.firstChild); // Add new text node
+        }
+        activeElement.style.color = textColor.value;
+        activeElement.style.fontFamily = fontFamily.value;
+        // Auto-adjust width after text change (optional, can be complex with wrapping)
+        requestAnimationFrame(() => {
+             if(activeElement && activeElement.classList.contains('textOverlay')) {
+                 const originalWidthStyle = activeElement.style.width;
+                 activeElement.style.width = 'auto'; // Let it expand naturally
+                 const naturalWidth = activeElement.offsetWidth;
+                 // Restore previous width OR set to natural width if it was 'auto'
+                 activeElement.style.width = originalWidthStyle !== 'auto' ? originalWidthStyle : `${Math.max(30, naturalWidth)}px`;
+             }
+         });
+    }
+}
+function handleReset() {
+    if (confirm("Are you sure you want to clear the canvas and all added elements/signs? This cannot be undone.")) {
+        clearCanvasAndOverlays(); // Clears custom overlays
+        appliedPrefixSignImage = null; // Clear applied prefix sign state
+        if (selectedSignItem) {
+            selectedSignItem.classList.remove('selected');
+            selectedSignItem = null;
+        }
+
+        if (baseImage.src && baseImage.complete && baseImage.naturalWidth > 0) {
+            drawBaseImage(); // Redraw only base image
+            signTypeChoiceGroup.classList.remove('hidden');
+            signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false;
+            signTypePrefixRadio.checked = false; signTypeCustomRadio.checked = false;
+            prefixOptionsGroup.classList.add('hidden'); customOptionsGroup.classList.add('hidden');
+            setControlsDisabled(true); // Disables all action buttons initially
+            signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false;
+            currentSignMode = null;
+            nftStatusEl.textContent = "Canvas reset. Choose sign type."; nftStatusEl.className = '';
+            if(signGalleryContainer) signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Loading gallery...</p>';
+            fetchSignConfig(); // Ensure config is loaded if user selects prefix again
+
+        } else {
+            enableNftLoadControlsOnly();
+            nftStatusEl.textContent = "Select collection and ID, then load NFT."; nftStatusEl.className = '';
+        }
+    }
+}
+
+// --- Canvas & Overlay Management ---
+function clearCanvasAndOverlays() { // Primarily for custom overlays
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillStyle = '#444';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove());
+    setActiveElement(null);
+}
+function clearCanvas() {
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillStyle = '#444';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+}
+function enableNftLoadControlsOnly() {
+    setControlsDisabled(true);
+    if(loadNftBtn) loadNftBtn.disabled = false;
+    if(nftCollectionSelect) nftCollectionSelect.disabled = false;
+    if(nftTokenIdInput) nftTokenIdInput.disabled = false;
+    if(signTypeChoiceGroup) signTypeChoiceGroup.classList.add('hidden');
+    if(prefixOptionsGroup) prefixOptionsGroup.classList.add('hidden');
+    if(customOptionsGroup) customOptionsGroup.classList.add('hidden');
+    currentSignMode = null;
+}
+
+// --- NFT Loading & Drawing ---
+function getPolygonForSelectedCollection(){ const selectedCollection=nftCollectionSelect.value; if(selectedCollection==="AHC"){return[{x:1415,y:316},{x:2024,y:358},{x:1958,y:1324},{x:1358,y:1286}];}else{/* GHN default */ return[{x:1403,y:196},{x:2034,y:218},{x:1968,y:1164},{x:1358,y:1126}];} }
+function resolveIpfsUrl(url) { if(url&&url.startsWith("ipfs://")){return url.replace("ipfs://","https://ipfs.io/ipfs/");}return url; }
+async function loadNftToCanvas() {
+    const selectedCollection = nftCollectionSelect.value;
+    const tokenId = nftTokenIdInput.value;
+    if (!tokenId) { nftStatusEl.textContent = "Please enter a Token ID."; nftStatusEl.className = 'error'; return; }
+    if (!nftContracts[selectedCollection]) { console.error(`Selected collection "${selectedCollection}" not found.`); nftStatusEl.textContent = `Error: Collection definition "${selectedCollection}" not found.`; nftStatusEl.className = 'error'; return; }
+
+    // Clear previous state
+    clearCanvasAndOverlays();
+    appliedPrefixSignImage = null;
+    if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
+
+    loadNftBtn.disabled = true; nftCollectionSelect.disabled = true; nftTokenIdInput.disabled = true;
+    setControlsDisabled(true);
+    signTypeChoiceGroup.classList.add('hidden'); prefixOptionsGroup.classList.add('hidden'); customOptionsGroup.classList.add('hidden');
+    nftStatusEl.textContent = `Loading ${nftContracts[selectedCollection].name} #${tokenId}...`; nftStatusEl.className = '';
+
+    const contractInfo = nftContracts[selectedCollection];
+    const contract = new ethers.Contract(contractInfo.address, nftAbi, provider);
+    try {
+        let tokenURI = await contract.tokenURI(tokenId); tokenURI = resolveIpfsUrl(tokenURI);
+        nftStatusEl.textContent = "Fetching metadata...";
+        const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+        const response = await fetch(tokenURI, { signal: controller.signal }); clearTimeout(timeoutId);
+        if (!response.ok) throw new Error(`Metadata error: ${response.status} ${response.statusText} (URL: ${tokenURI.substring(0, 100)}...)`);
+        const metadata = await response.json();
+        let imageUrl = resolveIpfsUrl(metadata.image || metadata.image_url || metadata.imageUrl);
+        if (!imageUrl) throw new Error("Image URL missing in metadata");
+        nftStatusEl.textContent = "Loading image..."; baseImage = new Image(); baseImage.crossOrigin = "Anonymous";
+        baseImage.onload = () => {
+            nftStatusEl.textContent = "Drawing image..."; drawBaseImage();
+            nftStatusEl.textContent = `${nftContracts[selectedCollection].name} #${tokenId} loaded! Choose sign type below.`; nftStatusEl.className = 'success';
+            signTypeChoiceGroup.classList.remove('hidden');
+            signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false;
+            signTypePrefixRadio.checked = false; signTypeCustomRadio.checked = false;
+            currentSignMode = null;
+            loadNftBtn.disabled = false; nftCollectionSelect.disabled = false; nftTokenIdInput.disabled = false;
+            fetchSignConfig(); // Fetch config in background
+        };
+        baseImage.onerror = (err) => {
+             console.error("Error loading NFT image:", err, "Attempted URL:", imageUrl); nftStatusEl.textContent = `Error loading image. Check console.`; nftStatusEl.className = 'error';
+             enableNftLoadControlsOnly();
+             ctx.fillStyle = "white"; ctx.font = "30px Arial"; ctx.textAlign = "center"; ctx.fillText("Image Load Error", canvasWidth / 2, canvasHeight / 2);
+        };
+        baseImage.src = imageUrl;
+    } catch (err) {
+         console.error(`Error processing NFT ${tokenId}:`, err); let errorMsg = "Error: " + err.message;
+         if (err.name === 'AbortError') { errorMsg = "Error: Metadata request timed out."; }
+         else if (err.message?.includes('invalid token ID') || err.message?.includes('URI query for nonexistent token')) { errorMsg = `Error: Token ID ${tokenId} invalid or does not exist.`; }
+         else if (err.message?.includes('CALL_EXCEPTION')) { errorMsg = `Error: Could not query contract. Check network/address or Token ID.`; }
+         nftStatusEl.textContent = errorMsg; nftStatusEl.className = 'error';
+         enableNftLoadControlsOnly();
+         ctx.fillStyle = "white"; ctx.font = "30px Arial"; ctx.textAlign = "center"; ctx.fillText("NFT Load Error", canvasWidth / 2, canvasHeight / 2);
+    }
+ }
+function drawBaseImage() {
+    if(!baseImage.src||!baseImage.complete||baseImage.naturalWidth===0)return;
+    ctx.clearRect(0,0,canvasWidth,canvasHeight); ctx.fillStyle="#444"; ctx.fillRect(0,0,canvasWidth,canvasHeight);
+    const aspectRatio=baseImage.naturalWidth/baseImage.naturalHeight; let drawWidth=canvasWidth,drawHeight=canvasHeight,x=0,y=0; if(canvasWidth/canvasHeight>aspectRatio){drawHeight=canvasHeight;drawWidth=drawHeight*aspectRatio;x=(canvasWidth-drawWidth)/2;}else{drawWidth=canvasWidth;drawHeight=drawWidth/aspectRatio;y=(canvasHeight-drawHeight)/2;} try{ctx.drawImage(baseImage,x,y,drawWidth,drawHeight);}catch(e){console.error("Error drawing base image:",e); nftStatusEl.textContent="Error drawing NFT image."; nftStatusEl.className='error';}
+}
+function applyOverlay(clearExistingOverlays = true) { // For CUSTOM sign color overlay
+    if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0 || currentSignMode !== 'custom') return;
+    drawBaseImage();
+    drawSignPolygonOnly();
+}
+function drawSignPolygonOnly() {
+    const color = overlayColorInput.value;
+    const currentPolygon = getPolygonForSelectedCollection();
+    ctx.beginPath(); ctx.moveTo(currentPolygon[0].x, currentPolygon[0].y);
+    for (let i = 1; i < currentPolygon.length; i++) { ctx.lineTo(currentPolygon[i].x, currentPolygon[i].y); }
+    ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+    ctx.lineJoin = "round"; ctx.lineWidth = 14; ctx.strokeStyle = "black"; ctx.stroke();
+}
+
+// --- Sign Gallery Functions ---
+async function fetchSignConfig() {
+    if (signConfigData || isSignConfigLoading) return signConfigData; // Return cached data or if already loading
+    isSignConfigLoading = true;
+    // Use the constant path relative to index.html
+    const configUrl = SIGNS_JSON_PATH;
+    try {
+        nftStatusEl.textContent = "Loading sign gallery configuration..."; nftStatusEl.className = '';
+        const response = await fetch(configUrl);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status} fetching ${configUrl}`);
+        signConfigData = await response.json();
+        if (!signConfigData.githubUser || !signConfigData.githubRepo || !signConfigData.githubBranch || !signConfigData.imageBasePath || !signConfigData.categories) {
+            throw new Error("Invalid signs.json structure.");
+        }
+        nftStatusEl.textContent = "Sign gallery configuration loaded."; nftStatusEl.className = 'success';
+        if (currentSignMode === 'prefix') populateSignGallery(); // Populate if already in prefix mode
+        return signConfigData;
+    } catch (error) {
+        console.error("Error fetching/parsing sign config:", error);
+        nftStatusEl.textContent = `Error loading sign gallery: ${error.message}. Check console.`; nftStatusEl.className = 'error';
+        if (signGalleryContainer) signGalleryContainer.innerHTML = `<p style="color: var(--error-red);">Error loading signs. Check console.</p>`;
+        signConfigData = null; // Reset config data on error
+        return null;
+    } finally {
+        isSignConfigLoading = false;
+    }
+}
+
+function populateSignGallery() {
+    if (!signGalleryContainer) return;
+    if (isSignConfigLoading) { signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Loading gallery config...</p>'; return; }
+    if (!signConfigData) {
+        fetchSignConfig().then(config => {
+            if (config) populateSignGallery(); // Try populating again after fetch completes
+            else signGalleryContainer.innerHTML = '<p style="color: var(--error-red);">Failed to load gallery config.</p>';
         });
+        signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Fetching gallery config...</p>';
+        return;
+    }
+    if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) {
+        signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--error-red);">Load NFT first.</p>';
+        return;
+    }
+
+    const currentCollectionKey = nftCollectionSelect.value;
+    const signsForCollection = signConfigData.categories[currentCollectionKey];
+    signGalleryContainer.innerHTML = ''; // Clear previous content
+
+    if (!signsForCollection || signsForCollection.length === 0) {
+        signGalleryContainer.innerHTML = `<p style="font-style: italic;">No specific signs found for ${currentCollectionKey}.</p>`; return;
+    }
+
+    const { githubUser, githubRepo, githubBranch, imageBasePath } = signConfigData;
+    // Construct the base URL for RAW GitHub content
+    const baseUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/${githubBranch}/${imageBasePath}/`;
+
+    signsForCollection.forEach(sign => {
+        // fileName should be relative to imageBasePath (e.g., "GHN/duko.png")
+        const signImageUrl = baseUrl + sign.fileName;
+        const signName = sign.name || sign.fileName.split('/').pop(); // Use provided name or derive from filename
+        const itemDiv = document.createElement('div'); itemDiv.className = 'sign-item'; itemDiv.title = `Apply: ${signName}`; itemDiv.dataset.imageUrl = signImageUrl; itemDiv.dataset.signName = signName; // Store name for later use
+
+        const img = document.createElement('img'); img.src = signImageUrl; img.alt = signName; img.loading = "lazy";
+        img.onerror = () => {
+             img.alt = `${signName} (Load Error)`;
+             img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50'%3E%3Ctext x='50%' y='50%' fill='red' font-size='10' dominant-baseline='middle' text-anchor='middle'%3EError%3C/text%3E%3C/svg%3E"; // Placeholder
+             itemDiv.style.borderColor = 'var(--error-red)';
+             console.warn(`Failed to load sign image: ${signImageUrl}`);
+        }
+        const nameSpan = document.createElement('span'); nameSpan.textContent = signName;
+        itemDiv.appendChild(img); itemDiv.appendChild(nameSpan);
+
+        itemDiv.addEventListener('click', () => {
+            if (currentSignMode !== 'prefix') return; // Only act in prefix mode
+            const clickedImageUrl = itemDiv.dataset.imageUrl;
+            const clickedSignName = itemDiv.dataset.signName;
+
+            if (selectedSignItem && selectedSignItem !== itemDiv) selectedSignItem.classList.remove('selected'); // Deselect previous
+
+            if (selectedSignItem === itemDiv) { // Clicked the already selected item - deselect it
+                itemDiv.classList.remove('selected');
+                selectedSignItem = null;
+                appliedPrefixSignImage = null;
+                if(baseImage.src && baseImage.complete) drawBaseImage(); // Redraw base only
+                if(savePrefixBtn) savePrefixBtn.disabled = true;
+                nftStatusEl.textContent = "Sign removed."; nftStatusEl.className = '';
+            } else { // Clicked a new item - select it
+                itemDiv.classList.add('selected');
+                selectedSignItem = itemDiv;
+                applyPrefixSign(clickedImageUrl, clickedSignName); // Apply the new sign
+            }
+        });
+        signGalleryContainer.appendChild(itemDiv);
+
+        // Reselect if this was the previously applied sign
+        if (appliedPrefixSignImage && appliedPrefixSignImage.src === signImageUrl) {
+            itemDiv.classList.add('selected');
+            selectedSignItem = itemDiv;
+        }
     });
-} else { console.warn("No copy buttons found."); }
+}
 
 
-// --- Mesaje Inițiale Consolă ---
-// Rulează o singură dată la încărcarea scriptului
-updateConsole(">> System Online. WARNING: HIGH CHANCE OF INCURABLE BRAIN ROT.");
-updateConsole(">> Dimensional Stability: ACTIVELY DETERIORATING.");
-updateConsole(">> Cooldown System: Engaged for major anomalies.");
-updateConsole(`>> Assets loading from: ${GITHUB_PAGES_ASSET_BASE_URL}`);
-updateConsole(">> The Big Red Button whispers sweet nothings... or maybe threats?");
-console.log("Page loaded. Abandon hope, all ye who click here.");
+function applyPrefixSign(signImageUrl, signName) {
+    if (!baseImage.src || !baseImage.complete || currentSignMode !== 'prefix') return;
+    nftStatusEl.textContent = `Applying sign: ${signName}...`; nftStatusEl.className = '';
+    if(savePrefixBtn) savePrefixBtn.disabled = true;
+    if (container.querySelectorAll('.textOverlay, .imgOverlay').length > 0) { container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove()); setActiveElement(null); }
+
+    const signImage = new Image(); signImage.crossOrigin = "Anonymous";
+    signImage.onload = () => {
+        drawBaseImage(); ctx.drawImage(signImage, 0, 0, canvasWidth, canvasHeight);
+        appliedPrefixSignImage = signImage; appliedPrefixSignImage.alt = signName; // Store name too
+        nftStatusEl.textContent = `Sign '${signName}' applied. Ready to save.`; nftStatusEl.className = 'success';
+        if(savePrefixBtn) savePrefixBtn.disabled = false;
+    };
+    signImage.onerror = () => {
+        console.error(`Error loading sign image: ${signImageUrl}`); nftStatusEl.textContent = `Error loading sign: ${signName}. Check console.`; nftStatusEl.className = 'error';
+        appliedPrefixSignImage = null; if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
+        drawBaseImage(); if(savePrefixBtn) savePrefixBtn.disabled = true;
+    };
+    signImage.src = signImageUrl;
+}
+
+// --- Text & Image Creation (Custom Mode) ---
+function addText() {
+    if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
+    if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
+    const textValue = textInput.value || "New Text"; const textEl = document.createElement("div"); textEl.className = "textOverlay"; textEl.appendChild(document.createTextNode(textValue));
+    textEl.style.color = textColor.value; textEl.style.fontSize = `${DEFAULT_FONT_SIZE}px`; textEl.style.fontFamily = fontFamily.value;
+    textEl.style.transform = `translate(-50%, -50%) rotate(0deg)`; textEl.style.zIndex = "10"; textEl.style.width = 'auto'; textEl.style.whiteSpace = 'nowrap'; // Prevent natural wrapping initially
+    const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = '↻'; textEl.appendChild(rotateHandle);
+    const resizeHandleRight = document.createElement("div"); resizeHandleRight.className = "handle resize-handle-base resize-handle-right"; resizeHandleRight.title = "Resize Width"; textEl.appendChild(resizeHandleRight);
+    const resizeHandleLeft = document.createElement("div"); resizeHandleLeft.className = "handle resize-handle-base resize-handle-left"; resizeHandleLeft.title = "Resize Font Size"; textEl.appendChild(resizeHandleLeft);
+    const currentPolygon = getPolygonForSelectedCollection(); const minX = Math.min(...currentPolygon.map(p => p.x)); const maxX = Math.max(...currentPolygon.map(p => p.x)); const minY = Math.min(...currentPolygon.map(p => p.y)); const maxY = Math.max(...currentPolygon.map(p => p.y)); const signCenterXPercent = canvasWidth ? ((minX + maxX) / 2) / canvasWidth * 100 : 50; const signCenterYPercent = canvasHeight ? ((minY + maxY) / 2) / canvasHeight * 100 : 50; const { x: initialX, y: initialY } = calculateElementPosition(signCenterXPercent, signCenterYPercent);
+    textEl.style.left = `${initialX}px`; textEl.style.top = `${initialY}px`;
+    textEl.addEventListener("mousedown", handleTextDragStart); textEl.addEventListener("touchstart", handleTextDragStart, { passive: true });
+    rotateHandle.addEventListener("mousedown", handleTextRotateStart); rotateHandle.addEventListener("touchstart", handleTextRotateStart, { passive: true });
+    resizeHandleRight.addEventListener("mousedown", handleTextResizeWidthStart); resizeHandleRight.addEventListener("touchstart", handleTextResizeWidthStart, { passive: true });
+    resizeHandleLeft.addEventListener("mousedown", handleTextResizeFontSizeStart); resizeHandleLeft.addEventListener("touchstart", handleTextResizeFontSizeStart, { passive: true });
+    container.appendChild(textEl);
+    requestAnimationFrame(() => { if (textEl && container.contains(textEl)) { const initialWidth = textEl.offsetWidth; textEl.style.width = `${Math.max(initialWidth, 30)}px`; textEl.style.whiteSpace = 'normal'; setActiveElement(textEl); } }); // Set fixed width after measuring, allow wrap
+}
+function addImage() {
+    if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
+    if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
+    if (!imageUpload || !imageUpload.files || imageUpload.files.length === 0) { nftStatusEl.textContent = "Please select an image file."; nftStatusEl.className = 'error'; return; }
+    const file = imageUpload.files[0]; const reader = new FileReader();
+    reader.onload = function (e) {
+        const wrapper = document.createElement("div"); wrapper.className = "imgOverlay"; wrapper.style.position="absolute";wrapper.style.width="auto";wrapper.style.height="auto";wrapper.style.transform="translate(-50%, -50%) rotate(0deg)";wrapper.style.touchAction="none";wrapper.style.zIndex="20";
+        const img = document.createElement("img"); img.src = e.target.result;
+        img.onload = () => {
+             if(container.offsetWidth > 0 && img.naturalWidth > 0 && img.naturalHeight > 0){
+                 const contW = container.offsetWidth;
+                 // Calculate initial size based on container width, limiting max size
+                 const initialWidth = Math.min(img.naturalWidth * 0.5, contW * 0.4, 150); // Max 150px or 40% of container
+                 const aspectRatio = img.naturalWidth / img.naturalHeight;
+                 wrapper.style.width=`${initialWidth}px`;
+                 wrapper.style.height=`${initialWidth / aspectRatio}px`;
+             } else {
+                 // Fallback size if container/image dimensions aren't available yet
+                 wrapper.style.width='100px';
+                 wrapper.style.height='auto';
+                 console.warn("Could not determine container/image size for initial scaling, using fallback.");
+             }
+             // Position after size is set
+             const currentPolygon = getPolygonForSelectedCollection(); const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x));const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y));const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50;const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50;const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent);wrapper.style.left=`${initialX}px`;wrapper.style.top=`${initialY}px`;
+         };
+        img.onerror = ()=>{console.error("Error loading added image.");nftStatusEl.textContent="Error displaying uploaded image.";nftStatusEl.className='error';wrapper.remove();}; wrapper.appendChild(img);
+        const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = '↻'; wrapper.appendChild(rotateHandle);
+        const resizeHandleRight = document.createElement("div"); resizeHandleRight.className = "handle resize-handle-base resize-handle-right"; resizeHandleRight.title = "Resize Image"; wrapper.appendChild(resizeHandleRight);
+        wrapper.addEventListener("mousedown", handleImageDragStart); wrapper.addEventListener("touchstart", handleImageDragStart, { passive: true }); rotateHandle.addEventListener("mousedown", handleImageRotateStart); rotateHandle.addEventListener("touchstart", handleImageRotateStart, { passive: true });
+        resizeHandleRight.addEventListener("mousedown", handleImageResizeStart); resizeHandleRight.addEventListener("touchstart", handleImageResizeStart, { passive: true });
+        container.appendChild(wrapper); setActiveElement(wrapper); nftStatusEl.textContent = "Image added."; nftStatusEl.className = 'success'; imageUpload.value = ''; // Clear file input
+    };
+    reader.onerror = function (err) { console.error("FileReader error:",err);nftStatusEl.textContent="Error reading image file.";nftStatusEl.className='error'; }
+    reader.readAsDataURL(file);
+ }
+
+// --- Active Element Management & Removal (Custom Mode) ---
+function setActiveElement(el) {
+    if (activeElement && activeElement !== el) { activeElement.classList.remove("active"); activeElement.style.zIndex = activeElement.classList.contains('imgOverlay') ? '20' : '10'; }
+    if (el && currentSignMode === 'custom' && container.contains(el)) {
+        el.classList.add("active"); activeElement = el; el.style.zIndex = el.classList.contains('imgOverlay') ? '101' : '100';
+        if (el.classList.contains('textOverlay')) {
+             const textNode = el.childNodes[0]; if (textNode && textNode.nodeType === Node.TEXT_NODE) { textInput.value = textNode.nodeValue.trim(); } else { textInput.value = (el.textContent || '').trim(); } // Trim whitespace
+             textColor.value = rgb2hex(el.style.color || '#ffffff');
+             const currentFont = (el.style.fontFamily || 'Arial').split(',')[0].replace(/['"]/g, "").trim(); let foundFont = false;
+             for (let option of fontFamily.options) { if (option.value.includes(currentFont)) { fontFamily.value = option.value; foundFont = true; break; } } if (!foundFont) fontFamily.value = 'Arial';
+        }
+    } else { activeElement = null; }
+    updateCustomActionButtons(); // Update remove/save state
+}
+function removeActiveElement() { // Only for custom mode elements
+    if (activeElement && currentSignMode === 'custom') { activeElement.remove(); setActiveElement(null); }
+}
+
+// --- Interaction Handlers (Common) ---
+function getEventCoordinates(event) { let x,y; if(event.touches&&event.touches.length>0){x=event.touches[0].clientX;y=event.touches[0].clientY;}else if(event.changedTouches&&event.changedTouches.length>0){x=event.changedTouches[0].clientX;y=event.changedTouches[0].clientY;}else{x=event.clientX;y=event.clientY;} return{x,y}; }
+function getRotationRad(element) { if(!element||!element.style)return 0; const transform=element.style.transform; const rotateMatch=transform.match(/rotate\((-?\d+(\.\d+)?)deg\)/); const rotationDeg=rotateMatch?parseFloat(rotateMatch[1]):0; return rotationDeg*(Math.PI/180); }
+
+// --- Interaction Handlers (Text - Custom Mode) ---
+function handleTextDragStart(event) { if (event.target.classList.contains('handle') || currentSignMode !== 'custom') return; const el = event.currentTarget; setActiveElement(el); textInteractionState.isDragging = true; textInteractionState.isRotating = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); textInteractionState.startX = coords.x - contRect.left; textInteractionState.startY = coords.y - contRect.top; textInteractionState.startLeft = parseFloat(el.style.left || "0"); textInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextRotateStart(event) { if (currentSignMode !== 'custom') return; event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isRotating = true; textInteractionState.isDragging = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); textInteractionState.rotateCenterX = rect.left + rect.width / 2; textInteractionState.rotateCenterY = rect.top + rect.height / 2; const dx = coords.x - textInteractionState.rotateCenterX; const dy = coords.y - textInteractionState.rotateCenterY; let startAngle = Math.atan2(dy, dx); const currentRotationRad = getRotationRad(el); textInteractionState.rotateStartAngle = startAngle - currentRotationRad; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextResizeWidthStart(event) { if (currentSignMode !== 'custom') return; event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isResizingWidth = true; textInteractionState.isResizingFontSize = false; textInteractionState.isRotating = false; textInteractionState.isDragging = false; document.body.style.cursor = 'ew-resize'; const coords = getEventCoordinates(event); textInteractionState.startX = coords.x; textInteractionState.startY = coords.y; textInteractionState.startWidth = el.offsetWidth; textInteractionState.currentRotationRad = getRotationRad(el); el.style.whiteSpace = 'normal'; // Allow wrapping during resize
+    document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextResizeFontSizeStart(event) { if (currentSignMode !== 'custom') return; event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isResizingFontSize = true; textInteractionState.isResizingWidth = false; textInteractionState.isRotating = false; textInteractionState.isDragging = false; document.body.style.cursor = 'ns-resize'; const coords = getEventCoordinates(event); textInteractionState.startX = coords.x; textInteractionState.startY = coords.y; textInteractionState.startFontSize = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextInteractionMove(event) { if (!activeElement || !activeElement.classList.contains('textOverlay') || (!textInteractionState.isDragging && !textInteractionState.isRotating && !textInteractionState.isResizingWidth && !textInteractionState.isResizingFontSize)) return; if (event.type === 'touchmove') event.preventDefault(); const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); if (textInteractionState.isDragging) { const currentX = coords.x - contRect.left; const currentY = coords.y - contRect.top; activeElement.style.left = `${textInteractionState.startLeft + (currentX - textInteractionState.startX)}px`; activeElement.style.top = `${textInteractionState.startTop + (currentY - textInteractionState.startY)}px`; } else if (textInteractionState.isRotating) { const dx = coords.x - textInteractionState.rotateCenterX; const dy = coords.y - textInteractionState.rotateCenterY; let angle = Math.atan2(dy, dx); let rotationRad = angle - textInteractionState.rotateStartAngle; let rotationDeg = rotationRad * (180 / Math.PI); activeElement.style.transform = `translate(-50%, -50%) rotate(${rotationDeg}deg)`; } else if (textInteractionState.isResizingWidth) { const dx = coords.x - textInteractionState.startX; const dy = coords.y - textInteractionState.startY; const rotation = textInteractionState.currentRotationRad; const cosR = Math.cos(rotation); const sinR = Math.sin(rotation); const projectedDx = dx * cosR + dy * sinR; let newWidth = textInteractionState.startWidth + projectedDx; activeElement.style.width = `${Math.max(30, newWidth)}px`; } else if (textInteractionState.isResizingFontSize) { const dy = coords.y - textInteractionState.startY; let newSize = textInteractionState.startFontSize - (dy * FONT_SIZE_SENSITIVITY); activeElement.style.fontSize = `${Math.max(MIN_FONT_SIZE, newSize)}px`; } }
+function handleTextInteractionEnd(event) { if (activeElement && activeElement.classList.contains('textOverlay')) { activeElement.style.cursor = 'grab'; } document.body.style.cursor = 'default'; textInteractionState.isDragging = false; textInteractionState.isRotating = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; document.removeEventListener("mousemove", handleTextInteractionMove); document.removeEventListener("mouseup", handleTextInteractionEnd); document.removeEventListener("touchmove", handleTextInteractionMove); document.removeEventListener("touchend", handleTextInteractionEnd); document.removeEventListener("touchcancel", handleTextInteractionEnd); }
+
+// --- Interaction Handlers (Image - Custom Mode) ---
+function handleImageDragStart(event) { if (event.target.classList.contains('handle') || currentSignMode !== 'custom') return; const el = event.currentTarget; setActiveElement(el); imageInteractionState.isDragging = true; imageInteractionState.isRotating = false; imageInteractionState.isResizing = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); imageInteractionState.startX = coords.x - contRect.left; imageInteractionState.startY = coords.y - contRect.top; imageInteractionState.startLeft = parseFloat(el.style.left || "0"); imageInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleImageRotateStart(event) { if (currentSignMode !== 'custom') return; event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isRotating = true; imageInteractionState.isDragging = false; imageInteractionState.isResizing = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let startAngle = Math.atan2(dy, dx); imageInteractionState.currentRotationRad = getRotationRad(el); imageInteractionState.startAngle = startAngle - imageInteractionState.currentRotationRad; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleImageResizeStart(event) { if (currentSignMode !== 'custom') return; event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isResizing = true; imageInteractionState.isRotating = false; imageInteractionState.isDragging = false; document.body.style.cursor = 'nwse-resize'; const coords = getEventCoordinates(event); imageInteractionState.startX = coords.x; imageInteractionState.startY = coords.y; imageInteractionState.startWidth = el.offsetWidth; imageInteractionState.startHeight = el.offsetHeight; imageInteractionState.aspectRatio = imageInteractionState.startHeight > 0 ? imageInteractionState.startWidth / imageInteractionState.startHeight : 1; imageInteractionState.currentRotationRad = getRotationRad(el); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleImageInteractionMove(event) { if (!activeElement || !activeElement.classList.contains('imgOverlay') || (!imageInteractionState.isDragging && !imageInteractionState.isRotating && !imageInteractionState.isResizing)) return; if (event.type === 'touchmove') event.preventDefault(); const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); if (imageInteractionState.isDragging) { const currentX = coords.x - contRect.left; const currentY = coords.y - contRect.top; activeElement.style.left = `${imageInteractionState.startLeft + (currentX - imageInteractionState.startX)}px`; activeElement.style.top = `${imageInteractionState.startTop + (currentY - imageInteractionState.startY)}px`; } else if (imageInteractionState.isRotating) { const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let angle = Math.atan2(dy, dx); let rotationRad = angle - imageInteractionState.startAngle; let rotationDeg = rotationRad * (180 / Math.PI); activeElement.style.transform = `translate(-50%, -50%) rotate(${rotationDeg}deg)`; } else if (imageInteractionState.isResizing) { const startDist = Math.hypot(imageInteractionState.startX - imageInteractionState.centerX, imageInteractionState.startY - imageInteractionState.centerY); const currentDist = Math.hypot(coords.x - imageInteractionState.centerX, coords.y - imageInteractionState.centerY); const scaleFactor = startDist > 0 ? currentDist / startDist : 1; let newWidth = imageInteractionState.startWidth * scaleFactor; let newHeight = imageInteractionState.aspectRatio > 0 ? newWidth / imageInteractionState.aspectRatio : newWidth; activeElement.style.width = `${Math.max(30, newWidth)}px`; activeElement.style.height = `${Math.max(30 / imageInteractionState.aspectRatio, newHeight)}px`; } }
+function handleImageInteractionEnd(event) { if (activeElement && activeElement.classList.contains('imgOverlay')) { activeElement.style.cursor = 'grab'; } document.body.style.cursor = 'default'; imageInteractionState.isDragging = false; imageInteractionState.isRotating = false; imageInteractionState.isResizing = false; document.removeEventListener("mousemove", handleImageInteractionMove); document.removeEventListener("mouseup", handleImageInteractionEnd); document.removeEventListener("touchmove", handleImageInteractionMove); document.removeEventListener("touchend", handleImageInteractionEnd); document.removeEventListener("touchcancel", handleImageInteractionEnd); }
+
+// --- Utility Functions ---
+function calculateElementPosition(percentX, percentY) { const contRect=container.getBoundingClientRect();if(!contRect||contRect.width===0||contRect.height===0)return{x:0,y:0};/*const scaleX=contRect.width/canvasWidth;const scaleY=contRect.height/canvasHeight;const targetCanvasX=canvasWidth*(percentX/100);const targetCanvasY=canvasHeight*(percentY/100);return{x:targetCanvasX*scaleX,y:targetCanvasY*scaleY};*/ return { x: contRect.width * (percentX/100), y: contRect.height * (percentY/100) }; } // Simplified: Position relative to container %
+function getCanvasCoordsFromContainerPoint(containerX, containerY) { const contRect=container.getBoundingClientRect();if(!contRect||contRect.width===0||contRect.height===0)return{canvasX:0,canvasY:0};const scaleX=canvasWidth/contRect.width; const scaleY=canvasHeight/contRect.height; return{canvasX:containerX*scaleX,canvasY:containerY*scaleY};}
+function pointInPolygon(point, vs) { const x = point.x, y = point.y; let inside = false; for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) { const xi = vs[i].x, yi = vs[i].y; const xj = vs[j].x, yj = vs[j].y; const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi); if (intersect) inside = !inside; } return inside; }
+function rgb2hex(rgb) { if(!rgb)return'#ffffff'; if(rgb.startsWith('#'))return rgb; const rgbMatch=rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/); if(rgbMatch){return"#"+rgbMatch.slice(1).map(x=>parseInt(x).toString(16).padStart(2,'0')).join('');} return rgb; }
+
+// --- Text Wrapping Calculation for Canvas (Custom Mode) ---
+function getWrappedTextLines(text, maxWidthPx, fontStyle) {
+    if (!text) return [];
+    ctx.font = fontStyle; // Ensure context has the correct font for measurement
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+
+    for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        // Handle potential multiple spaces or leading/trailing spaces in words if needed
+        const testLine = currentLine ? currentLine + " " + word : word;
+        const testWidth = ctx.measureText(testLine).width;
+
+        if (testWidth <= maxWidthPx || !currentLine) { // If fits, or if it's the first word on the line
+            currentLine = testLine;
+        } else {
+            // Doesn't fit, push the previous line and start a new one
+            lines.push(currentLine);
+            currentLine = word;
+            // Check if the single word itself exceeds the max width
+            if (ctx.measureText(currentLine).width > maxWidthPx) {
+                // Basic character wrapping (could be improved for hyphenation)
+                let tempLine = '';
+                for(let char of currentLine) {
+                    if(ctx.measureText(tempLine + char).width > maxWidthPx) {
+                        lines.push(tempLine);
+                        tempLine = char;
+                    } else {
+                        tempLine += char;
+                    }
+                }
+                currentLine = tempLine; // The remaining part of the word becomes the current line start
+            }
+        }
+    }
+    if (currentLine) { // Push the last line
+        lines.push(currentLine);
+    }
+    return lines;
+}
+
+
+// --- Save Functionality (Unified) ---
+function saveImage() {
+    const currentNftId = nftTokenIdInput.value || 'unknown';
+    const currentCollection = nftCollectionSelect.value || 'unknown';
+
+    if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { alert("Load a valid NFT first!"); nftStatusEl.className = 'error'; nftStatusEl.textContent = "NFT not loaded for saving."; return; }
+    if (currentSignMode === 'prefix' && !appliedPrefixSignImage) { alert("Select a sign from the gallery before saving."); nftStatusEl.className = 'error'; nftStatusEl.textContent = "No sign selected from gallery."; return; }
+
+    nftStatusEl.textContent = `Generating final image...`; nftStatusEl.className = '';
+    const previouslyActive = activeElement; if (activeElement) setActiveElement(null); // Deselect custom element for clean render
+
+    // --- Start Drawing ---
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    drawBaseImage(); // 1. Base NFT
+
+    if (currentSignMode === 'prefix' && appliedPrefixSignImage && appliedPrefixSignImage.complete) {
+         // 2. Applied Prefix Sign
+        try { ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight); } catch (e) { console.error("Error drawing prefix sign during save:", e); }
+    } else if (currentSignMode === 'custom') {
+        // 2. Custom Sign Background Color
+        if (overlayColorInput.value) drawSignPolygonOnly();
+
+        // 3. Custom Overlays (Text/Images)
+        // We need the *display* container's rect to scale DOM element positions to canvas coordinates
+        const containerRect = container.getBoundingClientRect();
+        if (!containerRect || containerRect.width === 0 || containerRect.height === 0) { console.error("Error getting container rect during save"); nftStatusEl.className='error'; nftStatusEl.textContent="Save Error: Container rect invalid."; if(previouslyActive) setActiveElement(previouslyActive); return; }
+        const scaleX = canvasWidth / containerRect.width;
+        const scaleY = canvasHeight / containerRect.height;
+
+        const allOverlays = Array.from(container.querySelectorAll(".textOverlay, .imgOverlay"));
+        // Sort by z-index to draw in correct order (lower z-index first)
+        allOverlays.sort((a, b) => (parseInt(window.getComputedStyle(a).zIndex) || 0) - (parseInt(window.getComputedStyle(b).zIndex) || 0));
+
+        allOverlays.forEach(el => {
+            const elRect = el.getBoundingClientRect();
+            const rotationRad = getRotationRad(el);
+            // Calculate center relative to the container top-left
+            const relativeCenterX = (elRect.left + elRect.width / 2) - containerRect.left;
+            const relativeCenterY = (elRect.top + elRect.height / 2) - containerRect.top;
+            // Scale the relative center to canvas coordinates
+            const canvasX = Math.round(relativeCenterX * scaleX);
+            const canvasY = Math.round(relativeCenterY * scaleY);
+
+            ctx.save();
+            ctx.translate(canvasX, canvasY); // Move origin to element center on canvas
+            ctx.rotate(rotationRad);        // Rotate around the new origin
+
+            if (el.classList.contains('textOverlay')) {
+                const textNode = el.childNodes[0];
+                const text = textNode && textNode.nodeType === Node.TEXT_NODE ? textNode.nodeValue : (el.textContent || '');
+                const color = el.style.color || '#ffffff';
+                const size = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE;
+                const font = el.style.fontFamily || 'Arial';
+                const domWidth = el.offsetWidth; // Use the actual rendered width of the DOM element
+
+                // Scale font size and width based on container->canvas scaling
+                const canvasFontSize = Math.round(size * scaleY); // Scale font based on height ratio
+                const canvasMaxWidth = Math.round(domWidth * scaleX); // Scale available width based on width ratio
+
+                const fontStyle = `${canvasFontSize}px ${font}`;
+                ctx.font = fontStyle;
+                ctx.fillStyle = color;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                const lines = getWrappedTextLines(text, canvasMaxWidth, fontStyle);
+                const lineHeight = canvasFontSize * 1.2; // Approximate line height
+                const totalTextHeight = lines.length * lineHeight;
+                let currentY = -(totalTextHeight / 2) + (lineHeight / 2); // Start drawing from top
+
+                lines.forEach(line => {
+                    ctx.fillText(line, 0, currentY); // Draw centered horizontally at the translated origin
+                    currentY += lineHeight;
+                });
+
+            } else if (el.classList.contains('imgOverlay')) {
+                const imgElement = el.querySelector('img');
+                if (imgElement && imgElement.complete && imgElement.naturalWidth > 0) {
+                    const domWidth = el.offsetWidth;
+                    const domHeight = el.offsetHeight;
+                    // Scale DOM dimensions to canvas dimensions
+                    const canvasDrawWidth = Math.round(domWidth * scaleX);
+                    const canvasDrawHeight = Math.round(domHeight * scaleY);
+
+                    if (canvasDrawWidth > 0 && canvasDrawHeight > 0) {
+                        try {
+                            // Draw the image centered at the translated/rotated origin
+                            ctx.drawImage(imgElement, -canvasDrawWidth / 2, -canvasDrawHeight / 2, canvasDrawWidth, canvasDrawHeight);
+                        } catch (e) {
+                            console.error("Error drawing image overlay during save:", e);
+                        }
+                    }
+                } else {
+                    console.warn("Skipping unloaded/invalid image overlay during save:", imgElement?.src);
+                }
+            }
+            ctx.restore(); // Restore context state (translation, rotation)
+        });
+    }
+    // --- End Drawing ---
+
+    // --- Generate Download Link ---
+    try {
+        const dataURL = canvas.toDataURL("image/png"); const link = document.createElement("a");
+        let filename = "";
+        if (currentSignMode === 'prefix' && appliedPrefixSignImage) {
+            const signName = appliedPrefixSignImage.alt || 'sign'; // Use stored name
+            const safeSignName = signName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            filename = `signed-${currentCollection}-${currentNftId}-${safeSignName}.png`;
+        } else { filename = `custom-${currentCollection}-${currentNftId}.png`; }
+        link.download = filename; link.href = dataURL; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        nftStatusEl.textContent = `Image saved as ${filename}!`; nftStatusEl.className = 'success';
+    } catch (e) {
+        console.error("Error saving image:", e); nftStatusEl.className = 'error';
+        if (e.name === "SecurityError") { alert("Save Error: Cannot save due to cross-origin image security restrictions. Ensure NFT/Sign images allow anonymous access (CORS)."); nftStatusEl.textContent = "Save Error: CORS issue."; }
+        else { alert("An error occurred saving the image."); nftStatusEl.textContent = "Save Error."; }
+    }
+
+     // --- Restore Canvas View ---
+     // Use setTimeout to allow the download prompt to appear before redrawing
+     setTimeout(() => {
+         if (baseImage.src && baseImage.complete) {
+             if (currentSignMode === 'prefix' && appliedPrefixSignImage) {
+                 // Redraw base + prefix sign
+                 drawBaseImage();
+                 ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight);
+             }
+             else if (currentSignMode === 'custom') {
+                 // Redraw base + custom polygon (overlays are still in DOM)
+                 applyOverlay(false);
+             }
+             else {
+                 // Just redraw base image if no mode active or no sign applied
+                 drawBaseImage();
+             }
+         } else {
+             clearCanvas(); // Clear if base image isn't loaded
+         }
+         // Restore the previously active element's visual state if it exists
+         if (previouslyActive && container.contains(previouslyActive)) {
+             setActiveElement(previouslyActive);
+         }
+     }, 100); // 100ms delay
+} // End saveImage function
