@@ -25,7 +25,7 @@ let signConfigData = null;
 let isSignConfigLoading = false;
 let selectedSignItem = null; // Track selected sign DOM element in gallery
 let appliedPrefixSignImage = null; // Keep track of the currently applied prefix sign Image object
-let lastCustomTextInputValue = ""; // <<< NEW: Store last text input value for custom mode
+let lastCustomTextInputValue = ""; // Represents text input value when NO element is selected
 
 // --- DOM Element References ---
 let canvas, ctx, container, textInput, textColor, fontFamily, removeBtn, nftStatusEl,
@@ -114,9 +114,9 @@ function setupEventListeners() {
     // Custom Controls
     overlayColorInput.addEventListener('input', () => { if (currentSignMode === 'custom') applyOverlay(false); });
     addTextBtn.addEventListener('click', addText);
-    textInput.addEventListener("input", handleTextControlChange);
-    textColor.addEventListener("input", handleTextControlChange);
-    fontFamily.addEventListener("input", handleTextControlChange);
+    textInput.addEventListener("input", handleTextControlChange); // Event listener for text input changes
+    textColor.addEventListener("input", handleTextControlChange); // Also trigger style updates
+    fontFamily.addEventListener("input", handleTextControlChange); // Also trigger style updates
     addImageBtn.addEventListener('click', addImage);
 
     // Attach listener for delete, passing the event object
@@ -171,7 +171,7 @@ function setControlsDisabled(isDisabled) {
 }
 
 // ===========================================================
-// setSignMode - Manages visibility and state between modes (FIX APPLIED)
+// setSignMode - Adjust text input handling (FIX APPLIED)
 // ===========================================================
 function setSignMode(mode) {
     const previousMode = currentSignMode;
@@ -179,7 +179,12 @@ function setSignMode(mode) {
 
     // --- Save State from Previous Mode (if needed) ---
     if (previousMode === 'custom' && textInput) {
-        lastCustomTextInputValue = textInput.value; // <<< SAVE text input value
+        // If NO text element was active, save the current input value as the general state
+        if (!activeElement || !activeElement.classList.contains('textOverlay')) {
+             lastCustomTextInputValue = textInput.value;
+        }
+        // If a text element WAS active, its value is already saved in its own DOM node.
+        // No need to save it to lastCustomTextInputValue here.
     }
 
     // --- Set new mode state FIRST ---
@@ -189,10 +194,10 @@ function setSignMode(mode) {
 
     // --- Cleanup/Transition Logic ---
     if (mode === 'prefix') {
-        // Switching TO Prefix: Hide custom elements, deselect active element (without removing it)
+        // Switching TO Prefix: Hide custom elements, deselect active element
         customOverlays.forEach(el => el.classList.add('hidden-overlay'));
         if (activeElement) {
-            setActiveElement(null); // Deselects active element visually & updates buttons
+            setActiveElement(null); // Deselects active element visually & updates buttons/input field
         }
         // Restore prefix sign image on canvas if one was applied before
         if (appliedPrefixSignImage && baseImage.complete) {
@@ -212,9 +217,9 @@ function setSignMode(mode) {
             selectedSignItem = null;
         }
 
-        // Restore last text input value
+        // Restore last GENERAL text input value (for when nothing is selected yet)
         if (textInput) {
-            textInput.value = lastCustomTextInputValue; // <<< RESTORE text input value
+            textInput.value = lastCustomTextInputValue;
         }
 
         // Redraw canvas with base image + custom color overlay
@@ -226,7 +231,6 @@ function setSignMode(mode) {
     // --- Update UI text and visibility ---
     nftStatusEl.textContent = `Mode selected: ${mode === 'prefix' ? 'Signs Gallery' : 'Custom Sign'}.`;
     nftStatusEl.className = '';
-
     prefixOptionsGroup.classList.toggle('hidden', mode !== 'prefix');
     customOptionsGroup.classList.toggle('hidden', mode !== 'custom');
 
@@ -234,13 +238,10 @@ function setSignMode(mode) {
     setControlsDisabled(true); // Disable everything first
     signTypePrefixRadio.disabled = false; // Always allow switching modes
     signTypeCustomRadio.disabled = false;
-
     if (mode === 'custom' && baseImage.complete) {
-        // Enable custom editing controls if NFT is loaded
         const customEditControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn];
         customEditControls.forEach(el => { if(el) el.disabled = false; });
     }
-    // Always update the final action buttons based on the new mode and state
     updateCustomActionButtons();
 }
 
@@ -262,37 +263,49 @@ function updateCustomActionButtons() {
 }
 
 
-// --- Event Handlers ---
+// ===========================================================
+// handleTextControlChange - Revised Logic (FIX APPLIED)
+// ===========================================================
 function handleTextControlChange() {
     if (activeElement && activeElement.classList.contains('textOverlay') && currentSignMode === 'custom') {
+        // --- Update Active Element Directly ---
         let textNode = activeElement.childNodes[0];
-         while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
+        while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
 
         if (textNode) {
-            textNode.nodeValue = textInput.value || " ";
-        } else { // If no text node found (should be rare), create one
-             activeElement.insertBefore(document.createTextNode(textInput.value || " "), activeElement.querySelector('.handle'));
+            textNode.nodeValue = textInput.value || " "; // Update the DOM node directly
+            // console.log("Updated textNode value to:", textNode.nodeValue); // For debugging
+        } else {
+            // Fallback (rare)
+            activeElement.insertBefore(document.createTextNode(textInput.value || " "), activeElement.querySelector('.handle'));
+            console.warn("Created new text node in handleTextControlChange");
         }
+        // Update style attributes
         activeElement.style.color = textColor.value;
         activeElement.style.fontFamily = fontFamily.value;
 
-        // Auto-adjust width after text change - keep existing width if manually set
+        // Auto-adjust width after text change
         requestAnimationFrame(() => {
-             if(activeElement && activeElement.classList.contains('textOverlay') && container.contains(activeElement)) {
-                 const originalWidthStyle = activeElement.style.width;
-                 const hadManualWidth = originalWidthStyle && originalWidthStyle !== 'auto';
-                 activeElement.style.width = 'auto'; // Let it expand naturally
-                 const naturalWidth = activeElement.offsetWidth;
-                 // Restore previous width OR set to natural width if it was 'auto' or not set
-                 activeElement.style.width = hadManualWidth ? originalWidthStyle : `${Math.max(30, naturalWidth)}px`;
-             }
-         });
+            if (activeElement && activeElement.classList.contains('textOverlay') && container.contains(activeElement)) {
+                const originalWidthStyle = activeElement.style.width;
+                const hadManualWidth = originalWidthStyle && originalWidthStyle !== 'auto';
+                activeElement.style.width = 'auto'; // Let it expand naturally
+                const naturalWidth = activeElement.offsetWidth;
+                // Restore previous width OR set to natural width if it was 'auto' or not set
+                activeElement.style.width = hadManualWidth ? originalWidthStyle : `${Math.max(30, naturalWidth)}px`;
+            }
+        });
+        // DO NOT update lastCustomTextInputValue here; the active element's nodeValue is the source of truth.
+
+    } else if (currentSignMode === 'custom' && textInput) {
+        // --- Update General Stored Value (No active text element) ---
+        // This happens if user types while no text overlay is selected
+        lastCustomTextInputValue = textInput.value;
+        // console.log("Updated lastCustomTextInputValue to:", lastCustomTextInputValue); // For debugging
     }
-     // Update the stored text value whenever the user types in custom mode
-     if (currentSignMode === 'custom' && textInput) {
-         lastCustomTextInputValue = textInput.value;
-     }
 }
+
+
 function handleReset() {
     if (confirm("Are you sure you want to clear the canvas and all added elements/signs? This cannot be undone.")) {
         clearCanvasAndOverlays(); // Clears custom overlays from DOM & resets activeElement
@@ -364,7 +377,6 @@ function enableNftLoadControlsOnly() {
 }
 
 // --- NFT Loading & Drawing ---
-// Presuming this function is mostly correct from previous versions
 function getPolygonForSelectedCollection(){ const selectedCollection=nftCollectionSelect.value; if(selectedCollection==="AHC"){return[{x:1415,y:316},{x:2024,y:358},{x:1958,y:1324},{x:1358,y:1286}];}else{/* GHN default */ return[{x:1403,y:196},{x:2034,y:218},{x:1968,y:1164},{x:1358,y:1126}];} }
 function resolveIpfsUrl(url) { if(url&&url.startsWith("ipfs://")){ return url.replace("ipfs://","https://ipfs.io/ipfs/"); } return url; }
 async function loadNftToCanvas() {
@@ -544,13 +556,16 @@ function applyPrefixSign(signImageUrl, signName) {
 }
 
 
-// --- Text & Image Creation (Custom Mode) ---
-// Presuming these are OK from previous versions
-function addText() { /* ... unchanged ... */
+// ===========================================================
+// addText - Adjust text input handling (FIX APPLIED)
+// ===========================================================
+function addText() {
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
 
+    // Use the current general text input value OR default
     const textValue = textInput.value || "New Text";
+
     const textEl = document.createElement("div"); textEl.className = "textOverlay";
     const textNode = document.createTextNode(textValue); textEl.appendChild(textNode);
     textEl.style.color = textColor.value; textEl.style.fontSize = `${DEFAULT_FONT_SIZE}px`; textEl.style.fontFamily = fontFamily.value;
@@ -571,13 +586,16 @@ function addText() { /* ... unchanged ... */
     container.appendChild(textEl);
     requestAnimationFrame(() => {
         if (textEl && container.contains(textEl)) {
-            const initialWidth = textEl.offsetWidth; textEl.style.width = `${Math.max(initialWidth, 30)}px`; textEl.style.whiteSpace = 'normal'; textEl.style.overflow = 'visible'; setActiveElement(textEl);
+            const initialWidth = textEl.offsetWidth; textEl.style.width = `${Math.max(initialWidth, 30)}px`; textEl.style.whiteSpace = 'normal'; textEl.style.overflow = 'visible';
+            // Select the newly added element, this will update textInput correctly
+            setActiveElement(textEl);
         }
     });
-     // Update stored text value when adding new text
-     if (textInput) lastCustomTextInputValue = textInput.value;
+     // No need to explicitly update lastCustomTextInputValue here, setActiveElement handles it.
 }
-function addImage() { /* ... unchanged ... */
+
+
+function addImage() {
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
     if (!imageUpload || !imageUpload.files || imageUpload.files.length === 0) { nftStatusEl.textContent = "Please select an image file."; nftStatusEl.className = 'error'; return; }
@@ -590,7 +608,7 @@ function addImage() { /* ... unchanged ... */
              if(container.offsetWidth > 0 && img.naturalWidth > 0 && img.naturalHeight > 0){ const contW = container.offsetWidth; const initialWidth = Math.min(img.naturalWidth * 0.5, contW * 0.4, 150); const aspectRatio = img.naturalWidth / img.naturalHeight; wrapper.style.width=`${initialWidth}px`; wrapper.style.height=`${initialWidth / aspectRatio}px`; }
              else { wrapper.style.width='100px'; wrapper.style.height='auto'; console.warn("Could not determine container/image size for initial scaling, using fallback."); }
              const currentPolygon = getPolygonForSelectedCollection(); const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x)); const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y)); const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50; const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50; const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent); wrapper.style.left=`${initialX}px`; wrapper.style.top=`${initialY}px`;
-             setActiveElement(wrapper);
+             setActiveElement(wrapper); // Select the new image
          };
         img.onerror = ()=>{ console.error("Error loading added image data."); nftStatusEl.textContent="Error displaying uploaded image."; nftStatusEl.className='error'; wrapper.remove(); };
         wrapper.appendChild(img);
@@ -605,41 +623,65 @@ function addImage() { /* ... unchanged ... */
     reader.readAsDataURL(file);
 }
 
-// --- Active Element Management ---
+// ===========================================================
+// setActiveElement - Revised Logic (FIX APPLIED)
+// ===========================================================
 function setActiveElement(el) {
-    // Deselect previous
-    if (activeElement && activeElement !== el) {
-        if (container.contains(activeElement)) {
-            activeElement.classList.remove("active");
-            activeElement.style.zIndex = activeElement.classList.contains('imgOverlay') ? '20' : '10';
+    const previouslyActiveElement = activeElement;
+
+    // --- Deselect Previous ---
+    if (previouslyActiveElement && previouslyActiveElement !== el) {
+        if (container.contains(previouslyActiveElement)) {
+            previouslyActiveElement.classList.remove("active");
+            previouslyActiveElement.style.zIndex = previouslyActiveElement.classList.contains('imgOverlay') ? '20' : '10';
+        }
+        // If deselecting (either by clicking outside or selecting a DIFFERENT element),
+        // restore the general text input value.
+         if (currentSignMode === 'custom' && textInput) {
+            textInput.value = lastCustomTextInputValue;
         }
     }
-    // Select new one (only if in custom mode)
+
+    // --- Select New Element ---
     if (el && currentSignMode === 'custom' && container.contains(el)) {
         el.classList.add("active");
-        activeElement = el;
+        activeElement = el; // Set the new active element
         el.style.zIndex = el.classList.contains('imgOverlay') ? '101' : '100';
-        // Update controls if it's text
+
         if (el.classList.contains('textOverlay')) {
-             let textNode = el.childNodes[0];
-             while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
-             let currentTextValue = "";
-             if (textNode) { currentTextValue = textNode.nodeValue.trim(); }
-             else { currentTextValue = (el.textContent || '').trim(); }
+            // --- Set controls FROM selected TEXT element ---
+            let textNode = el.childNodes[0];
+            while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
+            let currentTextValue = "";
+            if (textNode) {
+                currentTextValue = textNode.nodeValue; // Get exact value from node
+            } else {
+                currentTextValue = (el.textContent || ''); // Fallback
+            }
 
-             textInput.value = currentTextValue;
-             lastCustomTextInputValue = currentTextValue; // Update stored value when selecting text
+            textInput.value = currentTextValue; // Set input field FROM the element
+            // DO NOT update lastCustomTextInputValue when selecting an element
 
-             textColor.value = rgb2hex(el.style.color || '#ffffff');
-             const currentFont = (el.style.fontFamily || 'Arial').split(',')[0].replace(/['"]/g, "").trim();
-             let foundFont = false;
-             for (let option of fontFamily.options) { if (option.value.includes(currentFont)) { fontFamily.value = option.value; foundFont = true; break; } }
-             if (!foundFont) fontFamily.value = 'Arial';
+            // Update style controls
+            textColor.value = rgb2hex(el.style.color || '#ffffff');
+            const currentFont = (el.style.fontFamily || 'Arial').split(',')[0].replace(/['"]/g, "").trim();
+            let foundFont = false;
+            for (let option of fontFamily.options) { if (option.value.includes(currentFont)) { fontFamily.value = option.value; foundFont = true; break; } }
+            if (!foundFont) fontFamily.value = 'Arial';
+
+        } else if (el.classList.contains('imgOverlay')) {
+             // If selecting an IMAGE overlay, ensure input shows general value
+             if (currentSignMode === 'custom' && textInput) {
+                 textInput.value = lastCustomTextInputValue;
+             }
         }
+
     } else {
-        activeElement = null; // Clear selection
-        // When deselecting, restore the last *manually typed* value to the input field if in custom mode
-        if (currentSignMode === 'custom' && textInput){
+        // --- Deselecting Completely ---
+        // (e.g., clicking outside, switching modes, reset)
+        activeElement = null; // Clear active element
+        // Restore the general text value to the input field
+        if (currentSignMode === 'custom' && textInput) {
             textInput.value = lastCustomTextInputValue;
         }
     }
@@ -647,8 +689,9 @@ function setActiveElement(el) {
     updateCustomActionButtons();
 }
 
+
 // ===========================================================
-// removeActiveElement - Includes stopPropagation
+// removeActiveElement - Adjust text input handling (FIX APPLIED)
 // ===========================================================
 function removeActiveElement(event) {
     // Stop click from bubbling up to the document listener
@@ -659,13 +702,12 @@ function removeActiveElement(event) {
     if (activeElement && container.contains(activeElement) && currentSignMode === 'custom') {
         const elementType = activeElement.classList.contains('textOverlay') ? 'Text' : 'Image';
         activeElement.remove(); // Remove from DOM
-        setActiveElement(null); // Deselect and update buttons
+
+        // Deselecting will call setActiveElement(null) which restores the general text value
+        setActiveElement(null);
+
         nftStatusEl.textContent = `${elementType} element removed.`;
         nftStatusEl.className = '';
-         // After removing, reset text input to the last stored general value
-         if (textInput) {
-             textInput.value = lastCustomTextInputValue;
-         }
     } else if (currentSignMode !== 'custom') {
         nftStatusEl.textContent = "Delete only works in Custom Sign mode.";
         nftStatusEl.className = 'error';
@@ -676,7 +718,7 @@ function removeActiveElement(event) {
         console.warn("Delete clicked with no active element.");
     } else {
          console.warn("Attempted to delete an element not in container or invalid state.", activeElement);
-         setActiveElement(null); // Clear state
+         setActiveElement(null); // Clear state and restore general text input
          nftStatusEl.textContent = "Could not delete element.";
          nftStatusEl.className = 'error';
     }
@@ -684,7 +726,6 @@ function removeActiveElement(event) {
 
 
 // --- Interaction Handlers ---
-// Presuming these are OK from previous versions
 function getEventCoordinates(event) { let x,y; if(event.touches&&event.touches.length>0){x=event.touches[0].clientX;y=event.touches[0].clientY;}else if(event.changedTouches&&event.changedTouches.length>0){x=event.changedTouches[0].clientX;y=event.changedTouches[0].clientY;}else{x=event.clientX;y=event.clientY;} return{x,y}; }
 function getRotationRad(element) { if(!element||!element.style)return 0; const transform=element.style.transform; const rotateMatch=transform.match(/rotate\((-?\d+(\.\d+)?)deg\)/); const rotationDeg=rotateMatch?parseFloat(rotateMatch[1]):0; return rotationDeg*(Math.PI/180); }
 function handleTextDragStart(event) { if (event.target.classList.contains('handle') || currentSignMode !== 'custom') return; const el = event.currentTarget; setActiveElement(el); textInteractionState.isDragging = true; textInteractionState.isRotating = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); textInteractionState.startX = coords.x - contRect.left; textInteractionState.startY = coords.y - contRect.top; textInteractionState.startLeft = parseFloat(el.style.left || "0"); textInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
@@ -708,7 +749,6 @@ function getWrappedTextLines(text, maxWidthPx, fontStyle) { if (!text || maxWidt
 
 
 // --- Save Functionality ---
-// Presuming this is OK from previous versions
 function saveImage() {
     const currentNftId = nftTokenIdInput.value || 'unknown';
     const currentCollection = nftCollectionSelect.value || 'unknown';
@@ -750,7 +790,7 @@ function saveImage() {
 
             if (el.classList.contains('textOverlay')) {
                 let textNode = el.childNodes[0]; while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
-                const text = textNode ? textNode.nodeValue : (el.textContent || '');
+                const text = textNode ? textNode.nodeValue : (el.textContent || ''); // Get text directly from node
                 const color = el.style.color || '#ffffff'; const size = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE; const font = el.style.fontFamily || 'Arial'; const domWidth = el.offsetWidth;
                 const canvasFontSize = Math.round(size * scaleY); const canvasMaxWidth = Math.round(domWidth * scaleX);
                 if (canvasFontSize >= 1 && text) {
@@ -806,6 +846,5 @@ function saveImage() {
          }
      }, 100);
 }
-
 
 // --- END OF FILE script.js ---
