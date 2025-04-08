@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NFT Sign Generator (Ticuv Style Streamlined)</title>
+    <!-- Include Ethers.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.umd.min.js"></script>
+
+    <!-- Include Google Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Indie+Flower&family=Rubik+Moonrocks&display=swap" rel="stylesheet">
+
+    <!-- Link to external CSS file -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="main-container">
+    <h3>NFT Sign Generator</h3>
+
+    <!-- 1. NFT Loading Area -->
+    <div id="controls">
+        <div class="control-group" id="nft-load-group">
+            <label for="nftCollection">Collection:</label>
+            <select id="nftCollection">
+                <option value="GHN">GHN (Gooniez)</option>
+                <option value="AHC">AHC (Ape Hater)</option>
+                <!-- Add other collections here if needed -->
+            </select>
+            <label for="nftTokenId">Token ID:</label>
+            <input id="nftTokenId" placeholder="e.g.: 1114" type="number"/>
+            <button id="loadNftBtn">Load NFT</button>
+        </div>
+        <p id="nftStatus">Select collection & ID, then load NFT.</p>
+
+        <!-- 2. Sign Type Choice (Initially Hidden) -->
+        <div class="control-group hidden" id="sign-type-choice-group">
+            <label>Sign Type:</label>
+            <div> <!-- Wrapper for radios -->
+                <input type="radio" name="signType" value="prefix" id="signTypePrefix" disabled>
+                <label for="signTypePrefix">Signs Gallery</label> <!-- Label Changed -->
+                <input type="radio" name="signType" value="custom" id="signTypeCustom" disabled>
+                <label for="signTypeCustom">Custom Sign</label>
+            </div>
+        </div>
+
+        <!-- 3. Signs Gallery Options (Initially Hidden) -->
+        <div class="control-group hidden" id="prefix-options-group">
+            <div id="sign-gallery-container">
+                <p style="font-style: italic; color: var(--portal-blue);">Loading gallery...</p>
+            </div>
+            <!-- Save button specific for prefix mode -->
+            <div id="prefix-final-actions">
+                 <button id="savePrefixBtn" disabled>Save Full Image</button>
+            </div>
+        </div>
+
+        <!-- 4. Custom Sign Options (Initially Hidden) -->
+        <div class="control-group hidden" id="custom-options-group">
+            <!-- Sign Color -->
+            <div>
+                 <label for="overlayColor">Sign Color:</label>
+                 <input id="overlayColor" type="color" value="#00ff00"/>
+            </div>
+             <hr style="width: 90%; border-color: rgba(255,255,255,0.1); margin: 6px 0;">
+            <!-- Text Editing -->
+            <div class="text-editing-row">
+                 <label for="textInput">Text:</label>
+                 <input id="textInput" placeholder="Your text here" type="text"/>
+                 <button id="addTextBtn">Add Text</button>
+            </div>
+            <div class="text-style-row">
+                 <label>Style:</label>
+                 <input id="textColor" type="color" value="#ffffff" title="Text Color"/>
+                 <label for="fontFamily">Font:</label>
+                 <select id="fontFamily" title="Font Family">
+                     <option value="'Comic Neue', cursive">Comic Neue</option>
+                     <option value="'Indie Flower', cursive">Indie Flower</option>
+                     <option value="'Rubik Moonrocks', cursive">Rubik Moonrocks</option>
+                     <option value="'Luckiest Guy', cursive">Luckiest Guy</option>
+                     <option value="Arial">Arial</option>
+                     <option value="Verdana">Verdana</option>
+                     <option value="Times New Roman">Times New Roman</option>
+                 </select>
+            </div>
+             <hr style="width: 90%; border-color: rgba(255,255,255,0.1); margin: 6px 0;">
+            <!-- Image Upload -->
+            <div class="file-upload-row">
+                  <label for="imageUpload">Add Img:</label>
+                 <input type="file" id="imageUpload" accept="image/*"/>
+                 <button id="addImageBtn">Add Image</button>
+            </div>
+             <hr style="width: 90%; border-color: rgba(255,255,255,0.1); margin: 6px 0;">
+            <!-- Custom Actions (Delete/Save) -->
+            <div id="final-actions">
+                 <button id="removeBtn">Delete Selected</button>
+                 <button id="saveFullBtn">Save Full Image</button>
+            </div>
+        </div>
+
+    </div> <!-- End #controls -->
+
+
+    <div id="canvas-container">
+        <button class="floating-reset" id="resetCanvas" title="Reset Canvas & Overlays">↺</button>
+        <canvas height="2048" id="canvas" width="2048"></canvas>
+        <!-- Overlays will be added here -->
+    </div>
+
+</div> <!-- End .main-container -->
+
+<!-- Link to external JavaScript file -->
+<script src="script.js"></script>
+
+</body>
+</html>
