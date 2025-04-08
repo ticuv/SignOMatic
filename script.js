@@ -836,52 +836,32 @@ function setActiveElement(el) {
 
 
 // ===========================================================
-// removeActiveElement - Function to remove selected element
+// removeActiveElement - Function to remove selected element (CORRECTED VERSION)
 // ===========================================================
 function removeActiveElement(event) {
     if (event) {
         event.stopPropagation(); // Prevent triggering other listeners like handleOutsideClick
     }
-    hideHelpTooltip(); // Hide tooltip if removing element
+    hideHelpTooltip(); // Hide tooltip if open
 
-    // Double check activeElement is valid and in custom mode
-    if (activeElement && container.contains(activeElement) && currentSignMode === 'custom') {
+    // Use the simpler logic confirmed to work in the older version
+    // Add check that it's still in the container before removing
+    if (activeElement && container.contains(activeElement)) {
         const elementType = activeElement.classList.contains('textOverlay') ? 'Text' : 'Image';
-        // console.log(`Removing ${elementType} element:`, activeElement); // Debug log
+        activeElement.remove(); // Remove the element from the DOM
+        setActiveElement(null); // Clear the active selection state and update UI/buttons
 
-        activeElement.remove(); // Remove from DOM
-
-        // IMPORTANT: Explicitly set activeElement to null *before* calling setActiveElement(null)
-        // This ensures the state is cleared correctly before UI updates.
-        const removedEl = activeElement; // Keep a ref if needed for logs, but clear the global one
-        activeElement = null;
-
-        setActiveElement(null); // Update UI state (deselect, update buttons, text input)
-
-        nftStatusEl.textContent = `${elementType} element removed.`;
-        nftStatusEl.className = '';
-        // console.log("Element removed. Active element is now:", activeElement); // Debug log
-    } else if (currentSignMode !== 'custom') {
-        nftStatusEl.textContent = "Delete only works in Custom Sign mode.";
-        nftStatusEl.className = 'error';
-        console.warn("Delete clicked outside custom mode.");
-    } else if (!activeElement) {
-        nftStatusEl.textContent = "No element selected to delete.";
-        nftStatusEl.className = 'error';
-        console.warn("Delete clicked with no active element.");
-    } else if (activeElement && !container.contains(activeElement)) {
-         // If activeElement exists but isn't in the container (shouldn't happen often)
-         console.warn("Attempted to delete an element not in container DOM.", activeElement);
-         activeElement = null; // Clear the invalid reference
-         setActiveElement(null);
-         nftStatusEl.textContent = "Could not delete element (not found).";
-         nftStatusEl.className = 'error';
+        // Provide user feedback (optional but good UX)
+        if (nftStatusEl) {
+             nftStatusEl.textContent = `${elementType} element removed.`;
+             nftStatusEl.className = '';
+        }
     } else {
-         // Catch-all for unexpected states
-         console.warn("Attempted to delete element in unexpected state.", activeElement);
-         setActiveElement(null);
-         nftStatusEl.textContent = "Could not delete element.";
-         nftStatusEl.className = 'error';
+        // Log if trying to delete when nothing is selected or element is invalid
+        // (Button should ideally be disabled in this case by updateControlState)
+        console.warn("removeActiveElement called but no valid activeElement found or it's not in the container.");
+        // Ensure state is clean even if something went wrong
+        setActiveElement(null);
     }
 }
 
@@ -919,7 +899,8 @@ function saveImage() {
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { alert("Load a valid NFT first!"); nftStatusEl.className = 'error'; nftStatusEl.textContent = "NFT not loaded for saving."; return; }
     if (currentSignMode === 'prefix' && !appliedPrefixSignImage) { alert("Select a sign from the gallery before saving."); nftStatusEl.className = 'error'; nftStatusEl.textContent = "No sign selected from gallery."; return; }
 
-    nftStatusEl.textContent = `Generating final image...`; nftStatusEl.className = '';
+    nftStatusEl.textContent = `Generating final image...`;
+    nftStatusEl.className = '';
     const previouslyActive = activeElement; if (activeElement) setActiveElement(null); // Deselect for clean save
 
     // Start Drawing
