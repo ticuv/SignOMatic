@@ -12,14 +12,25 @@
       {
         "fileName": "GHN/narrative.PNG",
         "name": "Narrative Sign"
+      },
+      {
+        "fileName": "GHN/delist.PNG",
+        "name": "Delist Sign"
       }
     ],
     "AHC": [
       {
-        "fileName": "AHC/j.png",
+        "fileName": "AHC/delist.png",
         "name": "J Sign"
+     },
+      {
+        "fileName": "AHC/narrative.png",
+        "name": "Narrative Sign"
+      },
+      {
+        "fileName": "GHN/duko.png",
+        "name": "Duko Sign"
       }
-      
     ]
    
   }
