@@ -21,8 +21,8 @@
     --input-padding: 4px 7px;
     --input-font-size: 0.8rem;
     --label-font-size: 0.85rem;
-    --handle-size: 24px;
-    --handle-icon-size: 14px;
+    --handle-size: 24px; /* Base size for handles */
+    --handle-icon-size: 14px; /* Base size for icons within handles */
     --min-font-size: 8px;
 
     /* Gallery Styles */
@@ -238,7 +238,8 @@ button {
 }
 #loadNftBtn { background-color: var(--portal-blue); color: var(--off-white); }
 #addTextBtn, #addImageBtn { background-color: var(--morty-yellow); color: var(--outline-black); }
-#removeBtn { background-color: var(--error-red); color: var(--off-white); }
+/* #removeBtn is removed from HTML, style is no longer needed */
+/* #removeBtn { background-color: var(--error-red); color: var(--off-white); } */
 #saveFullBtn { background-color: var(--slime-green); color: var(--outline-black); }
 #savePrefixBtn { background-color: var(--slime-green); color: var(--outline-black); }
 
@@ -263,6 +264,7 @@ input[type="file"]:disabled { color: var(--disabled-text); }
 #nftStatus.error { color: var(--error-red); }
 #nftStatus.success { color: var(--slime-green); }
 
+/* #final-actions no longer contains the delete button */
 #final-actions, #prefix-final-actions {
     display: flex; justify-content: center; gap: 8px; width: 100%;
     margin-top: 8px; margin-bottom: 0.3rem; flex-wrap: wrap;
@@ -331,47 +333,105 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; backgro
     color: var(--handle-active-bg);
 }
 
-/* Rotation Handle - IMAGE Specific (Top, Rotated Icon) */
+/* Rotation Handle - IMAGE Specific (Bottom, Up Arrow Icon) MODIFIED */
 .imgOverlay .rotation-handle {
-    bottom: auto; /* Remove bottom positioning */
-    top: calc(-0.7 * var(--handle-size) - 3px); /* Position from top */
-    transform: translateX(-50%) rotate(180deg); /* Center horizontally and rotate icon */
-    color: var(--handle-image-active-bg);
+    bottom: calc(-0.7 * var(--handle-size) - 3px); /* Position from bottom */
+    top: auto; /* Remove top positioning */
+    transform: translateX(-50%); /* Just center horizontally */
+    color: var(--handle-image-active-bg); /* Keep color indicator */
+    line-height: calc(var(--handle-size) - 5px); /* Adjust line height for arrow maybe */
+    font-size: calc(var(--handle-icon-size) * 1.2); /* Slightly larger arrow */
 }
 
 
-/* Resize Handle Common Base */
+/* Resize Handle Common Base - MODIFIED with SVG Icon */
 .resize-handle-base {
-    background-color: var(--rick-green); background-repeat: no-repeat;
-    background-position: center center; background-size: 60% 60%;
+    background-color: var(--rick-green); /* Keep background color */
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 70% 70%; /* Adjust size as needed */
     transition: background-color 0.2s ease, transform 0.1s ease;
+    /* ADD the new SVG background */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%231a1a1a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 16 L10 10 M10 10 L16 4 M4 11 V 16 H 9 M16 9 V 4 H 11'/%3E%3C/svg%3E");
 }
 .resize-handle-base:hover { background-color: #7cac3a; transform: scale(1.1); }
 .resize-handle-base:active { background-color: #5f832d; transform: scale(0.95); }
 
-/* Right Resize Handle (TEXT: Width / IMAGE: Corner Resize - MOVED) */
+/* Remove specific icons from text handles - ensure they inherit new base icon */
+.textOverlay .resize-handle-right,
+.textOverlay .resize-handle-left {
+    background-image: inherit; /* Inherit the new base icon */
+}
+/* Remove image specific icon override - ensure it inherits new base icon */
+.imgOverlay .resize-handle-right {
+     background-image: inherit; /* Inherit the new base icon */
+}
+
+
+/* Right Resize Handle (Hidden for Text, Used for Image Corner) */
 .resize-handle-right {
     position: absolute;
     bottom: calc(-0.5 * var(--handle-size) - 1px);
 }
-/* TEXT Specific: Position Right, EW Cursor, Width Icon */
+/* TEXT Specific: Hide Right Handle - MODIFIED */
 .textOverlay .resize-handle-right {
-    right: calc(-0.5 * var(--handle-size) - 1px);
-    cursor: ew-resize;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3 10 H17 M3 10 L7 6 M3 10 L7 14 M17 10 L13 6 M17 10 L13 14' stroke='%231a1a1a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    display: none; /* Hide the right handle completely for text */
 }
-/* IMAGE Specific: Position Left, NWSE Cursor, Corner Icon */
+/* IMAGE Specific: Position Left, NWSE Cursor, Inherited Icon - MODIFIED */
 .imgOverlay .resize-handle-right {
     right: auto; /* Remove right positioning */
     left: calc(-0.5 * var(--handle-size) - 1px); /* Position Left */
     cursor: nwse-resize; /* Corner resize cursor is fine */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 5 L15 15 M5 5 L9 5 M5 5 L5 9 M15 15 L11 15 M15 15 L15 11' stroke='%231a1a1a' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    /* background icon is now inherited */
 }
 
-/* Left Resize Handle (Font Size for Text, Hidden for Image) */
-.resize-handle-left { position: absolute; bottom: calc(-0.5 * var(--handle-size) - 1px); left: calc(-0.5 * var(--handle-size) - 1px); }
-.textOverlay .resize-handle-left { cursor: ns-resize; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 3 V17 M10 3 L6 7 M10 3 L14 7 M10 17 L6 13 M10 17 L14 13' stroke='%231a1a1a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); }
-.imgOverlay .resize-handle-left { display: none; } /* Image resize is controlled by the other handle */
+/* Left Resize Handle (Width for Text, Hidden for Image) - MODIFIED */
+.resize-handle-left {
+     position: absolute;
+     bottom: calc(-0.5 * var(--handle-size) - 1px);
+     left: calc(-0.5 * var(--handle-size) - 1px);
+}
+.textOverlay .resize-handle-left {
+    cursor: ew-resize; /* Change cursor to indicate width resize */
+    /* background icon is now inherited */
+}
+.imgOverlay .resize-handle-left { display: none; } /* Still hidden for images */
+
+/* NEW: Inline Delete Button Styles */
+.overlay-delete-btn {
+    position: absolute;
+    top: calc(-0.5 * var(--handle-size) + 2px); /* Position slightly overlapping top-right */
+    right: calc(-0.5 * var(--handle-size) + 2px);
+    width: calc(var(--handle-size) * 0.9); /* Slightly smaller than other handles */
+    height: calc(var(--handle-size) * 0.9);
+    background-color: var(--error-red);
+    color: var(--off-white);
+    border: 1.5px solid var(--outline-black);
+    border-radius: 50%;
+    font-size: calc(var(--handle-icon-size) * 1.1); /* Make X slightly larger */
+    font-weight: bold;
+    line-height: calc(var(--handle-size) * 0.9 - 3px); /* Adjust line height for vertical centering */
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 1px 1px 0 var(--outline-black);
+    z-index: 105; /* Above other handles */
+    display: none; /* Hidden by default */
+    user-select: none;
+    font-family: sans-serif; /* Use a common font for 'X' */
+}
+/* Show delete button only when parent overlay is active */
+.textOverlay.active .overlay-delete-btn,
+.imgOverlay.active .overlay-delete-btn {
+    display: block;
+}
+.overlay-delete-btn:hover {
+    transform: scale(1.1);
+    background-color: #ff6666; /* Lighter red on hover */
+}
+.overlay-delete-btn:active {
+    transform: scale(0.95);
+    box-shadow: 0.5px 0.5px 0 var(--outline-black);
+}
 
 
 .floating-reset {
@@ -604,8 +664,8 @@ body.modal-open .modal {
     input[type="text"], input[type="number"], select { padding: 3px 5px; font-size: 0.75rem; }
     input[type="file"] { font-size: 0.7rem;}
     .file-upload-row input[type="file"] { max-width: 150px; }
-    :root { --handle-size: 20px; --handle-icon-size: 11px; --min-font-size: 6px;}
-    .resize-handle-base { background-size: 55% 55%; }
+    :root { --handle-size: 20px; --handle-icon-size: 11px; --min-font-size: 6px;} /* Adjusted handle size */
+    .resize-handle-base { background-size: 65% 65%; } /* Slightly larger icon within smaller handle */
     #final-actions, #prefix-final-actions { gap: 5px; }
     .text-style-row { gap: 4px 6px; }
     .text-style-row select { min-width: 90px; }
@@ -643,7 +703,7 @@ body.modal-open .modal {
      #nftStatus { font-size: 0.7rem; }
      #final-actions, #prefix-final-actions { flex-direction: column; gap: 4px; margin-bottom: 0.3rem;}
      #final-actions button, #savePrefixBtn { width: 100%; }
-     .resize-handle-base { background-size: 50% 50%; }
+     /* .resize-handle-base { background-size: 60% 60%; } /* Further adjust if needed */
      #sign-gallery-container { max-height: 180px; }
      .sign-item { width: 65px; }
      .sign-item img { height: 35px; }
