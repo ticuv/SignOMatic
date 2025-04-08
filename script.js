@@ -23,7 +23,6 @@ let signConfigData = null;
 let isSignConfigLoading = false;
 let selectedSignItem = null; // Track selected sign DOM element in gallery
 let appliedPrefixSignImage = null; // Keep track of the currently applied prefix sign Image object
-let isLoadingNFT = false; // Flag to track NFT loading state
 
 // --- DOM Element References ---
 let canvas, ctx, container, textInput, textColor, fontFamily, removeBtn, nftStatusEl,
@@ -61,36 +60,48 @@ window.onload = () => {
     customOptionsGroup = document.getElementById("custom-options-group");
     signGalleryContainer = document.getElementById("sign-gallery-container");
     savePrefixBtn = document.getElementById("savePrefixBtn");
-    prefixFinalActions = document.getElementById("prefix-final-actions");
+    prefixFinalActions = document.getElementById("prefix-final-actions"); // Container for prefix save button
 
     // Initial Setup
-    setControlsDisabled(true);
-    if(loadNftBtn) loadNftBtn.disabled = false;
-    if(nftCollectionSelect) nftCollectionSelect.disabled = false;
-    if(nftTokenIdInput) nftTokenIdInput.disabled = false;
+    setControlsDisabled(true); // Start with most controls disabled
+    loadNftBtn.disabled = false; // Enable NFT loading
+    nftCollectionSelect.disabled = false;
+    nftTokenIdInput.disabled = false;
     clearCanvas();
     setupEventListeners();
-    updateCustomActionButtons(); // Set initial button states
 };
 
-// --- Event Listeners Setup ---
+// ===========================================================
+// setupEventListeners - Include stopPropagation for Delete
+// ===========================================================
 function setupEventListeners() {
     if (!loadNftBtn) { console.error("Load button not found!"); return; }
 
     // NFT Loading
     loadNftBtn.addEventListener('click', loadNftToCanvas);
     nftCollectionSelect.addEventListener("change", () => {
+        // When collection changes *after* loading, clear the specific mode's additions
         if (baseImage.src && baseImage.complete) {
-             // Remove custom overlays on collection change as polygon changes
-             container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove());
-             setActiveElement(null);
-             appliedPrefixSignImage = null; // Reset prefix state too
-             if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
-
-            if (currentSignMode === 'custom') { applyOverlay(false); }
-            else if (currentSignMode === 'prefix') { drawBaseImage(); populateSignGallery(); }
-            else { drawBaseImage(); } // If no mode selected yet
-             updateCustomActionButtons();
+            if (currentSignMode === 'custom') {
+                // Remove custom overlays if any exist
+                container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove());
+                setActiveElement(null); // Deselect & update buttons
+                applyOverlay(false);    // Redraw base + polygon
+            } else if (currentSignMode === 'prefix') {
+                // Reset prefix state
+                appliedPrefixSignImage = null;
+                if (selectedSignItem) {
+                    selectedSignItem.classList.remove('selected');
+                    selectedSignItem = null;
+                }
+                drawBaseImage(); // Redraw just the base
+                if(savePrefixBtn) savePrefixBtn.disabled = true;
+                populateSignGallery(); // Refresh gallery for the new collection
+            }
+            // If no mode is active yet, just redraw base
+            else {
+                drawBaseImage();
+            }
         }
     });
 
@@ -106,46 +117,60 @@ function setupEventListeners() {
     fontFamily.addEventListener("input", handleTextControlChange);
     addImageBtn.addEventListener('click', addImage);
 
-    // Attach listener for delete, passing the event object to stop propagation
+    // Attach listener for delete, passing the event object
     removeBtn.addEventListener('click', (event) => removeActiveElement(event));
 
     // General Actions
     resetCanvasBtn.addEventListener('click', handleReset);
-    saveFullBtn.addEventListener('click', saveImage);
-    savePrefixBtn.addEventListener('click', saveImage);
+    saveFullBtn.addEventListener('click', saveImage); // Custom Save
+    savePrefixBtn.addEventListener('click', saveImage); // Prefix Save (uses same function)
 
-     // Deselect active element when clicking outside
+     // Deselect active element when clicking outside (Global Listener)
      document.addEventListener('click', (event) => {
         const clickedInsideContainer = container.contains(event.target);
         const clickedOnContainerOrCanvas = event.target === container || event.target === canvas;
         const clickedOnButton = event.target.tagName === 'BUTTON' || event.target.closest('button');
 
+        // Condition 1: Click is NOT on a button AND (outside container OR directly on container/canvas)
         if (!clickedOnButton && (!clickedInsideContainer || clickedOnContainerOrCanvas)) {
-             if (activeElement && currentSignMode === 'custom') { setActiveElement(null); }
+             if (activeElement && currentSignMode === 'custom') {
+                 setActiveElement(null); // Deselect
+             }
+        // Condition 2: Click is NOT on a button AND inside container AND NOT on the active element itself
         } else if (!clickedOnButton && activeElement && !activeElement.contains(event.target)) {
              const clickedOverlay = event.target.closest('.textOverlay, .imgOverlay');
-             if (!clickedOverlay && currentSignMode === 'custom') { setActiveElement(null); }
+             // If click was inside container but NOT on any overlay -> deselect
+             if (!clickedOverlay && currentSignMode === 'custom') {
+                 setActiveElement(null);
+             }
+             // If click was on *another* overlay, its own start handler will call setActiveElement
         }
-     }, true);
+     }, true); // Use capture phase
 }
 
 // --- Workflow Management ---
 function setControlsDisabled(isDisabled) {
-    const allControls = [
-        overlayColorInput, textInput, textColor, fontFamily,
-        addTextBtn, imageUpload, addImageBtn, removeBtn, saveFullBtn,
-        signTypePrefixRadio, signTypeCustomRadio, savePrefixBtn,
-        loadNftBtn, nftCollectionSelect, nftTokenIdInput
-    ];
-    allControls.forEach(el => { if (el) el.disabled = isDisabled; });
-    if (isDisabled) { // Extra check for buttons
-        [removeBtn, saveFullBtn, savePrefixBtn, loadNftBtn].forEach(btn => { if(btn) btn.disabled = true; });
+    const customControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn, removeBtn, saveFullBtn];
+    const signChoiceRadios = [signTypePrefixRadio, signTypeCustomRadio];
+    const prefixControls = [savePrefixBtn]; // Only the prefix save button needs specific handling here
+
+    customControls.forEach(el => { if(el) el.disabled = isDisabled; });
+    prefixControls.forEach(el => { if(el) el.disabled = isDisabled; });
+    // Disable radios initially, they get re-enabled if needed
+    signChoiceRadios.forEach(el => { if(el) el.disabled = isDisabled; });
+
+    // Ensure action buttons are definitely disabled if 'isDisabled' is true
+    if (isDisabled) {
+        if(removeBtn) removeBtn.disabled = true;
+        if(saveFullBtn) saveFullBtn.disabled = true;
+        if(savePrefixBtn) savePrefixBtn.disabled = true;
     }
+    // Specific enabling logic happens in setSignMode and updateCustomActionButtons
 }
 
-// ==========================================================================
-// setSignMode - Păstrează elementele custom ascunse, reaplică overlay color
-// ==========================================================================
+// ===========================================================
+// setSignMode - Manages visibility and state between modes
+// ===========================================================
 function setSignMode(mode) {
     const previousMode = currentSignMode;
     if (mode === previousMode) return; // No change needed
@@ -155,130 +180,444 @@ function setSignMode(mode) {
     // --- Cleanup/Transition Logic ---
     if (mode === 'prefix') {
         // Switching TO Prefix: Hide custom elements, deselect active
-        customOverlays.forEach(el => el.classList.add('hidden-overlay')); // Hide
+        customOverlays.forEach(el => el.classList.add('hidden-overlay'));
         if (activeElement) {
             setActiveElement(null); // Deselects and updates buttons
         }
         // Restore prefix sign image on canvas if one was applied before
-        if (baseImage.src && baseImage.complete) {
+        if (appliedPrefixSignImage && baseImage.complete) {
             drawBaseImage();
-            if (appliedPrefixSignImage && appliedPrefixSignImage.complete) {
-                ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight);
-            }
+            ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight);
+        } else if (baseImage.complete) {
+            drawBaseImage(); // Just draw base if no prefix sign was active
         }
         populateSignGallery(); // Refresh gallery view
 
     } else if (mode === 'custom') {
         // Switching TO Custom: Show custom elements, clear prefix state
-        customOverlays.forEach(el => el.classList.remove('hidden-overlay')); // Show
+        customOverlays.forEach(el => el.classList.remove('hidden-overlay'));
         appliedPrefixSignImage = null; // Clear prefix image state
         if (selectedSignItem) {
             selectedSignItem.classList.remove('selected');
             selectedSignItem = null;
         }
-        // ** Canvas redraw for custom mode happens below, AFTER setting mode **
+        // Redraw canvas with base image + custom color overlay
+        if (baseImage.complete) {
+            applyOverlay(false);
+        }
     }
 
     // --- Set new mode and update UI ---
-    currentSignMode = mode; // Set the mode FIRST
-    if (mode !== previousMode) { // Update status only on actual change
-        nftStatusEl.textContent = `Mode selected: ${mode === 'prefix' ? 'Signs Gallery' : 'Custom Sign'}.`;
-        nftStatusEl.className = '';
-    }
+    currentSignMode = mode;
+    nftStatusEl.textContent = `Mode selected: ${mode === 'prefix' ? 'Signs Gallery' : 'Custom Sign'}.`;
+    nftStatusEl.className = '';
 
     prefixOptionsGroup.classList.toggle('hidden', mode !== 'prefix');
     customOptionsGroup.classList.toggle('hidden', mode !== 'custom');
 
     // --- Enable/Disable Controls ---
-    setControlsDisabled(true); // Disable all action controls first
-    updateCustomActionButtons(); // Will re-enable load controls if not loading
+    setControlsDisabled(true); // Disable everything first
+    signTypePrefixRadio.disabled = false; // Always allow switching modes
+    signTypeCustomRadio.disabled = false;
 
-    // Specific enables based on NEW mode
-    if (mode === 'custom') {
-        if (baseImage.src && baseImage.complete) {
-            // Enable editing controls
-            const customEditControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn];
-            customEditControls.forEach(el => { if(el) el.disabled = false; });
-            // ** Explicitly redraw the overlay color **
-            applyOverlay(false);
-        }
-    } else if (mode === 'prefix') {
-        // Gallery already populated/drawn earlier
-        if (!baseImage.src || !baseImage.complete) { // Show message if no NFT
-             if(signGalleryContainer) signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--error-red);">Load NFT first.</p>';
-         }
+    if (mode === 'custom' && baseImage.complete) {
+        // Enable custom editing controls if NFT is loaded
+        const customEditControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn];
+        customEditControls.forEach(el => { if(el) el.disabled = false; });
     }
-
-    // Update button states AFTER potentially enabling controls above
+    // Always update the final action buttons based on the new mode and state
     updateCustomActionButtons();
 }
-
 
 // Updates ALL action buttons based on current mode and state
 function updateCustomActionButtons() {
     const isImageLoaded = baseImage.src !== "" && baseImage.complete && baseImage.naturalWidth > 0;
-    // Check active element validity ONLY if in custom mode
-    const isElementActive = currentSignMode === 'custom' && activeElement !== null && container.contains(activeElement);
+    const isElementActive = activeElement !== null && container.contains(activeElement);
 
-    // --- NFT Loading Controls ---
-    const enableLoadControls = !isLoadingNFT;
-    if (loadNftBtn) loadNftBtn.disabled = !enableLoadControls;
-    if (nftCollectionSelect) nftCollectionSelect.disabled = !enableLoadControls;
-    if (nftTokenIdInput) nftTokenIdInput.disabled = !enableLoadControls;
-
-    // --- Sign Type Choice Controls ---
-    const enableSignTypeChoice = isImageLoaded && !isLoadingNFT;
-    if (signTypePrefixRadio) signTypePrefixRadio.disabled = !enableSignTypeChoice;
-    if (signTypeCustomRadio) signTypeCustomRadio.disabled = !enableSignTypeChoice;
-
-    // --- Custom Mode Edit Controls ---
-    // (These are enabled/disabled directly in setSignMode)
-
-    // --- Custom Mode Action Buttons ---
-    const enableRemove = currentSignMode === 'custom' && isImageLoaded && isElementActive && !isLoadingNFT;
-    const enableSaveFullCustom = currentSignMode === 'custom' && isImageLoaded && !isLoadingNFT;
+    // Custom Mode Buttons
+    const enableRemove = currentSignMode === 'custom' && isImageLoaded && isElementActive;
+    const enableSaveFullCustom = currentSignMode === 'custom' && isImageLoaded;
     if (removeBtn) removeBtn.disabled = !enableRemove;
     if (saveFullBtn) saveFullBtn.disabled = !enableSaveFullCustom;
 
-    // --- Prefix Mode Action Button ---
-    const enableSavePrefix = currentSignMode === 'prefix' && isImageLoaded && appliedPrefixSignImage && !isLoadingNFT;
+    // Prefix Mode Button
+    const enableSavePrefix = currentSignMode === 'prefix' && isImageLoaded && appliedPrefixSignImage;
     if (savePrefixBtn) savePrefixBtn.disabled = !enableSavePrefix;
 }
 
 
 // --- Event Handlers ---
-function handleTextControlChange() { if (activeElement && activeElement.classList.contains('textOverlay') && currentSignMode === 'custom') { let textNode = activeElement.childNodes[0]; while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; } if (textNode) { textNode.nodeValue = textInput.value || " "; } else { activeElement.insertBefore(document.createTextNode(textInput.value || " "), activeElement.querySelector('.handle')); } activeElement.style.color = textColor.value; activeElement.style.fontFamily = fontFamily.value; requestAnimationFrame(() => { if(activeElement?.classList.contains('textOverlay') && container.contains(activeElement)) { const originalWidthStyle = activeElement.style.width; const hadManualWidth = originalWidthStyle && originalWidthStyle !== 'auto'; activeElement.style.width = 'auto'; const naturalWidth = activeElement.offsetWidth; activeElement.style.width = hadManualWidth ? originalWidthStyle : `${Math.max(30, naturalWidth)}px`; } }); } }
-function handleReset() { if (confirm("Are you sure you want to clear the canvas and all added elements/signs? This cannot be undone.")) { clearCanvasAndOverlays(); appliedPrefixSignImage = null; if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; } if (textInput) textInput.value = ''; if (overlayColorInput) overlayColorInput.value = '#00ff00'; if (textColor) textColor.value = '#ffffff'; if (fontFamily) fontFamily.value = "'Comic Neue', cursive"; if (imageUpload) imageUpload.value = ''; if (baseImage.src && baseImage.complete && baseImage.naturalWidth > 0) { drawBaseImage(); signTypeChoiceGroup.classList.remove('hidden'); signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false; signTypePrefixRadio.checked = false; signTypeCustomRadio.checked = false; prefixOptionsGroup.classList.add('hidden'); customOptionsGroup.classList.add('hidden'); currentSignMode = null; setControlsDisabled(true); signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false; nftStatusEl.textContent = "Canvas reset. Choose sign type."; nftStatusEl.className = ''; if(signGalleryContainer) signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Loading gallery...</p>'; if (!signConfigData) fetchSignConfig(); } else { enableNftLoadControlsOnly(); nftStatusEl.textContent = "Select collection and ID, then load NFT."; nftStatusEl.className = ''; } updateCustomActionButtons(); } }
+function handleTextControlChange() {
+    if (activeElement && activeElement.classList.contains('textOverlay') && currentSignMode === 'custom') {
+        let textNode = activeElement.childNodes[0];
+         while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
+
+        if (textNode) {
+            textNode.nodeValue = textInput.value || " ";
+        } else { // If no text node found (should be rare), create one
+             activeElement.insertBefore(document.createTextNode(textInput.value || " "), activeElement.querySelector('.handle'));
+        }
+        activeElement.style.color = textColor.value;
+        activeElement.style.fontFamily = fontFamily.value;
+
+        // Auto-adjust width after text change - keep existing width if manually set
+        requestAnimationFrame(() => {
+             if(activeElement && activeElement.classList.contains('textOverlay') && container.contains(activeElement)) {
+                 const originalWidthStyle = activeElement.style.width;
+                 const hadManualWidth = originalWidthStyle && originalWidthStyle !== 'auto';
+                 activeElement.style.width = 'auto'; // Let it expand naturally
+                 const naturalWidth = activeElement.offsetWidth;
+                 // Restore previous width OR set to natural width if it was 'auto' or not set
+                 activeElement.style.width = hadManualWidth ? originalWidthStyle : `${Math.max(30, naturalWidth)}px`;
+             }
+         });
+    }
+}
+function handleReset() {
+    if (confirm("Are you sure you want to clear the canvas and all added elements/signs? This cannot be undone.")) {
+        clearCanvasAndOverlays(); // Clears custom overlays from DOM & resets activeElement
+        appliedPrefixSignImage = null; // Clear applied prefix sign state
+        if (selectedSignItem) {
+            selectedSignItem.classList.remove('selected');
+            selectedSignItem = null;
+        }
+        // Clear custom controls input fields
+        if (textInput) textInput.value = '';
+        if (overlayColorInput) overlayColorInput.value = '#00ff00'; // Reset color
+        if (textColor) textColor.value = '#ffffff';
+        if (fontFamily) fontFamily.value = "'Comic Neue', cursive"; // Reset font
+        if (imageUpload) imageUpload.value = ''; // Clear file selection
+
+        // Reset display based on whether base image exists
+        if (baseImage.src && baseImage.complete && baseImage.naturalWidth > 0) {
+            drawBaseImage(); // Redraw only base image
+            signTypeChoiceGroup.classList.remove('hidden');
+            signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false;
+            signTypePrefixRadio.checked = false; signTypeCustomRadio.checked = false;
+            prefixOptionsGroup.classList.add('hidden'); customOptionsGroup.classList.add('hidden');
+            currentSignMode = null; // Reset mode
+            setControlsDisabled(true); // Disables all action buttons initially
+            signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false; // Re-enable radios
+            nftStatusEl.textContent = "Canvas reset. Choose sign type."; nftStatusEl.className = '';
+            if(signGalleryContainer) signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Loading gallery...</p>';
+            // Re-fetch config if needed
+            if (!signConfigData) fetchSignConfig();
+
+        } else {
+            // No base image loaded, reset to initial state
+            enableNftLoadControlsOnly();
+            nftStatusEl.textContent = "Select collection and ID, then load NFT."; nftStatusEl.className = '';
+        }
+         // Ensure buttons are correctly disabled after reset
+         updateCustomActionButtons();
+    }
+}
 
 // --- Canvas & Overlay Management ---
-function clearCanvasAndOverlays() { ctx.clearRect(0, 0, canvasWidth, canvasHeight); ctx.fillStyle = '#444'; ctx.fillRect(0, 0, canvasWidth, canvasHeight); container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove()); setActiveElement(null); }
-function clearCanvas() { ctx.clearRect(0, 0, canvasWidth, canvasHeight); ctx.fillStyle = '#444'; ctx.fillRect(0, 0, canvasWidth, canvasHeight); }
-function enableNftLoadControlsOnly() { setControlsDisabled(true); if(signTypeChoiceGroup) signTypeChoiceGroup.classList.add('hidden'); if(prefixOptionsGroup) prefixOptionsGroup.classList.add('hidden'); if(customOptionsGroup) customOptionsGroup.classList.add('hidden'); currentSignMode = null; isLoadingNFT = false; updateCustomActionButtons(); /* Ensures only load controls are enabled */ }
+function clearCanvasAndOverlays() {
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillStyle = '#444';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    // Remove only custom overlays from DOM
+    container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove());
+    setActiveElement(null); // Deselect any active custom element & update buttons
+}
+function clearCanvas() {
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillStyle = '#444';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+}
+function enableNftLoadControlsOnly() {
+    setControlsDisabled(true); // Disable everything first
+    // Enable only NFT loading controls
+    if(loadNftBtn) loadNftBtn.disabled = false;
+    if(nftCollectionSelect) nftCollectionSelect.disabled = false;
+    if(nftTokenIdInput) nftTokenIdInput.disabled = false;
+    // Hide mode-specific sections
+    if(signTypeChoiceGroup) signTypeChoiceGroup.classList.add('hidden');
+    if(prefixOptionsGroup) prefixOptionsGroup.classList.add('hidden');
+    if(customOptionsGroup) customOptionsGroup.classList.add('hidden');
+    currentSignMode = null; // Reset mode state
+     // Ensure action buttons are disabled
+     updateCustomActionButtons();
+}
 
 // --- NFT Loading & Drawing ---
+// Presuming this function is mostly correct from previous versions
 function getPolygonForSelectedCollection(){ const selectedCollection=nftCollectionSelect.value; if(selectedCollection==="AHC"){return[{x:1415,y:316},{x:2024,y:358},{x:1958,y:1324},{x:1358,y:1286}];}else{/* GHN default */ return[{x:1403,y:196},{x:2034,y:218},{x:1968,y:1164},{x:1358,y:1126}];} }
 function resolveIpfsUrl(url) { if(url&&url.startsWith("ipfs://")){ return url.replace("ipfs://","https://ipfs.io/ipfs/"); } return url; }
-async function loadNftToCanvas() { const selectedCollection = nftCollectionSelect.value; const tokenId = nftTokenIdInput.value; if (!tokenId || parseInt(tokenId) < 0) { nftStatusEl.textContent = "Please enter a valid, non-negative Token ID."; nftStatusEl.className = 'error'; return; } if (!nftContracts[selectedCollection]) { console.error(`Selected collection "${selectedCollection}" not found.`); nftStatusEl.textContent = `Error: Collection definition "${selectedCollection}" not found.`; nftStatusEl.className = 'error'; return; } isLoadingNFT = true; clearCanvasAndOverlays(); appliedPrefixSignImage = null; if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; } baseImage = new Image(); setControlsDisabled(true); updateCustomActionButtons(); signTypeChoiceGroup.classList.add('hidden'); prefixOptionsGroup.classList.add('hidden'); customOptionsGroup.classList.add('hidden'); nftStatusEl.textContent = `Loading ${nftContracts[selectedCollection].name} #${tokenId}...`; nftStatusEl.className = ''; clearCanvas(); const contractInfo = nftContracts[selectedCollection]; const contract = new ethers.Contract(contractInfo.address, nftAbi, provider); try { let tokenURI; try { tokenURI = await contract.tokenURI(tokenId); } catch (contractError) { console.error(`Contract error fetching URI for ${tokenId}:`, contractError); if (contractError.message?.includes('invalid token ID') || contractError.message?.includes('URI query for nonexistent token')) { throw new Error(`Token ID ${tokenId} invalid or does not exist for ${contractInfo.name}.`); } else if (contractError.code === 'CALL_EXCEPTION') { throw new Error(`Contract call failed. Check network/address or if Token ID ${tokenId} exists.`); } throw contractError; } tokenURI = resolveIpfsUrl(tokenURI); if (!tokenURI) throw new Error("Received empty Token URI from contract."); nftStatusEl.textContent = "Fetching metadata..."; const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 20000); const response = await fetch(tokenURI, { signal: controller.signal }); clearTimeout(timeoutId); if (!response.ok) throw new Error(`Metadata fetch error: ${response.status} ${response.statusText} (URL: ${tokenURI.substring(0, 100)}...)`); const metadata = await response.json(); let imageUrl = resolveIpfsUrl(metadata.image || metadata.image_url || metadata.imageUrl || metadata.uri); if (!imageUrl) throw new Error("Image URL missing in metadata"); if (imageUrl.startsWith('http') && !imageUrl.match(/\.(jpeg|jpg|gif|png|svg|webp)$/i)) { try { nftStatusEl.textContent = "Fetching secondary metadata..."; const imgJsonResponse = await fetch(imageUrl); if (!imgJsonResponse.ok) throw new Error(`Secondary metadata fetch failed: ${imgJsonResponse.status}`); const imgJson = await imgJsonResponse.json(); imageUrl = resolveIpfsUrl(imgJson.image || imgJson.image_url || imgJson.imageUrl || imgJson.uri); if (!imageUrl) throw new Error("Image URL missing in secondary metadata"); } catch (nestedError) { console.error("Error fetching secondary metadata:", nestedError); throw new Error("Failed to resolve image URL from nested metadata."); } } nftStatusEl.textContent = "Loading image..."; baseImage = new Image(); baseImage.crossOrigin = "Anonymous"; baseImage.onload = () => { isLoadingNFT = false; nftStatusEl.textContent = "Drawing image..."; drawBaseImage(); nftStatusEl.textContent = `${nftContracts[selectedCollection].name} #${tokenId} loaded! Choose sign type below.`; nftStatusEl.className = 'success'; signTypeChoiceGroup.classList.remove('hidden'); currentSignMode = null; signTypePrefixRadio.checked = false; signTypeCustomRadio.checked = false; if (!signConfigData) fetchSignConfig(); updateCustomActionButtons(); }; baseImage.onerror = (err) => { isLoadingNFT = false; console.error("Error loading NFT image:", err, "Attempted URL:", imageUrl); nftStatusEl.textContent = `Error loading image. Check console. (URL: ${imageUrl.substring(0,100)}...)`; nftStatusEl.className = 'error'; enableNftLoadControlsOnly(); ctx.fillStyle = "white"; ctx.font = "30px Arial"; ctx.textAlign = "center"; ctx.fillText("Image Load Error", canvasWidth / 2, canvasHeight / 2); }; baseImage.src = imageUrl; } catch (err) { isLoadingNFT = false; console.error(`Error processing NFT ${tokenId}:`, err); let errorMsg = "Error: " + err.message; if (err.name === 'AbortError') { errorMsg = "Error: Request timed out."; } nftStatusEl.textContent = errorMsg; nftStatusEl.className = 'error'; enableNftLoadControlsOnly(); ctx.fillStyle = "white"; ctx.font = "30px Arial"; ctx.textAlign = "center"; ctx.fillText("NFT Load Error", canvasWidth / 2, canvasHeight / 2); } }
-function drawBaseImage() { if(!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { console.warn("drawBaseImage called with incomplete or invalid image."); clearCanvas(); return; } ctx.clearRect(0,0,canvasWidth,canvasHeight); ctx.fillStyle="#444"; ctx.fillRect(0,0,canvasWidth,canvasHeight); const canvasAspect = canvasWidth / canvasHeight; const imageAspect = baseImage.naturalWidth / baseImage.naturalHeight; let drawWidth, drawHeight, x, y; if (imageAspect > canvasAspect) { drawWidth = canvasWidth; drawHeight = drawWidth / imageAspect; x = 0; y = (canvasHeight - drawHeight) / 2; } else { drawHeight = canvasHeight; drawWidth = drawHeight * imageAspect; y = 0; x = (canvasWidth - drawWidth) / 2; } try { ctx.drawImage(baseImage, x, y, drawWidth, drawHeight); } catch(e) { console.error("Error drawing base image:", e); nftStatusEl.textContent="Error drawing NFT image."; nftStatusEl.className='error'; ctx.fillStyle = "red"; ctx.font = "30px Arial"; ctx.textAlign = "center"; ctx.fillText("Draw Error", canvasWidth / 2, canvasHeight / 2); } }
-function applyOverlay(clearExistingOverlays = true) { if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) return; drawBaseImage(); if (currentSignMode === 'custom') { drawSignPolygonOnly(); } }
-function drawSignPolygonOnly() { if (currentSignMode !== 'custom' || !baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) return; const color = overlayColorInput.value; const currentPolygon = getPolygonForSelectedCollection(); if (!currentPolygon || currentPolygon.length < 3) return; ctx.save(); ctx.beginPath(); ctx.moveTo(currentPolygon[0].x, currentPolygon[0].y); for (let i = 1; i < currentPolygon.length; i++) { ctx.lineTo(currentPolygon[i].x, currentPolygon[i].y); } ctx.closePath(); ctx.fillStyle = color; ctx.fill(); ctx.lineJoin = "round"; ctx.lineWidth = 14; ctx.strokeStyle = "black"; ctx.stroke(); ctx.restore(); }
+async function loadNftToCanvas() {
+    const selectedCollection = nftCollectionSelect.value;
+    const tokenId = nftTokenIdInput.value;
+    if (!tokenId || parseInt(tokenId) < 0) { nftStatusEl.textContent = "Please enter a valid, non-negative Token ID."; nftStatusEl.className = 'error'; return; }
+    if (!nftContracts[selectedCollection]) { console.error(`Selected collection "${selectedCollection}" not found.`); nftStatusEl.textContent = `Error: Collection definition "${selectedCollection}" not found.`; nftStatusEl.className = 'error'; return; }
+
+    clearCanvasAndOverlays();
+    appliedPrefixSignImage = null;
+    if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
+    baseImage = new Image();
+
+    loadNftBtn.disabled = true; nftCollectionSelect.disabled = true; nftTokenIdInput.disabled = true;
+    setControlsDisabled(true);
+    signTypeChoiceGroup.classList.add('hidden'); prefixOptionsGroup.classList.add('hidden'); customOptionsGroup.classList.add('hidden');
+    nftStatusEl.textContent = `Loading ${nftContracts[selectedCollection].name} #${tokenId}...`; nftStatusEl.className = '';
+    clearCanvas();
+
+    const contractInfo = nftContracts[selectedCollection];
+    const contract = new ethers.Contract(contractInfo.address, nftAbi, provider);
+    try {
+        let tokenURI;
+        try { tokenURI = await contract.tokenURI(tokenId); }
+        catch (contractError) {
+            console.error(`Contract error fetching URI for ${tokenId}:`, contractError);
+            if (contractError.message?.includes('invalid token ID') || contractError.message?.includes('URI query for nonexistent token')) { throw new Error(`Token ID ${tokenId} invalid or does not exist for ${contractInfo.name}.`); }
+            else if (contractError.code === 'CALL_EXCEPTION') { throw new Error(`Contract call failed. Check network/address or if Token ID ${tokenId} exists.`); }
+            throw contractError;
+        }
+        tokenURI = resolveIpfsUrl(tokenURI);
+        if (!tokenURI) throw new Error("Received empty Token URI from contract.");
+
+        nftStatusEl.textContent = "Fetching metadata...";
+        const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 20000);
+        const response = await fetch(tokenURI, { signal: controller.signal }); clearTimeout(timeoutId);
+        if (!response.ok) throw new Error(`Metadata fetch error: ${response.status} ${response.statusText} (URL: ${tokenURI.substring(0, 100)}...)`);
+        const metadata = await response.json();
+
+        let imageUrl = resolveIpfsUrl(metadata.image || metadata.image_url || metadata.imageUrl || metadata.uri);
+        if (!imageUrl) throw new Error("Image URL missing in metadata");
+        if (imageUrl.startsWith('http') && !imageUrl.match(/\.(jpeg|jpg|gif|png|svg|webp)$/i)) {
+            try {
+                nftStatusEl.textContent = "Fetching secondary metadata..."; const imgJsonResponse = await fetch(imageUrl);
+                if (!imgJsonResponse.ok) throw new Error(`Secondary metadata fetch failed: ${imgJsonResponse.status}`);
+                const imgJson = await imgJsonResponse.json(); imageUrl = resolveIpfsUrl(imgJson.image || imgJson.image_url || imgJson.imageUrl || imgJson.uri);
+                if (!imageUrl) throw new Error("Image URL missing in secondary metadata");
+            } catch (nestedError) { console.error("Error fetching secondary metadata:", nestedError); throw new Error("Failed to resolve image URL from nested metadata."); }
+        }
+
+        nftStatusEl.textContent = "Loading image...";
+        baseImage = new Image(); baseImage.crossOrigin = "Anonymous";
+        baseImage.onload = () => {
+            nftStatusEl.textContent = "Drawing image..."; drawBaseImage();
+            nftStatusEl.textContent = `${nftContracts[selectedCollection].name} #${tokenId} loaded! Choose sign type below.`; nftStatusEl.className = 'success';
+            signTypeChoiceGroup.classList.remove('hidden'); signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false;
+            signTypePrefixRadio.checked = false; signTypeCustomRadio.checked = false; currentSignMode = null;
+            loadNftBtn.disabled = false; nftCollectionSelect.disabled = false; nftTokenIdInput.disabled = false;
+            if (!signConfigData) fetchSignConfig();
+            updateCustomActionButtons(); // Update buttons now that image is loaded
+        };
+        baseImage.onerror = (err) => {
+             console.error("Error loading NFT image:", err, "Attempted URL:", imageUrl); nftStatusEl.textContent = `Error loading image. Check console. (URL: ${imageUrl.substring(0,100)}...)`; nftStatusEl.className = 'error';
+             enableNftLoadControlsOnly(); ctx.fillStyle = "white"; ctx.font = "30px Arial"; ctx.textAlign = "center"; ctx.fillText("Image Load Error", canvasWidth / 2, canvasHeight / 2);
+        };
+        baseImage.src = imageUrl;
+    } catch (err) {
+         console.error(`Error processing NFT ${tokenId}:`, err); let errorMsg = "Error: " + err.message;
+         if (err.name === 'AbortError') { errorMsg = "Error: Request timed out."; }
+         nftStatusEl.textContent = errorMsg; nftStatusEl.className = 'error'; enableNftLoadControlsOnly();
+         ctx.fillStyle = "white"; ctx.font = "30px Arial"; ctx.textAlign = "center"; ctx.fillText("NFT Load Error", canvasWidth / 2, canvasHeight / 2);
+    }
+}
+function drawBaseImage() {
+    if(!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { console.warn("drawBaseImage called with incomplete or invalid image."); clearCanvas(); return; }
+    ctx.clearRect(0,0,canvasWidth,canvasHeight); ctx.fillStyle="#444"; ctx.fillRect(0,0,canvasWidth,canvasHeight);
+    const canvasAspect = canvasWidth / canvasHeight; const imageAspect = baseImage.naturalWidth / baseImage.naturalHeight;
+    let drawWidth, drawHeight, x, y;
+    if (imageAspect > canvasAspect) { drawWidth = canvasWidth; drawHeight = drawWidth / imageAspect; x = 0; y = (canvasHeight - drawHeight) / 2; }
+    else { drawHeight = canvasHeight; drawWidth = drawHeight * imageAspect; y = 0; x = (canvasWidth - drawWidth) / 2; }
+    try { ctx.drawImage(baseImage, x, y, drawWidth, drawHeight); }
+    catch(e) { console.error("Error drawing base image:", e); nftStatusEl.textContent="Error drawing NFT image."; nftStatusEl.className='error'; ctx.fillStyle = "red"; ctx.font = "30px Arial"; ctx.textAlign = "center"; ctx.fillText("Draw Error", canvasWidth / 2, canvasHeight / 2); }
+}
+function applyOverlay(clearExistingOverlays = true) { // For CUSTOM sign color overlay
+    if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) return;
+    // Always check if we are actually in custom mode before drawing overlay
+    if (currentSignMode === 'custom') {
+        drawBaseImage(); // Redraw base first
+        drawSignPolygonOnly(); // Draw polygon on top
+    } else {
+         // If somehow called when not in custom mode, just draw base image
+         drawBaseImage();
+    }
+}
+function drawSignPolygonOnly() {
+    if (currentSignMode !== 'custom' || !baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) return;
+    const color = overlayColorInput.value; const currentPolygon = getPolygonForSelectedCollection();
+    if (!currentPolygon || currentPolygon.length < 3) return;
+    ctx.save(); ctx.beginPath(); ctx.moveTo(currentPolygon[0].x, currentPolygon[0].y);
+    for (let i = 1; i < currentPolygon.length; i++) { ctx.lineTo(currentPolygon[i].x, currentPolygon[i].y); }
+    ctx.closePath(); ctx.fillStyle = color; ctx.fill(); ctx.lineJoin = "round"; ctx.lineWidth = 14; ctx.strokeStyle = "black"; ctx.stroke(); ctx.restore();
+}
 
 // --- Sign Gallery Functions ---
-async function fetchSignConfig() { if (signConfigData || isSignConfigLoading) return signConfigData; isSignConfigLoading = true; const configUrl = SIGNS_JSON_PATH; try { nftStatusEl.textContent = "Loading sign gallery configuration..."; nftStatusEl.className = ''; const response = await fetch(configUrl); if (!response.ok) throw new Error(`HTTP error! status: ${response.status} fetching ${configUrl}`); signConfigData = await response.json(); if (!signConfigData.githubUser || !signConfigData.githubRepo || !signConfigData.githubBranch || !signConfigData.imageBasePath || typeof signConfigData.categories !== 'object') { throw new Error("Invalid signs.json structure."); } nftStatusEl.textContent = "Sign gallery configuration loaded."; nftStatusEl.className = 'success'; if (currentSignMode === 'prefix') populateSignGallery(); return signConfigData; } catch (error) { console.error("Error fetching/parsing sign config:", error); nftStatusEl.textContent = `Error loading sign gallery: ${error.message}. Check console.`; nftStatusEl.className = 'error'; if (signGalleryContainer) signGalleryContainer.innerHTML = `<p style="color: var(--error-red);">Error loading signs config. Check console.</p>`; signConfigData = null; return null; } finally { isSignConfigLoading = false; } }
-function populateSignGallery() { if (!signGalleryContainer) return; if (isSignConfigLoading) { signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Loading gallery config...</p>'; return; } if (!signConfigData) { fetchSignConfig().then(config => { if (config) { populateSignGallery(); } else { signGalleryContainer.innerHTML = '<p style="color: var(--error-red);">Failed to load gallery config.</p>'; } }); signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Fetching gallery config...</p>'; return; } if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--error-red);">Load NFT first.</p>'; return; } const currentCollectionKey = nftCollectionSelect.value; const signsForCollection = signConfigData.categories[currentCollectionKey]; signGalleryContainer.innerHTML = ''; if (!signsForCollection || !Array.isArray(signsForCollection) || signsForCollection.length === 0) { signGalleryContainer.innerHTML = `<p style="font-style: italic;">No specific signs found for ${nftContracts[currentCollectionKey]?.name || currentCollectionKey}.</p>`; return; } const { githubUser, githubRepo, githubBranch, imageBasePath } = signConfigData; const baseUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/${githubBranch}/${imageBasePath}/`; signsForCollection.forEach(sign => { if (!sign.fileName) { console.warn("Skipping sign entry with missing fileName:", sign); return; } const signImageUrl = baseUrl + sign.fileName; const signName = sign.name || sign.fileName.split('/').pop().split('.')[0]; const itemDiv = document.createElement('div'); itemDiv.className = 'sign-item'; itemDiv.title = `Apply: ${signName}`; itemDiv.dataset.imageUrl = signImageUrl; itemDiv.dataset.signName = signName; const img = document.createElement('img'); img.src = signImageUrl; img.alt = signName; img.loading = "lazy"; img.onerror = () => { img.alt = `${signName} (Load Error)`; img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 40'%3E%3Crect width='50' height='40' fill='%23555'/%3E%3Ctext x='50%' y='50%' fill='red' font-size='9' dominant-baseline='middle' text-anchor='middle'%3EError%3C/text%3E%3C/svg%3E"; itemDiv.style.borderColor = 'var(--error-red)'; console.warn(`Failed to load sign image: ${signImageUrl}`); }; const nameSpan = document.createElement('span'); nameSpan.textContent = signName; itemDiv.appendChild(img); itemDiv.appendChild(nameSpan); itemDiv.addEventListener('click', () => { if (currentSignMode !== 'prefix') return; const clickedImageUrl = itemDiv.dataset.imageUrl; const clickedSignName = itemDiv.dataset.signName; if (selectedSignItem && selectedSignItem !== itemDiv) { selectedSignItem.classList.remove('selected'); } if (selectedSignItem === itemDiv) { itemDiv.classList.remove('selected'); selectedSignItem = null; appliedPrefixSignImage = null; if(baseImage.src && baseImage.complete) drawBaseImage(); if(savePrefixBtn) savePrefixBtn.disabled = true; nftStatusEl.textContent = "Sign removed."; nftStatusEl.className = ''; } else { itemDiv.classList.add('selected'); selectedSignItem = itemDiv; applyPrefixSign(clickedImageUrl, clickedSignName); } }); signGalleryContainer.appendChild(itemDiv); if (appliedPrefixSignImage && appliedPrefixSignImage.src === signImageUrl) { itemDiv.classList.add('selected'); selectedSignItem = itemDiv; if (savePrefixBtn && baseImage.complete && baseImage.naturalWidth > 0) { savePrefixBtn.disabled = false; } } }); updateCustomActionButtons(); }
-function applyPrefixSign(signImageUrl, signName) { if (!baseImage.src || !baseImage.complete || currentSignMode !== 'prefix') return; nftStatusEl.textContent = `Applying sign: ${signName}...`; nftStatusEl.className = ''; if(savePrefixBtn) savePrefixBtn.disabled = true; const customOverlays = container.querySelectorAll('.textOverlay, .imgOverlay'); if (customOverlays.length > 0) { customOverlays.forEach(el => el.remove()); setActiveElement(null); } const signImage = new Image(); signImage.crossOrigin = "Anonymous"; signImage.onload = () => { drawBaseImage(); ctx.drawImage(signImage, 0, 0, canvasWidth, canvasHeight); appliedPrefixSignImage = signImage; appliedPrefixSignImage.alt = signName; nftStatusEl.textContent = `Sign '${signName}' applied. Ready to save.`; nftStatusEl.className = 'success'; if(savePrefixBtn) savePrefixBtn.disabled = false; }; signImage.onerror = () => { console.error(`Error loading sign image: ${signImageUrl}`); nftStatusEl.textContent = `Error loading sign: ${signName}. Check console.`; nftStatusEl.className = 'error'; appliedPrefixSignImage = null; if (selectedSignItem && selectedSignItem.dataset.imageUrl === signImageUrl) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; } drawBaseImage(); if(savePrefixBtn) savePrefixBtn.disabled = true; }; signImage.src = signImageUrl; }
+async function fetchSignConfig() { /* Presumed OK */
+    if (signConfigData || isSignConfigLoading) return signConfigData;
+    isSignConfigLoading = true; const configUrl = SIGNS_JSON_PATH;
+    try {
+        nftStatusEl.textContent = "Loading sign gallery configuration..."; nftStatusEl.className = '';
+        const response = await fetch(configUrl); if (!response.ok) throw new Error(`HTTP error! status: ${response.status} fetching ${configUrl}`);
+        signConfigData = await response.json(); if (!signConfigData.githubUser || !signConfigData.githubRepo || !signConfigData.githubBranch || !signConfigData.imageBasePath || typeof signConfigData.categories !== 'object') { throw new Error("Invalid signs.json structure."); }
+        nftStatusEl.textContent = "Sign gallery configuration loaded."; nftStatusEl.className = 'success'; if (currentSignMode === 'prefix') populateSignGallery(); return signConfigData;
+    } catch (error) {
+        console.error("Error fetching/parsing sign config:", error); nftStatusEl.textContent = `Error loading sign gallery: ${error.message}. Check console.`; nftStatusEl.className = 'error'; if (signGalleryContainer) signGalleryContainer.innerHTML = `<p style="color: var(--error-red);">Error loading signs config. Check console.</p>`; signConfigData = null; return null;
+    } finally { isSignConfigLoading = false; }
+}
+function populateSignGallery() { /* Presumed OK */
+    if (!signGalleryContainer) return; if (isSignConfigLoading) { signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Loading gallery config...</p>'; return; }
+    if (!signConfigData) { fetchSignConfig().then(config => { if (config) { populateSignGallery(); } else { signGalleryContainer.innerHTML = '<p style="color: var(--error-red);">Failed to load gallery config.</p>'; } }); signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Fetching gallery config...</p>'; return; }
+    if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--error-red);">Load NFT first.</p>'; return; }
+    const currentCollectionKey = nftCollectionSelect.value; const signsForCollection = signConfigData.categories[currentCollectionKey]; signGalleryContainer.innerHTML = '';
+    if (!signsForCollection || !Array.isArray(signsForCollection) || signsForCollection.length === 0) { signGalleryContainer.innerHTML = `<p style="font-style: italic;">No specific signs found for ${nftContracts[currentCollectionKey]?.name || currentCollectionKey}.</p>`; return; }
+    const { githubUser, githubRepo, githubBranch, imageBasePath } = signConfigData; const baseUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/${githubBranch}/${imageBasePath}/`;
+    signsForCollection.forEach(sign => {
+        if (!sign.fileName) { console.warn("Skipping sign entry with missing fileName:", sign); return; } const signImageUrl = baseUrl + sign.fileName; const signName = sign.name || sign.fileName.split('/').pop().split('.')[0];
+        const itemDiv = document.createElement('div'); itemDiv.className = 'sign-item'; itemDiv.title = `Apply: ${signName}`; itemDiv.dataset.imageUrl = signImageUrl; itemDiv.dataset.signName = signName;
+        const img = document.createElement('img'); img.src = signImageUrl; img.alt = signName; img.loading = "lazy";
+        img.onerror = () => { img.alt = `${signName} (Load Error)`; img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 40'%3E%3Crect width='50' height='40' fill='%23555'/%3E%3Ctext x='50%' y='50%' fill='red' font-size='9' dominant-baseline='middle' text-anchor='middle'%3EError%3C/text%3E%3C/svg%3E"; itemDiv.style.borderColor = 'var(--error-red)'; console.warn(`Failed to load sign image: ${signImageUrl}`); };
+        const nameSpan = document.createElement('span'); nameSpan.textContent = signName; itemDiv.appendChild(img); itemDiv.appendChild(nameSpan);
+        itemDiv.addEventListener('click', () => {
+            if (currentSignMode !== 'prefix') return; const clickedImageUrl = itemDiv.dataset.imageUrl; const clickedSignName = itemDiv.dataset.signName; if (selectedSignItem && selectedSignItem !== itemDiv) { selectedSignItem.classList.remove('selected'); }
+            if (selectedSignItem === itemDiv) { itemDiv.classList.remove('selected'); selectedSignItem = null; appliedPrefixSignImage = null; if(baseImage.src && baseImage.complete) drawBaseImage(); if(savePrefixBtn) savePrefixBtn.disabled = true; nftStatusEl.textContent = "Sign removed."; nftStatusEl.className = ''; }
+            else { itemDiv.classList.add('selected'); selectedSignItem = itemDiv; applyPrefixSign(clickedImageUrl, clickedSignName); }
+        });
+        signGalleryContainer.appendChild(itemDiv);
+        if (appliedPrefixSignImage && appliedPrefixSignImage.src === signImageUrl) { itemDiv.classList.add('selected'); selectedSignItem = itemDiv; if (savePrefixBtn && baseImage.complete && baseImage.naturalWidth > 0) { savePrefixBtn.disabled = false; } }
+    });
+    updateCustomActionButtons(); // Ensure button state is correct after populating
+}
+function applyPrefixSign(signImageUrl, signName) { /* Presumed OK */
+    if (!baseImage.src || !baseImage.complete || currentSignMode !== 'prefix') return; nftStatusEl.textContent = `Applying sign: ${signName}...`; nftStatusEl.className = ''; if(savePrefixBtn) savePrefixBtn.disabled = true;
+    if (container.querySelectorAll('.textOverlay, .imgOverlay').length > 0) { container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove()); setActiveElement(null); }
+    const signImage = new Image(); signImage.crossOrigin = "Anonymous";
+    signImage.onload = () => { drawBaseImage(); ctx.drawImage(signImage, 0, 0, canvasWidth, canvasHeight); appliedPrefixSignImage = signImage; appliedPrefixSignImage.alt = signName; nftStatusEl.textContent = `Sign '${signName}' applied. Ready to save.`; nftStatusEl.className = 'success'; if(savePrefixBtn) savePrefixBtn.disabled = false; };
+    signImage.onerror = () => { console.error(`Error loading sign image: ${signImageUrl}`); nftStatusEl.textContent = `Error loading sign: ${signName}. Check console.`; nftStatusEl.className = 'error'; appliedPrefixSignImage = null; if (selectedSignItem && selectedSignItem.dataset.imageUrl === signImageUrl) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; } drawBaseImage(); if(savePrefixBtn) savePrefixBtn.disabled = true; };
+    signImage.src = signImageUrl;
+}
 
 // --- Text & Image Creation (Custom Mode) ---
-function addText() { if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; } if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; } const textValue = textInput.value || "New Text"; const textEl = document.createElement("div"); textEl.className = "textOverlay"; const textNode = document.createTextNode(textValue); textEl.appendChild(textNode); textEl.style.color = textColor.value; textEl.style.fontSize = `${DEFAULT_FONT_SIZE}px`; textEl.style.fontFamily = fontFamily.value; textEl.style.transform = `translate(-50%, -50%) rotate(0deg)`; textEl.style.zIndex = "10"; textEl.style.width = 'auto'; textEl.style.whiteSpace = 'nowrap'; textEl.style.overflow = 'hidden'; const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = '↻'; textEl.appendChild(rotateHandle); const resizeHandleRight = document.createElement("div"); resizeHandleRight.className = "handle resize-handle-base resize-handle-right"; resizeHandleRight.title = "Resize Width"; textEl.appendChild(resizeHandleRight); const resizeHandleLeft = document.createElement("div"); resizeHandleLeft.className = "handle resize-handle-base resize-handle-left"; resizeHandleLeft.title = "Resize Font Size"; textEl.appendChild(resizeHandleLeft); const currentPolygon = getPolygonForSelectedCollection(); const minX = Math.min(...currentPolygon.map(p => p.x)); const maxX = Math.max(...currentPolygon.map(p => p.x)); const minY = Math.min(...currentPolygon.map(p => p.y)); const maxY = Math.max(...currentPolygon.map(p => p.y)); const signCenterXPercent = canvasWidth ? ((minX + maxX) / 2) / canvasWidth * 100 : 50; const signCenterYPercent = canvasHeight ? ((minY + maxY) / 2) / canvasHeight * 100 : 50; const { x: initialX, y: initialY } = calculateElementPosition(signCenterXPercent, signCenterYPercent); textEl.style.left = `${initialX}px`; textEl.style.top = `${initialY}px`; textEl.addEventListener("mousedown", handleTextDragStart); textEl.addEventListener("touchstart", handleTextDragStart, { passive: true }); rotateHandle.addEventListener("mousedown", handleTextRotateStart); rotateHandle.addEventListener("touchstart", handleTextRotateStart, { passive: true }); resizeHandleRight.addEventListener("mousedown", handleTextResizeWidthStart); resizeHandleRight.addEventListener("touchstart", handleTextResizeWidthStart, { passive: true }); resizeHandleLeft.addEventListener("mousedown", handleTextResizeFontSizeStart); resizeHandleLeft.addEventListener("touchstart", handleTextResizeFontSizeStart, { passive: true }); container.appendChild(textEl); requestAnimationFrame(() => { if (textEl && container.contains(textEl)) { const initialWidth = textEl.offsetWidth; textEl.style.width = `${Math.max(initialWidth, 30)}px`; textEl.style.whiteSpace = 'normal'; textEl.style.overflow = 'visible'; setActiveElement(textEl); } }); }
-function addImage() { if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; } if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; } if (!imageUpload || !imageUpload.files || imageUpload.files.length === 0) { nftStatusEl.textContent = "Please select an image file."; nftStatusEl.className = 'error'; return; } const file = imageUpload.files[0]; if (!file.type.startsWith('image/')) { nftStatusEl.textContent = "Invalid file type. Please select an image."; nftStatusEl.className = 'error'; imageUpload.value = ''; return; } const reader = new FileReader(); reader.onload = function (e) { const wrapper = document.createElement("div"); wrapper.className = "imgOverlay"; wrapper.style.position="absolute"; wrapper.style.width="100px"; wrapper.style.height="auto"; wrapper.style.transform="translate(-50%, -50%) rotate(0deg)"; wrapper.style.touchAction="none"; wrapper.style.zIndex="20"; const img = document.createElement("img"); img.src = e.target.result; img.onload = () => { if(container.offsetWidth > 0 && img.naturalWidth > 0 && img.naturalHeight > 0){ const contW = container.offsetWidth; const initialWidth = Math.min(img.naturalWidth * 0.5, contW * 0.4, 150); const aspectRatio = img.naturalWidth / img.naturalHeight; wrapper.style.width=`${initialWidth}px`; wrapper.style.height=`${initialWidth / aspectRatio}px`; } else { wrapper.style.width='100px'; wrapper.style.height='auto'; console.warn("Could not determine container/image size for initial scaling, using fallback."); } const currentPolygon = getPolygonForSelectedCollection(); const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x)); const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y)); const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50; const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50; const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent); wrapper.style.left=`${initialX}px`; wrapper.style.top=`${initialY}px`; setActiveElement(wrapper); }; img.onerror = ()=>{ console.error("Error loading added image data."); nftStatusEl.textContent="Error displaying uploaded image."; nftStatusEl.className='error'; wrapper.remove(); }; wrapper.appendChild(img); const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = '↻'; wrapper.appendChild(rotateHandle); const resizeHandleRight = document.createElement("div"); resizeHandleRight.className = "handle resize-handle-base resize-handle-right"; resizeHandleRight.title = "Resize Image"; wrapper.appendChild(resizeHandleRight); wrapper.addEventListener("mousedown", handleImageDragStart); wrapper.addEventListener("touchstart", handleImageDragStart, { passive: true }); rotateHandle.addEventListener("mousedown", handleImageRotateStart); rotateHandle.addEventListener("touchstart", handleImageRotateStart, { passive: true }); resizeHandleRight.addEventListener("mousedown", handleImageResizeStart); resizeHandleRight.addEventListener("touchstart", handleImageResizeStart, { passive: true }); container.appendChild(wrapper); nftStatusEl.textContent = "Image added."; nftStatusEl.className = 'success'; imageUpload.value = ''; }; reader.onerror = function (err) { console.error("FileReader error:",err); nftStatusEl.textContent="Error reading image file."; nftStatusEl.className='error'; } reader.readAsDataURL(file); }
+// Presuming these are OK from previous versions
+function addText() { /* ... code from previous response ... */
+    if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
+    if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
+
+    const textValue = textInput.value || "New Text";
+    const textEl = document.createElement("div"); textEl.className = "textOverlay";
+    const textNode = document.createTextNode(textValue); textEl.appendChild(textNode);
+    textEl.style.color = textColor.value; textEl.style.fontSize = `${DEFAULT_FONT_SIZE}px`; textEl.style.fontFamily = fontFamily.value;
+    textEl.style.transform = `translate(-50%, -50%) rotate(0deg)`; textEl.style.zIndex = "10"; textEl.style.width = 'auto'; textEl.style.whiteSpace = 'nowrap'; textEl.style.overflow = 'hidden';
+
+    const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = 'â»'; textEl.appendChild(rotateHandle);
+    const resizeHandleRight = document.createElement("div"); resizeHandleRight.className = "handle resize-handle-base resize-handle-right"; resizeHandleRight.title = "Resize Width"; textEl.appendChild(resizeHandleRight);
+    const resizeHandleLeft = document.createElement("div"); resizeHandleLeft.className = "handle resize-handle-base resize-handle-left"; resizeHandleLeft.title = "Resize Font Size"; textEl.appendChild(resizeHandleLeft);
+
+    const currentPolygon = getPolygonForSelectedCollection(); const minX = Math.min(...currentPolygon.map(p => p.x)); const maxX = Math.max(...currentPolygon.map(p => p.x)); const minY = Math.min(...currentPolygon.map(p => p.y)); const maxY = Math.max(...currentPolygon.map(p => p.y)); const signCenterXPercent = canvasWidth ? ((minX + maxX) / 2) / canvasWidth * 100 : 50; const signCenterYPercent = canvasHeight ? ((minY + maxY) / 2) / canvasHeight * 100 : 50; const { x: initialX, y: initialY } = calculateElementPosition(signCenterXPercent, signCenterYPercent);
+    textEl.style.left = `${initialX}px`; textEl.style.top = `${initialY}px`;
+
+    textEl.addEventListener("mousedown", handleTextDragStart); textEl.addEventListener("touchstart", handleTextDragStart, { passive: true });
+    rotateHandle.addEventListener("mousedown", handleTextRotateStart); rotateHandle.addEventListener("touchstart", handleTextRotateStart, { passive: true });
+    resizeHandleRight.addEventListener("mousedown", handleTextResizeWidthStart); resizeHandleRight.addEventListener("touchstart", handleTextResizeWidthStart, { passive: true });
+    resizeHandleLeft.addEventListener("mousedown", handleTextResizeFontSizeStart); resizeHandleLeft.addEventListener("touchstart", handleTextResizeFontSizeStart, { passive: true });
+
+    container.appendChild(textEl);
+    requestAnimationFrame(() => {
+        if (textEl && container.contains(textEl)) {
+            const initialWidth = textEl.offsetWidth; textEl.style.width = `${Math.max(initialWidth, 30)}px`; textEl.style.whiteSpace = 'normal'; textEl.style.overflow = 'visible'; setActiveElement(textEl);
+        }
+    });
+}
+function addImage() { /* ... code from previous response ... */
+    if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
+    if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
+    if (!imageUpload || !imageUpload.files || imageUpload.files.length === 0) { nftStatusEl.textContent = "Please select an image file."; nftStatusEl.className = 'error'; return; }
+    const file = imageUpload.files[0]; if (!file.type.startsWith('image/')) { nftStatusEl.textContent = "Invalid file type. Please select an image."; nftStatusEl.className = 'error'; imageUpload.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const wrapper = document.createElement("div"); wrapper.className = "imgOverlay"; wrapper.style.position="absolute"; wrapper.style.width="100px"; wrapper.style.height="auto"; wrapper.style.transform="translate(-50%, -50%) rotate(0deg)"; wrapper.style.touchAction="none"; wrapper.style.zIndex="20";
+        const img = document.createElement("img"); img.src = e.target.result;
+        img.onload = () => {
+             if(container.offsetWidth > 0 && img.naturalWidth > 0 && img.naturalHeight > 0){ const contW = container.offsetWidth; const initialWidth = Math.min(img.naturalWidth * 0.5, contW * 0.4, 150); const aspectRatio = img.naturalWidth / img.naturalHeight; wrapper.style.width=`${initialWidth}px`; wrapper.style.height=`${initialWidth / aspectRatio}px`; }
+             else { wrapper.style.width='100px'; wrapper.style.height='auto'; console.warn("Could not determine container/image size for initial scaling, using fallback."); }
+             const currentPolygon = getPolygonForSelectedCollection(); const minX=Math.min(...currentPolygon.map(p=>p.x));const maxX=Math.max(...currentPolygon.map(p=>p.x)); const minY=Math.min(...currentPolygon.map(p=>p.y));const maxY=Math.max(...currentPolygon.map(p=>p.y)); const signCenterXPercent=canvasWidth?((minX+maxX)/2)/canvasWidth*100:50; const signCenterYPercent=canvasHeight?((minY+maxY)/2)/canvasHeight*100:50; const{x:initialX,y:initialY}=calculateElementPosition(signCenterXPercent,signCenterYPercent); wrapper.style.left=`${initialX}px`; wrapper.style.top=`${initialY}px`;
+             setActiveElement(wrapper);
+         };
+        img.onerror = ()=>{ console.error("Error loading added image data."); nftStatusEl.textContent="Error displaying uploaded image."; nftStatusEl.className='error'; wrapper.remove(); };
+        wrapper.appendChild(img);
+        const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = 'â»'; wrapper.appendChild(rotateHandle);
+        const resizeHandleRight = document.createElement("div"); resizeHandleRight.className = "handle resize-handle-base resize-handle-right"; resizeHandleRight.title = "Resize Image"; wrapper.appendChild(resizeHandleRight);
+        wrapper.addEventListener("mousedown", handleImageDragStart); wrapper.addEventListener("touchstart", handleImageDragStart, { passive: true });
+        rotateHandle.addEventListener("mousedown", handleImageRotateStart); rotateHandle.addEventListener("touchstart", handleImageRotateStart, { passive: true });
+        resizeHandleRight.addEventListener("mousedown", handleImageResizeStart); resizeHandleRight.addEventListener("touchstart", handleImageResizeStart, { passive: true });
+        container.appendChild(wrapper); nftStatusEl.textContent = "Image added."; nftStatusEl.className = 'success'; imageUpload.value = '';
+    };
+    reader.onerror = function (err) { console.error("FileReader error:",err); nftStatusEl.textContent="Error reading image file."; nftStatusEl.className='error'; }
+    reader.readAsDataURL(file);
+}
 
 // --- Active Element Management ---
-function setActiveElement(el) { if (activeElement && activeElement !== el) { if (container.contains(activeElement)) { activeElement.classList.remove("active"); activeElement.style.zIndex = activeElement.classList.contains('imgOverlay') ? '20' : '10'; } } if (el && currentSignMode === 'custom' && container.contains(el)) { el.classList.add("active"); activeElement = el; el.style.zIndex = el.classList.contains('imgOverlay') ? '101' : '100'; if (el.classList.contains('textOverlay')) { let textNode = el.childNodes[0]; while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; } if (textNode) { textInput.value = textNode.nodeValue.trim(); } else { textInput.value = (el.textContent || '').trim(); } textColor.value = rgb2hex(el.style.color || '#ffffff'); const currentFont = (el.style.fontFamily || 'Arial').split(',')[0].replace(/['"]/g, "").trim(); let foundFont = false; for (let option of fontFamily.options) { if (option.value.includes(currentFont)) { fontFamily.value = option.value; foundFont = true; break; } } if (!foundFont) fontFamily.value = 'Arial'; } } else { activeElement = null; } updateCustomActionButtons(); }
+function setActiveElement(el) {
+    // Deselect previous
+    if (activeElement && activeElement !== el) {
+        if (container.contains(activeElement)) {
+            activeElement.classList.remove("active");
+            activeElement.style.zIndex = activeElement.classList.contains('imgOverlay') ? '20' : '10';
+        }
+    }
+    // Select new one (only if in custom mode)
+    if (el && currentSignMode === 'custom' && container.contains(el)) {
+        el.classList.add("active");
+        activeElement = el;
+        el.style.zIndex = el.classList.contains('imgOverlay') ? '101' : '100';
+        // Update controls if it's text
+        if (el.classList.contains('textOverlay')) {
+             let textNode = el.childNodes[0];
+             while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
+             if (textNode) { textInput.value = textNode.nodeValue.trim(); }
+             else { textInput.value = (el.textContent || '').trim(); }
+             textColor.value = rgb2hex(el.style.color || '#ffffff');
+             const currentFont = (el.style.fontFamily || 'Arial').split(',')[0].replace(/['"]/g, "").trim();
+             let foundFont = false;
+             for (let option of fontFamily.options) { if (option.value.includes(currentFont)) { fontFamily.value = option.value; foundFont = true; break; } }
+             if (!foundFont) fontFamily.value = 'Arial';
+        }
+    } else {
+        activeElement = null; // Clear selection
+    }
+    // Always update button states
+    updateCustomActionButtons();
+}
 
-// --- Element Removal ---
-function removeActiveElement(event) { if (event) { event.stopPropagation(); } if (activeElement && container.contains(activeElement) && currentSignMode === 'custom') { const elementType = activeElement.classList.contains('textOverlay') ? 'Text' : 'Image'; activeElement.remove(); setActiveElement(null); nftStatusEl.textContent = `${elementType} element removed.`; nftStatusEl.className = ''; } else if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Delete only works in Custom Sign mode."; nftStatusEl.className = 'error'; console.warn("Delete clicked outside custom mode."); } else if (!activeElement) { nftStatusEl.textContent = "No element selected to delete."; nftStatusEl.className = 'error'; console.warn("Delete clicked with no active element."); } else { console.warn("Attempted to delete an element not in container or invalid state.", activeElement); setActiveElement(null); nftStatusEl.textContent = "Could not delete element."; nftStatusEl.className = 'error'; } }
+// ===========================================================
+// removeActiveElement - Includes stopPropagation
+// ===========================================================
+function removeActiveElement(event) {
+    // Stop click from bubbling up to the document listener
+    if (event) {
+        event.stopPropagation();
+    }
+
+    if (activeElement && container.contains(activeElement) && currentSignMode === 'custom') {
+        const elementType = activeElement.classList.contains('textOverlay') ? 'Text' : 'Image';
+        activeElement.remove(); // Remove from DOM
+        setActiveElement(null); // Deselect and update buttons
+        nftStatusEl.textContent = `${elementType} element removed.`;
+        nftStatusEl.className = '';
+    } else if (currentSignMode !== 'custom') {
+        nftStatusEl.textContent = "Delete only works in Custom Sign mode.";
+        nftStatusEl.className = 'error';
+        console.warn("Delete clicked outside custom mode.");
+    } else if (!activeElement) {
+        nftStatusEl.textContent = "No element selected to delete.";
+        nftStatusEl.className = 'error';
+        console.warn("Delete clicked with no active element.");
+    } else {
+         console.warn("Attempted to delete an element not in container or invalid state.", activeElement);
+         setActiveElement(null); // Clear state
+         nftStatusEl.textContent = "Could not delete element.";
+         nftStatusEl.className = 'error';
+    }
+}
+
 
 // --- Interaction Handlers ---
+// Presuming these are OK from previous versions
 function getEventCoordinates(event) { let x,y; if(event.touches&&event.touches.length>0){x=event.touches[0].clientX;y=event.touches[0].clientY;}else if(event.changedTouches&&event.changedTouches.length>0){x=event.changedTouches[0].clientX;y=event.changedTouches[0].clientY;}else{x=event.clientX;y=event.clientY;} return{x,y}; }
 function getRotationRad(element) { if(!element||!element.style)return 0; const transform=element.style.transform; const rotateMatch=transform.match(/rotate\((-?\d+(\.\d+)?)deg\)/); const rotationDeg=rotateMatch?parseFloat(rotateMatch[1]):0; return rotationDeg*(Math.PI/180); }
 function handleTextDragStart(event) { if (event.target.classList.contains('handle') || currentSignMode !== 'custom') return; const el = event.currentTarget; setActiveElement(el); textInteractionState.isDragging = true; textInteractionState.isRotating = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); textInteractionState.startX = coords.x - contRect.left; textInteractionState.startY = coords.y - contRect.top; textInteractionState.startLeft = parseFloat(el.style.left || "0"); textInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
@@ -302,49 +641,96 @@ function getWrappedTextLines(text, maxWidthPx, fontStyle) { if (!text || maxWidt
 
 
 // --- Save Functionality ---
+// Presuming this is OK from previous versions
 function saveImage() {
-    const currentNftId = nftTokenIdInput.value || 'unknown'; const currentCollection = nftCollectionSelect.value || 'unknown';
+    const currentNftId = nftTokenIdInput.value || 'unknown';
+    const currentCollection = nftCollectionSelect.value || 'unknown';
+
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { alert("Load a valid NFT first!"); nftStatusEl.className = 'error'; nftStatusEl.textContent = "NFT not loaded for saving."; return; }
     if (currentSignMode === 'prefix' && !appliedPrefixSignImage) { alert("Select a sign from the gallery before saving."); nftStatusEl.className = 'error'; nftStatusEl.textContent = "No sign selected from gallery."; return; }
 
     nftStatusEl.textContent = `Generating final image...`; nftStatusEl.className = '';
     const previouslyActive = activeElement; if (activeElement) setActiveElement(null); // Deselect for clean save
 
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight); drawBaseImage();
+    // Start Drawing
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    drawBaseImage();
 
     if (currentSignMode === 'prefix' && appliedPrefixSignImage && appliedPrefixSignImage.complete) {
         try { ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight); } catch (e) { console.error("Error drawing prefix sign during save:", e); }
     } else if (currentSignMode === 'custom') {
-        drawSignPolygonOnly();
-        const containerRect = container.getBoundingClientRect(); if (!containerRect || containerRect.width === 0 || containerRect.height === 0) { console.error("Error getting container rect during save"); nftStatusEl.className='error'; nftStatusEl.textContent="Save Error: Container rect invalid."; if(previouslyActive && container.contains(previouslyActive)) setActiveElement(previouslyActive); return; } const scaleX = canvasWidth / containerRect.width; const scaleY = canvasHeight / containerRect.height;
+        drawSignPolygonOnly(); // Draw custom color polygon
+
+        // Draw custom overlays (now potentially hidden in DOM, but we iterate here)
+        const containerRect = container.getBoundingClientRect();
+        if (!containerRect || containerRect.width === 0 || containerRect.height === 0) { console.error("Error getting container rect during save"); nftStatusEl.className='error'; nftStatusEl.textContent="Save Error: Container rect invalid."; if(previouslyActive && container.contains(previouslyActive)) setActiveElement(previouslyActive); return; }
+        const scaleX = canvasWidth / containerRect.width;
+        const scaleY = canvasHeight / containerRect.height;
+
         const allOverlays = Array.from(container.querySelectorAll(".textOverlay, .imgOverlay"));
         allOverlays.sort((a, b) => (parseInt(window.getComputedStyle(a).zIndex) || 0) - (parseInt(window.getComputedStyle(b).zIndex) || 0));
+
         allOverlays.forEach(el => {
-            if (!container.contains(el)) return;
-            const elRect = el.getBoundingClientRect(); const rotationRad = getRotationRad(el); const relativeCenterX = (elRect.left + elRect.width / 2) - containerRect.left; const relativeCenterY = (elRect.top + elRect.height / 2) - containerRect.top; const canvasX = Math.round(relativeCenterX * scaleX); const canvasY = Math.round(relativeCenterY * scaleY);
+            if (!container.contains(el)) return; // Skip if somehow detached
+
+            const elRect = el.getBoundingClientRect(); const rotationRad = getRotationRad(el);
+            const relativeCenterX = (elRect.left + elRect.width / 2) - containerRect.left;
+            const relativeCenterY = (elRect.top + elRect.height / 2) - containerRect.top;
+            const canvasX = Math.round(relativeCenterX * scaleX); const canvasY = Math.round(relativeCenterY * scaleY);
+
             ctx.save(); ctx.translate(canvasX, canvasY); ctx.rotate(rotationRad);
-            if (el.classList.contains('textOverlay')) { let textNode = el.childNodes[0]; while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; } const text = textNode ? textNode.nodeValue : (el.textContent || ''); const color = el.style.color || '#ffffff'; const size = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE; const font = el.style.fontFamily || 'Arial'; const domWidth = el.offsetWidth; const canvasFontSize = Math.round(size * scaleY); const canvasMaxWidth = Math.round(domWidth * scaleX); if (canvasFontSize >= 1 && text) { const fontStyle = `${canvasFontSize}px ${font}`; ctx.font = fontStyle; ctx.fillStyle = color; ctx.textAlign = "center"; ctx.textBaseline = "middle"; const lines = getWrappedTextLines(text, canvasMaxWidth, fontStyle); const lineHeight = canvasFontSize * 1.2; const totalTextHeight = lines.length * lineHeight; let currentY = -(totalTextHeight / 2) + (lineHeight / 2); lines.forEach(line => { ctx.fillText(line, 0, currentY); currentY += lineHeight; }); } }
-            else if (el.classList.contains('imgOverlay')) { const imgElement = el.querySelector('img'); if (imgElement && imgElement.complete && imgElement.naturalWidth > 0) { const domWidth = el.offsetWidth; const domHeight = el.offsetHeight; const canvasDrawWidth = Math.round(domWidth * scaleX); const canvasDrawHeight = Math.round(domHeight * scaleY); if (canvasDrawWidth > 0 && canvasDrawHeight > 0) { try { ctx.drawImage(imgElement, -canvasDrawWidth / 2, -canvasDrawHeight / 2, canvasDrawWidth, canvasDrawHeight); } catch (e) { console.error("Error drawing image overlay during save:", e); } } } else { console.warn("Skipping unloaded/invalid image overlay during save:", imgElement?.src); } }
+
+            if (el.classList.contains('textOverlay')) {
+                let textNode = el.childNodes[0]; while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
+                const text = textNode ? textNode.nodeValue : (el.textContent || '');
+                const color = el.style.color || '#ffffff'; const size = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE; const font = el.style.fontFamily || 'Arial'; const domWidth = el.offsetWidth;
+                const canvasFontSize = Math.round(size * scaleY); const canvasMaxWidth = Math.round(domWidth * scaleX);
+                if (canvasFontSize >= 1 && text) {
+                    const fontStyle = `${canvasFontSize}px ${font}`; ctx.font = fontStyle; ctx.fillStyle = color; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    const lines = getWrappedTextLines(text, canvasMaxWidth, fontStyle); const lineHeight = canvasFontSize * 1.2; const totalTextHeight = lines.length * lineHeight; let currentY = -(totalTextHeight / 2) + (lineHeight / 2);
+                    lines.forEach(line => { ctx.fillText(line, 0, currentY); currentY += lineHeight; });
+                }
+            } else if (el.classList.contains('imgOverlay')) {
+                const imgElement = el.querySelector('img');
+                if (imgElement && imgElement.complete && imgElement.naturalWidth > 0) {
+                    const domWidth = el.offsetWidth; const domHeight = el.offsetHeight;
+                    const canvasDrawWidth = Math.round(domWidth * scaleX); const canvasDrawHeight = Math.round(domHeight * scaleY);
+                    if (canvasDrawWidth > 0 && canvasDrawHeight > 0) { try { ctx.drawImage(imgElement, -canvasDrawWidth / 2, -canvasDrawHeight / 2, canvasDrawWidth, canvasDrawHeight); } catch (e) { console.error("Error drawing image overlay during save:", e); } }
+                } else { console.warn("Skipping unloaded/invalid image overlay during save:", imgElement?.src); }
+            }
             ctx.restore();
         });
     }
+    // End Drawing
 
+    // Generate Download Link
     try {
         const dataURL = canvas.toDataURL("image/png"); const link = document.createElement("a");
         let filename = ""; const safeCollection = currentCollection.replace(/[^a-z0-9]/gi, '_').toLowerCase(); const safeNftId = currentNftId.replace(/[^a-z0-9]/gi, '_');
-        if (currentSignMode === 'prefix' && appliedPrefixSignImage) { const signName = appliedPrefixSignImage.alt || 'sign'; const safeSignName = signName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); filename = `signed-${safeCollection}-${safeNftId}-${safeSignName}.png`; }
-        else { filename = `custom-${safeCollection}-${safeNftId}.png`; }
+        if (currentSignMode === 'prefix' && appliedPrefixSignImage) {
+            const signName = appliedPrefixSignImage.alt || 'sign'; const safeSignName = signName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); filename = `signed-${safeCollection}-${safeNftId}-${safeSignName}.png`;
+        } else { filename = `custom-${safeCollection}-${safeNftId}.png`; }
         link.download = filename; link.href = dataURL; document.body.appendChild(link); link.click(); document.body.removeChild(link);
         nftStatusEl.textContent = `Image saved as ${filename}!`; nftStatusEl.className = 'success';
-    } catch (e) { console.error("Error saving image:", e); nftStatusEl.className = 'error'; if (e.name === "SecurityError") { alert("Save Error: Cannot save due to cross-origin image security restrictions (CORS). Ensure NFT/Sign images allow anonymous access."); nftStatusEl.textContent = "Save Error: CORS issue."; } else { alert("An error occurred saving the image. Check console."); nftStatusEl.textContent = "Save Error. Check console."; } }
+    } catch (e) {
+        console.error("Error saving image:", e); nftStatusEl.className = 'error';
+        if (e.name === "SecurityError") { alert("Save Error: Cannot save due to cross-origin image security restrictions (CORS). Ensure NFT/Sign images allow anonymous access."); nftStatusEl.textContent = "Save Error: CORS issue."; }
+        else { alert("An error occurred saving the image. Check console."); nftStatusEl.textContent = "Save Error. Check console."; }
+    }
 
+     // Restore Canvas View & Active Element
      setTimeout(() => {
+         // Redraw the canvas based on the current mode
          if (baseImage.src && baseImage.complete) {
              if (currentSignMode === 'prefix' && appliedPrefixSignImage) { drawBaseImage(); ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight); }
              else if (currentSignMode === 'custom') { applyOverlay(false); } // Redraws base + polygon
-             else { drawBaseImage(); }
+             else { drawBaseImage(); } // If no mode active after save? Unlikely but safe.
          } else { clearCanvas(); }
-         if (previouslyActive && container.contains(previouslyActive)) { setActiveElement(previouslyActive); } // Re-select
-         else { updateCustomActionButtons(); } // Ensure buttons are correct
+         // Re-select the element that was active before saving
+         if (previouslyActive && container.contains(previouslyActive)) {
+             setActiveElement(previouslyActive); // This will also update buttons
+         } else {
+             updateCustomActionButtons(); // Ensure buttons are correct if no element was active
+         }
      }, 100);
 }
