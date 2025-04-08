@@ -1,62 +1,117 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ro">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ticuv's sign creator</title> <!-- Title will change randomly -->
-  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@400;700&family=Comic+Sans+MS&family=Courier+Prime&family=Special+Elite&display=swap" rel="stylesheet"/>
-  <!-- Link către fișierul CSS extern -->
-  <link rel="stylesheet" href="style.css">
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NFT Sign Generator (Ticuv Style Streamlined)</title>
+    <!-- Include Ethers.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.umd.min.js"></script>
+
+    <!-- Include Google Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Indie+Flower&family=Rubik+Moonrocks&display=swap" rel="stylesheet">
+
+    <!-- Link to external CSS file -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="main-container">
+    <h3>NFT Sign Generator</h3>
 
-<!-- Conținutul HTML -->
-<div id="scoreDisplay">Score: 0</div>
-<div id="jumpscareVisual"></div>
-<div id="imageFlashOverlay"></div>
-<div id="fakeLoadingBarContainer"><div id="fakeLoadingBarProgress"></div></div>
-
-<h1>ticuv's sign creator</h1>
-<div class="center-stage" id="centerStage">
-  <button id="doNotClickBtn" class="btn btn-do-not">DO NOT CLICK</button>
-
-  <div id="realOptions" style="display:none;">
-    <p id="crazyText" class="crazy-text">Maximum Over-Rot Engaged. Sign options unlocked!</p>
-    <button id="createSignBtn" class="btn btn-create">Create Sign</button>
-    <button id="galleryBtn" class="btn btn-gallery">Choose Sign (Gallery)</button>
-  </div>
-
-  <div class="message-box" id="messageBox">Click. Click. Click. Is it good?</div>
-  <!-- Path-ul absolut către imaginea din assets, corect pentru GitHub Pages -->
-  <img src="https://ticuv.github.io/SignOMatic/assets/images/alien.png" class="alien-img" alt="Floating Alien" id="alienImage"/>
-  <div id="consoleOutput" class="console-log">Brain Activity Monitor: Flatline</div>
-</div>
-
-<!-- Butonul Made by ticuv -->
-<button id="madeByBtn" class="btn">Made by ticuv</button>
-
-<!-- Popup-ul Funky HTML -->
-<div id="madeByPopup" class="funky-popup">
-    <h2>Made by ticuv</h2>
-    <p>If you enjoy the chaos, consider following or donating!</p>
-    <div>
-        <a href="https://twitter.com/ticu_v" target="_blank" rel="noopener noreferrer" class="popup-link-btn">Follow on X</a>
-    </div>
-    <div class="coffee-section">
-        <h3>Buy me a coffee? (Crypto)</h3>
-        <div class="address-line">
-           <span>SOL: 2Vv3QHAJxZvViaY1HaWvJ5kbnNeUdN1MrZcRYog4ezHE</span>
-           <button class="copy-btn" data-clipboard-text="2Vv3QHAJxZvViaY1HaWvJ5kbnNeUdN1MrZcRYog4ezHE">Copy</button>
+    <!-- 1. NFT Loading Area -->
+    <div id="controls">
+        <div class="control-group" id="nft-load-group">
+            <label for="nftCollection">Collection:</label>
+            <select id="nftCollection">
+                <option value="GHN">GHN (Gooniez)</option>
+                <option value="AHC">AHC (Ape Hater)</option>
+                <!-- Add other collections here if needed -->
+            </select>
+            <label for="nftTokenId">Token ID:</label>
+            <input id="nftTokenId" placeholder="e.g.: 1114" type="number"/>
+            <button id="loadNftBtn">Load NFT</button>
         </div>
-        <div class="address-line">
-           <span>ETH: 0xbD0dDE4175d8e854306a09dE4c184392b33a6d9C</span>
-           <button class="copy-btn" data-clipboard-text="0xbD0dDE4175d8e854306a09dE4c184392b33a6d9C">Copy</button>
-        </div>
-    </div>
-    <button id="closeMadeByPopup" class="btn">Close</button>
-</div>
+        <p id="nftStatus">Select collection & ID, then load NFT.</p>
 
-<!-- Link către fișierul JavaScript extern (plasat la sfârșit) -->
+        <!-- 2. Sign Type Choice (Initially Hidden) -->
+        <div class="control-group hidden" id="sign-type-choice-group">
+            <label>Sign Type:</label>
+            <div> <!-- Wrapper for radios -->
+                <input type="radio" name="signType" value="prefix" id="signTypePrefix" disabled>
+                <label for="signTypePrefix">Signs Gallery</label> <!-- Label Changed -->
+                <input type="radio" name="signType" value="custom" id="signTypeCustom" disabled>
+                <label for="signTypeCustom">Custom Sign</label>
+            </div>
+        </div>
+
+        <!-- 3. Signs Gallery Options (Initially Hidden) -->
+        <div class="control-group hidden" id="prefix-options-group">
+            <div id="sign-gallery-container">
+                <p style="font-style: italic; color: var(--portal-blue);">Loading gallery...</p>
+            </div>
+            <!-- Save button specific for prefix mode -->
+            <div id="prefix-final-actions">
+                 <button id="savePrefixBtn" disabled>Save Full Image</button>
+            </div>
+        </div>
+
+        <!-- 4. Custom Sign Options (Initially Hidden) -->
+        <div class="control-group hidden" id="custom-options-group">
+            <!-- Sign Color -->
+            <div>
+                 <label for="overlayColor">Sign Color:</label>
+                 <input id="overlayColor" type="color" value="#00ff00"/>
+            </div>
+             <hr style="width: 90%; border-color: rgba(255,255,255,0.1); margin: 6px 0;">
+            <!-- Text Editing -->
+            <div class="text-editing-row">
+                 <label for="textInput">Text:</label>
+                 <input id="textInput" placeholder="Your text here" type="text"/>
+                 <button id="addTextBtn">Add Text</button>
+            </div>
+            <div class="text-style-row">
+                 <label>Style:</label>
+                 <input id="textColor" type="color" value="#ffffff" title="Text Color"/>
+                 <label for="fontFamily">Font:</label>
+                 <select id="fontFamily" title="Font Family">
+                     <option value="'Comic Neue', cursive">Comic Neue</option>
+                     <option value="'Indie Flower', cursive">Indie Flower</option>
+                     <option value="'Rubik Moonrocks', cursive">Rubik Moonrocks</option>
+                     <option value="'Luckiest Guy', cursive">Luckiest Guy</option>
+                     <option value="Arial">Arial</option>
+                     <option value="Verdana">Verdana</option>
+                     <option value="Times New Roman">Times New Roman</option>
+                 </select>
+            </div>
+             <hr style="width: 90%; border-color: rgba(255,255,255,0.1); margin: 6px 0;">
+            <!-- Image Upload -->
+            <div class="file-upload-row">
+                  <label for="imageUpload">Add Img:</label>
+                 <input type="file" id="imageUpload" accept="image/*"/>
+                 <button id="addImageBtn">Add Image</button>
+            </div>
+             <hr style="width: 90%; border-color: rgba(255,255,255,0.1); margin: 6px 0;">
+            <!-- Custom Actions (Delete/Save) -->
+            <div id="final-actions">
+                 <button id="removeBtn">Delete Selected</button>
+                 <button id="saveFullBtn">Save Full Image</button>
+            </div>
+        </div>
+
+    </div> <!-- End #controls -->
+
+
+    <div id="canvas-container">
+        <button class="floating-reset" id="resetCanvas" title="Reset Canvas & Overlays">↺</button>
+        <canvas height="2048" id="canvas" width="2048"></canvas>
+        <!-- Overlays will be added here -->
+    </div>
+
+</div> <!-- End .main-container -->
+
+<!-- Link to external JavaScript file -->
 <script src="script.js"></script>
 
 </body>
