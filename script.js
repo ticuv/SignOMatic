@@ -24,7 +24,7 @@ const HELP_TEXTS = {
     "gallery": "Click any pre-made sign below to instantly apply it over your loaded NFT image. Click again to remove it.",
     "custom": "Use these controls to customize the sign: change the sign's background color, add/style your own text, and upload/position additional images.",
     "custom-text": "Select text on canvas to edit here. Use handles on canvas: \n⇦ (Left): Adjust font size.\n⇨ (Right): Adjust text box width.\n↻ (Bottom): Rotate text.", // Original help text
-    "custom-image": "'Choose File' then 'Add Image'. Drag to move. Use handles on canvas:\n⤡ (Bottom-Left): Resize image.\n↻ (Top): Rotate image." // Original help text
+    "custom-image": "'Choose File' then 'Add Image'. Drag to move. Use handles on canvas:\n⤡ (Bottom-Left): Resize image.\n↻ (Bottom): Rotate image." // Updated help text for new rotation handle position
 };
 
 
@@ -151,7 +151,6 @@ function setupEventListeners() {
 
     // Custom Actions
     // removeBtn listener remains removed
-    // removeBtn.addEventListener('click', (event) => removeActiveElement(event));
 
     // General Actions
     resetCanvasBtn.addEventListener('click', handleReset);
@@ -263,7 +262,6 @@ function setControlsDisabled(isDisabled) {
 
     if (isDisabled) {
         // removeBtn disabling remains removed
-        // if(removeBtn) removeBtn.disabled = true;
         if(saveFullBtn) saveFullBtn.disabled = true;
         if(savePrefixBtn) savePrefixBtn.disabled = true;
     } else {
@@ -346,7 +344,7 @@ function setSignMode(mode) {
         const prefixHelpBtn = document.querySelector('#prefix-options-group .help-btn');
         if (prefixHelpBtn) prefixHelpBtn.disabled = false;
     }
-    updateCustomActionButtons(); // This will set save/remove button states correctly
+    updateCustomActionButtons(); // This will set save button states correctly
 }
 
 // Updates Action Buttons based on current mode and state (Save buttons mainly)
@@ -737,7 +735,7 @@ function addText() {
 
 
 // ===========================================================
-// addImage - RESTORED Handles, Keep Inline Delete
+// addImage - UPDATED Handles (Pos/Icon), Keep Inline Delete
 // ===========================================================
 function addImage() {
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
@@ -770,18 +768,19 @@ function addImage() {
         deleteBtn.addEventListener("touchstart", (e) => e.stopPropagation());
         wrapper.appendChild(deleteBtn);
 
-        // Restore Rotation Handle (Top, '↻' Icon)
+        // Rotation Handle (Bottom-Center, Icon now handled by CSS)
         const rotateHandle = document.createElement("div");
         rotateHandle.className = "handle rotation-handle";
-        rotateHandle.innerHTML = '↻'; // RESTORED icon
+        // rotateHandle.innerHTML = ''; // Ensure no text icon conflicts with CSS background
         rotateHandle.title = "Rotate Image";
-        wrapper.appendChild(rotateHandle); // Positioned by CSS later
+        wrapper.appendChild(rotateHandle); // Positioned by CSS
 
-        // Restore Resize Handle (Bottom-Left, uses .resize-handle-right class for positioning/icon)
+        // Resize Handle (Bottom-Left, Icon handled by CSS via resize-handle-base)
         const resizeHandle = document.createElement("div");
-        resizeHandle.className = "handle resize-handle-base resize-handle-right"; // Class dictates CSS positioning/icon now
+        // Uses .resize-handle-right class for correct CSS targeting, even though it's on the left visually
+        resizeHandle.className = "handle resize-handle-base resize-handle-right";
         resizeHandle.title = "Resize Image";
-        wrapper.appendChild(resizeHandle); // Positioned by CSS later
+        wrapper.appendChild(resizeHandle); // Positioned by CSS
 
         // Add Event Listeners (no change needed here)
         wrapper.addEventListener("mousedown", handleImageDragStart); wrapper.addEventListener("touchstart", handleImageDragStart, { passive: true });
@@ -948,13 +947,11 @@ function handleTextInteractionMove(event) {
     const contRect = container.getBoundingClientRect();
 
     if (textInteractionState.isDragging) {
-        // ... (keep dragging logic) ...
         const currentX = coords.x - contRect.left;
         const currentY = coords.y - contRect.top;
         activeElement.style.left = `${textInteractionState.startLeft + (currentX - textInteractionState.startX)}px`;
         activeElement.style.top = `${textInteractionState.startTop + (currentY - textInteractionState.startY)}px`;
     } else if (textInteractionState.isRotating) {
-        // ... (keep rotating logic) ...
         const dx = coords.x - textInteractionState.rotateCenterX;
         const dy = coords.y - textInteractionState.rotateCenterY;
         let angle = Math.atan2(dy, dx);
@@ -962,7 +959,6 @@ function handleTextInteractionMove(event) {
         let rotationDeg = rotationRad * (180 / Math.PI);
         activeElement.style.transform = `translate(-50%, -50%) rotate(${rotationDeg}deg)`;
     } else if (textInteractionState.isResizingWidth) {
-        // ... (keep width resizing logic) ...
         const dx = coords.x - textInteractionState.startX;
         const dy = coords.y - textInteractionState.startY;
         const rotation = textInteractionState.currentRotationRad;
@@ -1006,7 +1002,7 @@ function handleTextInteractionEnd(event) {
 
 // --- Image Interaction Handlers (No changes needed from previous version) ---
 function handleImageDragStart(event) { if (event.target.classList.contains('handle') || event.target.classList.contains('overlay-delete-btn') || currentSignMode !== 'custom') return; hideHelpTooltip(); const el = event.currentTarget; setActiveElement(el); imageInteractionState.isDragging = true; imageInteractionState.isRotating = false; imageInteractionState.isResizing = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); imageInteractionState.startX = coords.x - contRect.left; imageInteractionState.startY = coords.y - contRect.top; imageInteractionState.startLeft = parseFloat(el.style.left || "0"); imageInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
-function handleImageRotateStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isRotating = true; imageInteractionState.isDragging = false; imageInteractionState.isResizing = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let startAngle = Math.atan2(dy, dx); imageInteractionState.currentRotationRad = getRotationRad(el); imageInteractionState.startAngle = startAngle - imageInteractionState.currentRotationRad; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleImageRotateStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isRotating = true; imageInteractionState.isDragging = false; imageInteractionState.isResizing = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let startAngle = Math.atan2(dy, dx); imageInteractionState.currentRotationRad = getRotationRad(el); imageInteractionState.startAngle = startAngle - imageInteractionState.currentRotationRad; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
 function handleImageResizeStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isResizing = true; imageInteractionState.isRotating = false; imageInteractionState.isDragging = false; document.body.style.cursor = 'nwse-resize'; // Corner resize cursor
     const coords = getEventCoordinates(event); imageInteractionState.startX = coords.x; imageInteractionState.startY = coords.y; imageInteractionState.startWidth = el.offsetWidth; imageInteractionState.startHeight = el.offsetHeight; imageInteractionState.aspectRatio = imageInteractionState.startHeight > 0 ? imageInteractionState.startWidth / imageInteractionState.startHeight : 1; imageInteractionState.currentRotationRad = getRotationRad(el); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
 function handleImageInteractionMove(event) { if (!activeElement || !activeElement.classList.contains('imgOverlay') || (!imageInteractionState.isDragging && !imageInteractionState.isRotating && !imageInteractionState.isResizing)) return; if (event.type === 'touchmove') event.preventDefault(); const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); if (imageInteractionState.isDragging) { const currentX = coords.x - contRect.left; const currentY = coords.y - contRect.top; activeElement.style.left = `${imageInteractionState.startLeft + (currentX - imageInteractionState.startX)}px`; activeElement.style.top = `${imageInteractionState.startTop + (currentY - imageInteractionState.startY)}px`; } else if (imageInteractionState.isRotating) { const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let angle = Math.atan2(dy, dx); let rotationRad = angle - imageInteractionState.startAngle; let rotationDeg = rotationRad * (180 / Math.PI); activeElement.style.transform = `translate(-50%, -50%) rotate(${rotationDeg}deg)`; } else if (imageInteractionState.isResizing) { const startDist = Math.hypot(imageInteractionState.startX - imageInteractionState.centerX, imageInteractionState.startY - imageInteractionState.centerY); const currentDist = Math.hypot(coords.x - imageInteractionState.centerX, coords.y - imageInteractionState.centerY); const scaleFactor = startDist > 0 ? currentDist / startDist : 1; let newWidth = imageInteractionState.startWidth * scaleFactor; let newHeight = imageInteractionState.aspectRatio > 0 ? newWidth / imageInteractionState.aspectRatio : newWidth; // Maintain aspect ratio
@@ -1024,7 +1020,6 @@ function rgb2hex(rgb) { if(!rgb)return'#ffffff'; if(rgb.startsWith('#'))return r
 // Ensure getWrappedTextLines is present and correct
 function getWrappedTextLines(text, maxWidthPx, fontStyle) {
     if (!text || maxWidthPx <= 0) return [];
-    // Ensure context font is set *before* measuring
     // IMPORTANT: Assumes 'ctx' is the global canvas 2D context
     if (!ctx) {
         console.error("getWrappedTextLines: Canvas context 'ctx' is not available.");
@@ -1038,27 +1033,20 @@ function getWrappedTextLines(text, maxWidthPx, fontStyle) {
 
     for (let i = 0; i < words.length; i++) {
         const word = words[i];
-        // Add space only if currentLine is not empty
         const testLine = currentLine ? currentLine + " " + word : word;
         const metrics = ctx.measureText(testLine);
         const testWidth = metrics.width;
 
         if (testWidth <= maxWidthPx || !currentLine) {
-            // If it fits, or if it's the first word on the line, add it to the current line
             currentLine = testLine;
         } else {
-            // The new word doesn't fit, so push the previous line
             lines.push(currentLine);
-            // Start the new line with the current word
             currentLine = word;
-            // Edge case: If the single word itself is too long, it will still be added
-            // on the next iteration or at the end. More complex character wrapping isn't handled here.
              if (ctx.measureText(currentLine).width > maxWidthPx) {
                  console.warn("Single word wider than max width:", currentLine, ctx.measureText(currentLine).width, maxWidthPx);
              }
         }
     }
-    // Add the last line
     if (currentLine) {
         lines.push(currentLine);
     }
