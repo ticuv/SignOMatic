@@ -10,7 +10,7 @@ const nftContracts = {
 };
 const nftAbi = ["function tokenURI(uint256 tokenId) public view returns (string)"];
 const provider = new ethers.JsonRpcProvider("https://eth.llamarpc.com");
-const DEFAULT_FONT_SIZE = 15; // Default size used elsewhere
+const DEFAULT_FONT_SIZE = 15;
 const MIN_FONT_SIZE = 8;
 const FONT_SIZE_SENSITIVITY = 0.25;
 const SIGNS_JSON_PATH = "signs.json"; // Path relative to index.html
@@ -21,9 +21,7 @@ const DONATION_ADDRESSES = {
 const HELP_TEXTS = {
     "nft-load": "Choose a collection (e.g., GHN) and enter the specific Token ID number of the NFT you want to load onto the canvas.",
     "gallery": "Click any pre-made sign below to instantly apply it over your loaded NFT image. Click again to remove it.",
-    "custom": "Use these controls to customize the sign: change the sign's background color, add/style your own text, and upload/position additional images.",
-    "custom-text": "Select text on canvas to edit here. Use handles on canvas: \n⇦ (Left): Adjust font size.\n⇨ (Right): Adjust text box width.\n↻ (Bottom): Rotate text.",
-    "custom-image": "'Choose File' then 'Add Image'. Drag to move. Use handles on canvas:\n⤡ (Bottom-Left): Resize image.\n↻ (Top): Rotate image."
+    "custom": "Use these controls to customize the sign: change the sign's background color, add/style your own text, and upload/position additional images."
 };
 
 
@@ -39,11 +37,9 @@ let selectedSignItem = null; // Track selected sign DOM element in gallery
 let appliedPrefixSignImage = null; // Keep track of the currently applied prefix sign Image object
 let lastCustomTextInputValue = ""; // Represents text input value when NO element is selected
 let isModalOpen = false; // Track if donation modal is open
-let activeHelpButton = null; // Track which help button triggered the current tooltip
 
 // --- DOM Element References ---
-let canvas, ctx, container, textInput, textColor, fontFamily, fontSize, // Added fontSize ref back
-    removeBtn, nftStatusEl,
+let canvas, ctx, container, textInput, textColor, fontFamily, removeBtn, nftStatusEl,
     nftCollectionSelect, nftTokenIdInput, loadNftBtn, overlayColorInput,
     addTextBtn, addImageBtn, resetCanvasBtn, imageUpload,
     saveFullBtn, // Save button for Custom mode
@@ -63,7 +59,6 @@ window.onload = () => {
     textInput = document.getElementById("textInput");
     textColor = document.getElementById("textColor");
     fontFamily = document.getElementById("fontFamily");
-    fontSize = document.getElementById("fontSize"); // Get fontSize input ref (Assuming it exists in HTML)
     removeBtn = document.getElementById("removeBtn");
     nftStatusEl = document.getElementById("nftStatus");
     nftCollectionSelect = document.getElementById("nftCollection");
@@ -111,7 +106,7 @@ window.onload = () => {
 };
 
 // ===========================================================
-// setupEventListeners - UPDATED for Help Tooltip Clicks
+// setupEventListeners - Added listeners for Modal and Help
 // ===========================================================
 function setupEventListeners() {
     if (!loadNftBtn) { console.error("Load button not found!"); return; }
@@ -119,16 +114,16 @@ function setupEventListeners() {
     // NFT Loading
     loadNftBtn.addEventListener('click', loadNftToCanvas);
     nftCollectionSelect.addEventListener("change", () => {
+        // When collection changes *after* loading, adjust view
         if (baseImage.src && baseImage.complete) {
-            hideHelpTooltip();
             if (currentSignMode === 'custom') {
-                 applyOverlay(false);
+                 applyOverlay(false); // Re-apply overlay for new collection polygon
             } else if (currentSignMode === 'prefix') {
                 appliedPrefixSignImage = null;
                 if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
                 drawBaseImage();
                 if(savePrefixBtn) savePrefixBtn.disabled = true;
-                populateSignGallery();
+                populateSignGallery(); // Refresh gallery for the new collection
             }
             else { drawBaseImage(); }
         }
@@ -141,103 +136,78 @@ function setupEventListeners() {
     // Custom Controls
     overlayColorInput.addEventListener('input', () => { if (currentSignMode === 'custom') applyOverlay(false); });
     addTextBtn.addEventListener('click', addText);
-    textInput.addEventListener("input", handleTextControlChange); // Handles text, color, size, font
-    textColor.addEventListener("input", handleTextControlChange);
-    fontFamily.addEventListener("input", handleTextControlChange);
-    if (fontSize) {
-         fontSize.addEventListener("input", handleTextControlChange);
-    }
+    textInput.addEventListener("input", handleTextControlChange); // Event listener for text input changes
+    textColor.addEventListener("input", handleTextControlChange); // Also trigger style updates
+    fontFamily.addEventListener("input", handleTextControlChange); // Also trigger style updates
     addImageBtn.addEventListener('click', addImage);
 
     // Custom Actions
-    if (removeBtn) {
-        removeBtn.addEventListener('click', removeActiveElement);
-    } else {
-        console.error("Remove button (#removeBtn) not found in DOM!");
-    }
+    removeBtn.addEventListener('click', (event) => removeActiveElement(event));
 
     // General Actions
     resetCanvasBtn.addEventListener('click', handleReset);
-    saveFullBtn.addEventListener('click', () => saveImage('full')); // Default save is full
-    savePrefixBtn.addEventListener('click', saveImage); // Prefix only saves full image
-    const saveSignOnlyBtn = document.getElementById('saveSignBtn');
-    if (saveSignOnlyBtn) {
-        saveSignOnlyBtn.addEventListener('click', () => saveImage('sign')); // Listener for sign only
-    }
+    saveFullBtn.addEventListener('click', saveImage); // Custom Save
+    savePrefixBtn.addEventListener('click', saveImage); // Prefix Save
 
      // Deselect active element when clicking outside
-     document.addEventListener('click', handleOutsideClick, true);
+     document.addEventListener('click', handleOutsideClick, true); // Use capture phase
 
      // --- Donation Modal Listeners ---
      if (donateBtn) donateBtn.addEventListener('click', openDonateModal);
      if (donateModalCloseBtn) donateModalCloseBtn.addEventListener('click', closeDonateModal);
      if (donateModal) donateModal.addEventListener('click', (event) => {
+         // Close if clicked on the background overlay
          if (event.target === donateModal) { closeDonateModal(); }
      });
      if (sendSolBtn) sendSolBtn.addEventListener('click', () => showDonationAddress('sol'));
      if (sendEthBtn) sendEthBtn.addEventListener('click', () => showDonationAddress('eth'));
      if (copyAddressBtn) copyAddressBtn.addEventListener('click', copyDonationAddress);
 
-     // --- Help Tooltip Listeners (CLICK-BASED) ---
+     // --- Help Tooltip Listeners ---
      const helpBtns = document.querySelectorAll('.help-btn');
      helpBtns.forEach(btn => {
-         btn.addEventListener('click', handleHelpClick);
+         btn.addEventListener('mouseenter', showHelpTooltip);
+         btn.addEventListener('mouseleave', hideHelpTooltip);
+         btn.addEventListener('focus', showHelpTooltip); // Accessibility
+         btn.addEventListener('blur', hideHelpTooltip);  // Accessibility
      });
 
-     // --- Global listener to close help tooltip on outside click ---
-     document.addEventListener('click', (event) => {
-         if (helpTooltip && helpTooltip.style.display === 'block' && activeHelpButton) {
-             if (!helpTooltip.contains(event.target) && event.target !== activeHelpButton) {
-                 hideHelpTooltip();
-             }
-         }
-     }, false);
-
-     // --- Keyboard listener for ESC key to close modal AND tooltip ---
+     // --- Keyboard listener for ESC key to close modal ---
      document.addEventListener('keydown', (event) => {
-         if (event.key === 'Escape') {
-             if (isModalOpen) {
-                 closeDonateModal();
-             } else if (helpTooltip && helpTooltip.style.display === 'block') {
-                 hideHelpTooltip();
-             }
+         if (event.key === 'Escape' && isModalOpen) {
+             closeDonateModal();
          }
      });
 }
 
-// --- Click Outside Handler (For deselecting canvas elements) ---
+// --- Click Outside Handler ---
 function handleOutsideClick(event) {
-    // Ignore clicks on action buttons or help buttons for deselect purposes
-    const clickedActionButton = event.target.closest('#removeBtn, #saveFullBtn, #savePrefixBtn, #addTextBtn, #addImageBtn, #saveSignBtn');
-    const clickedHelpButton = event.target.closest('.help-btn');
-    if (clickedActionButton || clickedHelpButton) {
-        return;
-    }
-
-    // Modal Check
+    // Modal Check first
     if (isModalOpen && donateModal && !donateModal.querySelector('.modal-content').contains(event.target) && event.target !== donateBtn) {
+         // Don't process deselect if click was related to the modal or its trigger button
          return;
-    }
-
-    // Help Tooltip Check
-    if (helpTooltip && helpTooltip.style.display === 'block' && helpTooltip.contains(event.target)) {
-        return;
     }
 
     // Deselect Active Element Logic
     if (currentSignMode === 'custom') {
         const clickedInsideContainer = container.contains(event.target);
         const clickedOnContainerOrCanvas = event.target === container || event.target === canvas;
-        const clickedOnOtherInteractiveControl = event.target.closest('#custom-options-group input:not(#textInput):not(#fontSize), #custom-options-group select');
+        // Check if click was on controls that *should not* cause deselect
+        const clickedOnInteractiveControl = event.target.closest('#custom-options-group input, #custom-options-group select, #custom-options-group button:not(#removeBtn):not(#saveFullBtn)');
         const clickedOnActiveElementHandle = event.target.classList.contains('handle');
 
-        if (activeElement && !clickedOnOtherInteractiveControl && !clickedOnActiveElementHandle) {
+        if (activeElement && !clickedOnInteractiveControl && !clickedOnActiveElementHandle) {
+             // Click was NOT on a handle or non-action button within the custom controls group
+
+             // Condition 1: Click outside the main canvas container entirely
              if (!clickedInsideContainer) {
-                  setActiveElement(null);
+                  setActiveElement(null); // Deselect
+             // Condition 2: Click directly on the canvas/container background
              } else if (clickedOnContainerOrCanvas) {
-                  setActiveElement(null);
+                  setActiveElement(null); // Deselect
+             // Condition 3: Click inside container, but not on the active element itself or another overlay
              } else if (!activeElement.contains(event.target) && !event.target.closest('.textOverlay, .imgOverlay')) {
-                  setActiveElement(null);
+                  setActiveElement(null); // Deselect
              }
         }
     }
@@ -245,7 +215,7 @@ function handleOutsideClick(event) {
 
 // --- Workflow Management ---
 function setControlsDisabled(isDisabled) {
-    const customControls = [overlayColorInput, textInput, textColor, fontSize, fontFamily, addTextBtn, imageUpload, addImageBtn, removeBtn, saveFullBtn, document.getElementById('saveSignBtn')];
+    const customControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn, removeBtn, saveFullBtn];
     const signChoiceRadios = [signTypePrefixRadio, signTypeCustomRadio];
     const prefixControls = [savePrefixBtn];
 
@@ -253,30 +223,24 @@ function setControlsDisabled(isDisabled) {
     prefixControls.forEach(el => { if(el) el.disabled = isDisabled; });
     signChoiceRadios.forEach(el => { if(el) el.disabled = isDisabled; });
 
-    const allHelpBtns = document.querySelectorAll('.help-btn');
-    allHelpBtns.forEach(btn => { if(btn) btn.disabled = isDisabled; });
-
-
     if (isDisabled) {
         if(removeBtn) removeBtn.disabled = true;
         if(saveFullBtn) saveFullBtn.disabled = true;
         if(savePrefixBtn) savePrefixBtn.disabled = true;
-        const saveSignOnlyBtn = document.getElementById('saveSignBtn');
-        if (saveSignOnlyBtn) saveSignOnlyBtn.disabled = true;
     }
 }
 
 // ===========================================================
-// setSignMode - Hide help tooltip on mode change
+// setSignMode - Adjust text input handling & show header (FIX APPLIED)
 // ===========================================================
 function setSignMode(mode) {
     const previousMode = currentSignMode;
     if (mode === previousMode) return;
 
-    hideHelpTooltip();
-
-    if (previousMode === 'custom' && textInput && (!activeElement || !activeElement.classList.contains('textOverlay'))) {
-        lastCustomTextInputValue = textInput.value;
+    if (previousMode === 'custom' && textInput) {
+        if (!activeElement || !activeElement.classList.contains('textOverlay')) {
+             lastCustomTextInputValue = textInput.value;
+        }
     }
 
     currentSignMode = mode;
@@ -302,14 +266,11 @@ function setSignMode(mode) {
             selectedSignItem.classList.remove('selected');
             selectedSignItem = null;
         }
-        if (textInput && !activeElement) {
+        if (textInput) {
             textInput.value = lastCustomTextInputValue;
         }
         if (baseImage.complete) {
             applyOverlay(false);
-        }
-        if (activeElement && !container.contains(activeElement)) {
-            activeElement = null;
         }
     }
 
@@ -318,26 +279,16 @@ function setSignMode(mode) {
     prefixOptionsGroup.classList.toggle('hidden', mode !== 'prefix');
     customOptionsGroup.classList.toggle('hidden', mode !== 'custom');
 
-    if(signTypeChoiceHeader) signTypeChoiceHeader.classList.remove('hidden');
+    // Show/Hide the "Choose Sign Mode" Header
+    if(signTypeChoiceHeader) signTypeChoiceHeader.classList.remove('hidden'); // Always show if mode is chosen
 
     setControlsDisabled(true);
     signTypePrefixRadio.disabled = false;
     signTypeCustomRadio.disabled = false;
-
-    if (mode === 'prefix') {
-        const prefixHelpBtn = document.querySelector('#prefix-options-group .section-header .help-btn');
-        if (prefixHelpBtn) prefixHelpBtn.disabled = false;
-    } else if (mode === 'custom') {
-        const customHelpBtn = document.querySelector('#custom-options-group .section-header .help-btn');
-        if (customHelpBtn) customHelpBtn.disabled = false;
-         if (baseImage.complete) {
-             const customSubHelpBtns = document.querySelectorAll('#custom-options-group .text-editing-row .help-btn, #custom-options-group .file-upload-row .help-btn');
-             customSubHelpBtns.forEach(btn => btn.disabled = false);
-             const customEditControls = [overlayColorInput, textInput, textColor, fontSize, fontFamily, addTextBtn, imageUpload, addImageBtn];
-             customEditControls.forEach(el => { if(el) el.disabled = false; });
-         }
+    if (mode === 'custom' && baseImage.complete) {
+        const customEditControls = [overlayColorInput, textInput, textColor, fontFamily, addTextBtn, imageUpload, addImageBtn];
+        customEditControls.forEach(el => { if(el) el.disabled = false; });
     }
-
     updateCustomActionButtons();
 }
 
@@ -348,11 +299,8 @@ function updateCustomActionButtons() {
 
     const enableRemove = currentSignMode === 'custom' && isImageLoaded && isElementActive;
     const enableSaveFullCustom = currentSignMode === 'custom' && isImageLoaded;
-    const enableSaveSignCustom = currentSignMode === 'custom' && isImageLoaded;
     if (removeBtn) removeBtn.disabled = !enableRemove;
     if (saveFullBtn) saveFullBtn.disabled = !enableSaveFullCustom;
-    const saveSignOnlyBtn = document.getElementById('saveSignBtn');
-    if (saveSignOnlyBtn) saveSignOnlyBtn.disabled = !enableSaveSignCustom;
 
     const enableSavePrefix = currentSignMode === 'prefix' && isImageLoaded && appliedPrefixSignImage;
     if (savePrefixBtn) savePrefixBtn.disabled = !enableSavePrefix;
@@ -360,74 +308,41 @@ function updateCustomActionButtons() {
 
 
 // ===========================================================
-// handleTextControlChange - CORRECTED TO FIX LIVE TEXT UPDATE
+// handleTextControlChange - Revised Logic (FIX APPLIED)
 // ===========================================================
-function handleTextControlChange(event) {
-    // Only proceed if in custom mode
-    if (currentSignMode !== 'custom') return;
+function handleTextControlChange() {
+    if (activeElement && activeElement.classList.contains('textOverlay') && currentSignMode === 'custom') {
+        // Update Active Element Directly
+        let textNode = activeElement.childNodes[0];
+        while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
 
-    // If an element is active and it's a text overlay
-    if (activeElement && activeElement.classList.contains('textOverlay') && container.contains(activeElement)) {
+        if (textNode) {
+            textNode.nodeValue = textInput.value || " "; // Update the DOM node directly
+        } else {
+            activeElement.insertBefore(document.createTextNode(textInput.value || " "), activeElement.querySelector('.handle'));
+            console.warn("Created new text node in handleTextControlChange");
+        }
+        // Update style attributes only if the event source was style-related
+        if (event && (event.target === textColor || event.target === fontFamily)) {
+            activeElement.style.color = textColor.value;
+            activeElement.style.fontFamily = fontFamily.value;
+        }
 
-        // --- Update Text Content (if #textInput triggered the event) ---
-        if (event && event.target === textInput) {
-            let textNode = activeElement.childNodes[0];
-            // Find the first actual text node, skipping handles or other potential elements
-            while (textNode && textNode.nodeType !== Node.TEXT_NODE) {
-                textNode = textNode.nextSibling;
-            }
-
-            if (textNode) {
-                // *** THIS IS THE CORE FIX: Update the nodeValue ***
-                textNode.nodeValue = textInput.value || " "; // Use input value, fallback to space if empty
-            } else {
-                // If no text node exists (e.g., text was completely deleted), create one
-                const firstHandle = activeElement.querySelector('.handle');
-                const newTextNode = document.createTextNode(textInput.value || " ");
-                if (firstHandle) {
-                    activeElement.insertBefore(newTextNode, firstHandle);
-                } else {
-                    activeElement.appendChild(newTextNode); // Fallback if no handles (shouldn't happen)
-                }
-                console.warn("Created new text node in handleTextControlChange");
-            }
-
-            // --- Auto-adjust Width ---
+        // Auto-adjust width after text change (only if textInput changed)
+        if (!event || event.target === textInput) {
             requestAnimationFrame(() => {
                 if (activeElement && activeElement.classList.contains('textOverlay') && container.contains(activeElement)) {
                     const originalWidthStyle = activeElement.style.width;
                     const hadManualWidth = originalWidthStyle && originalWidthStyle !== 'auto';
-
-                    if (!hadManualWidth) { // Only auto-adjust if not manually resized
-                        activeElement.style.width = 'auto';
-                        const naturalWidth = activeElement.offsetWidth;
-                        activeElement.style.width = `${Math.max(30, naturalWidth)}px`;
-                        activeElement.style.whiteSpace = 'nowrap';
-                        activeElement.style.overflow = 'hidden';
-                    } else {
-                         activeElement.style.whiteSpace = 'normal';
-                         activeElement.style.overflow = 'visible';
-                    }
+                    activeElement.style.width = 'auto';
+                    const naturalWidth = activeElement.offsetWidth;
+                    activeElement.style.width = hadManualWidth ? originalWidthStyle : `${Math.max(30, naturalWidth)}px`;
                 }
             });
         }
-        // --- Update Styles (if color/font/size controls triggered the event) ---
-        else if (event) {
-            if (event.target === textColor) {
-                activeElement.style.color = textColor.value;
-            } else if (event.target === fontFamily) {
-                activeElement.style.fontFamily = fontFamily.value;
-            } else if (event.target === fontSize && fontSize) {
-                const newSize = Math.max(MIN_FONT_SIZE, parseInt(fontSize.value) || DEFAULT_FONT_SIZE);
-                activeElement.style.fontSize = `${newSize}px`;
-                if (parseInt(fontSize.value) < MIN_FONT_SIZE) {
-                    fontSize.value = newSize;
-                }
-            }
-        }
-    }
-    // --- If no text element is active, update the stored general value ---
-    else if (textInput && event && event.target === textInput) {
+
+    } else if (currentSignMode === 'custom' && textInput) {
+        // Update General Stored Value (No active text element)
         lastCustomTextInputValue = textInput.value;
     }
 }
@@ -436,17 +351,14 @@ function handleTextControlChange(event) {
 function handleReset() {
     if (confirm("Are you sure you want to clear the canvas and all added elements/signs? This cannot be undone.")) {
         clearCanvasAndOverlays();
-        hideHelpTooltip();
         appliedPrefixSignImage = null;
         if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
         if (textInput) textInput.value = '';
         lastCustomTextInputValue = "";
         if (overlayColorInput) overlayColorInput.value = '#00ff00';
         if (textColor) textColor.value = '#ffffff';
-        if (fontSize) fontSize.value = DEFAULT_FONT_SIZE;
         if (fontFamily) fontFamily.value = "'Comic Neue', cursive";
         if (imageUpload) imageUpload.value = '';
-        activeElement = null;
 
         if (baseImage.src && baseImage.complete && baseImage.naturalWidth > 0) {
             drawBaseImage();
@@ -458,10 +370,6 @@ function handleReset() {
             currentSignMode = null;
             setControlsDisabled(true);
             signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false;
-            const loadHelpBtn = document.querySelector('#controls .section-header .help-btn[data-help-key="nft-load"]');
-             if (loadHelpBtn) loadHelpBtn.disabled = false;
-
-
             nftStatusEl.textContent = "Canvas reset. Choose sign type."; nftStatusEl.className = '';
             if(signGalleryContainer) signGalleryContainer.innerHTML = '<p style="font-style: italic; color: var(--portal-blue);">Loading gallery...</p>';
             if (!signConfigData) fetchSignConfig();
@@ -480,7 +388,7 @@ function clearCanvasAndOverlays() {
     ctx.fillStyle = '#444';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     container.querySelectorAll('.textOverlay, .imgOverlay').forEach(el => el.remove());
-    setActiveElement(null);
+    setActiveElement(null); // Call setActiveElement with null to reset state
 }
 function clearCanvas() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -492,9 +400,6 @@ function enableNftLoadControlsOnly() {
     if(loadNftBtn) loadNftBtn.disabled = false;
     if(nftCollectionSelect) nftCollectionSelect.disabled = false;
     if(nftTokenIdInput) nftTokenIdInput.disabled = false;
-    const loadHelpBtn = document.querySelector('#controls .section-header .help-btn[data-help-key="nft-load"]');
-    if (loadHelpBtn) loadHelpBtn.disabled = false;
-
     if(signTypeChoiceGroup) signTypeChoiceGroup.classList.add('hidden');
     if(signTypeChoiceHeader) signTypeChoiceHeader.classList.add('hidden');
     if(prefixOptionsGroup) prefixOptionsGroup.classList.add('hidden');
@@ -513,19 +418,13 @@ async function loadNftToCanvas() {
     if (!nftContracts[selectedCollection]) { console.error(`Selected collection "${selectedCollection}" not found.`); nftStatusEl.textContent = `Error: Collection definition "${selectedCollection}" not found.`; nftStatusEl.className = 'error'; return; }
 
     clearCanvasAndOverlays();
-    hideHelpTooltip();
     appliedPrefixSignImage = null;
     if (selectedSignItem) { selectedSignItem.classList.remove('selected'); selectedSignItem = null; }
     baseImage = new Image();
     lastCustomTextInputValue = "";
-    activeElement = null;
 
     loadNftBtn.disabled = true; nftCollectionSelect.disabled = true; nftTokenIdInput.disabled = true;
     setControlsDisabled(true);
-    const loadHelpBtn = document.querySelector('#controls .section-header .help-btn[data-help-key="nft-load"]');
-    if (loadHelpBtn) loadHelpBtn.disabled = false;
-
-
     signTypeChoiceGroup.classList.add('hidden');
     if(signTypeChoiceHeader) signTypeChoiceHeader.classList.add('hidden');
     prefixOptionsGroup.classList.add('hidden'); customOptionsGroup.classList.add('hidden');
@@ -545,18 +444,19 @@ async function loadNftToCanvas() {
         if (!tokenURI) throw new Error("Received empty Token URI from contract.");
 
         nftStatusEl.textContent = "Fetching metadata...";
-        const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 20000);
+        const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
         const response = await fetch(tokenURI, { signal: controller.signal }).finally(() => clearTimeout(timeoutId));
         if (!response.ok) throw new Error(`Metadata fetch error: ${response.status} ${response.statusText} (URL: ${tokenURI.substring(0, 100)}...)`);
         const metadata = await response.json();
 
         let imageUrl = resolveIpfsUrl(metadata.image || metadata.image_url || metadata.imageUrl || metadata.uri);
         if (!imageUrl) throw new Error("Image URL missing in metadata");
+        // Enhanced check for nested metadata (common in some contracts)
         if (imageUrl.startsWith('http') && !imageUrl.match(/\.(jpeg|jpg|gif|png|svg|webp)$/i)) {
             try {
                 nftStatusEl.textContent = "Fetching secondary metadata...";
                 const imgJsonResponseController = new AbortController();
-                const imgJsonTimeoutId = setTimeout(() => imgJsonResponseController.abort(), 15000);
+                const imgJsonTimeoutId = setTimeout(() => imgJsonResponseController.abort(), 15000); // Shorter timeout for secondary
                 const imgJsonResponse = await fetch(imageUrl, { signal: imgJsonResponseController.signal }).finally(() => clearTimeout(imgJsonTimeoutId));
 
                 if (!imgJsonResponse.ok) throw new Error(`Secondary metadata fetch failed: ${imgJsonResponse.status}`);
@@ -576,8 +476,6 @@ async function loadNftToCanvas() {
             signTypePrefixRadio.disabled = false; signTypeCustomRadio.disabled = false;
             signTypePrefixRadio.checked = false; signTypeCustomRadio.checked = false; currentSignMode = null;
             loadNftBtn.disabled = false; nftCollectionSelect.disabled = false; nftTokenIdInput.disabled = false;
-            if (loadHelpBtn) loadHelpBtn.disabled = false;
-
             if (!signConfigData) fetchSignConfig();
             updateCustomActionButtons();
         };
@@ -603,7 +501,7 @@ function drawBaseImage() {
     try { ctx.drawImage(baseImage, x, y, drawWidth, drawHeight); }
     catch(e) { console.error("Error drawing base image:", e); nftStatusEl.textContent="Error drawing NFT image."; nftStatusEl.className='error'; ctx.fillStyle = "red"; ctx.font = "30px Arial"; ctx.textAlign = "center"; ctx.fillText("Draw Error", canvasWidth / 2, canvasHeight / 2); }
 }
-function applyOverlay(clearExistingOverlays = true) {
+function applyOverlay(clearExistingOverlays = true) { // For CUSTOM sign color overlay
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) return;
     if (currentSignMode === 'custom') {
         drawBaseImage();
@@ -648,7 +546,6 @@ function populateSignGallery() {
         img.onerror = () => { img.alt = `${signName} (Load Error)`; img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 40'%3E%3Crect width='50' height='40' fill='%23555'/%3E%3Ctext x='50%' y='50%' fill='red' font-size='9' dominant-baseline='middle' text-anchor='middle'%3EError%3C/text%3E%3C/svg%3E"; itemDiv.style.borderColor = 'var(--error-red)'; console.warn(`Failed to load sign image: ${signImageUrl}`); };
         const nameSpan = document.createElement('span'); nameSpan.textContent = signName; itemDiv.appendChild(img); itemDiv.appendChild(nameSpan);
         itemDiv.addEventListener('click', () => {
-             hideHelpTooltip();
             if (currentSignMode !== 'prefix') return; const clickedImageUrl = itemDiv.dataset.imageUrl; const clickedSignName = itemDiv.dataset.signName; if (selectedSignItem && selectedSignItem !== itemDiv) { selectedSignItem.classList.remove('selected'); }
             if (selectedSignItem === itemDiv) { itemDiv.classList.remove('selected'); selectedSignItem = null; appliedPrefixSignImage = null; if(baseImage.src && baseImage.complete) drawBaseImage(); if(savePrefixBtn) savePrefixBtn.disabled = true; nftStatusEl.textContent = "Sign removed."; nftStatusEl.className = ''; }
             else { itemDiv.classList.add('selected'); selectedSignItem = itemDiv; applyPrefixSign(clickedImageUrl, clickedSignName); }
@@ -694,24 +591,20 @@ function applyPrefixSign(signImageUrl, signName) {
 
 
 // ===========================================================
-// addText - Use DEFAULT_FONT_SIZE when creating text
+// addText - Adjust text input handling (FIX APPLIED)
 // ===========================================================
 function addText() {
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
 
-    hideHelpTooltip();
     const textValue = textInput.value || "New Text";
-    const currentFontSize = fontSize ? (parseInt(fontSize.value) || DEFAULT_FONT_SIZE) : DEFAULT_FONT_SIZE;
 
     const textEl = document.createElement("div"); textEl.className = "textOverlay";
     const textNode = document.createTextNode(textValue); textEl.appendChild(textNode);
-    textEl.style.color = textColor.value;
-    textEl.style.fontSize = `${currentFontSize}px`;
-    textEl.style.fontFamily = fontFamily.value;
+    textEl.style.color = textColor.value; textEl.style.fontSize = `${DEFAULT_FONT_SIZE}px`; textEl.style.fontFamily = fontFamily.value;
     textEl.style.transform = `translate(-50%, -50%) rotate(0deg)`; textEl.style.zIndex = "10"; textEl.style.width = 'auto'; textEl.style.whiteSpace = 'nowrap'; textEl.style.overflow = 'hidden';
 
-    const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = '↻'; textEl.appendChild(rotateHandle);
+    const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = 'â»'; textEl.appendChild(rotateHandle);
     const resizeHandleRight = document.createElement("div"); resizeHandleRight.className = "handle resize-handle-base resize-handle-right"; resizeHandleRight.title = "Resize Width"; textEl.appendChild(resizeHandleRight);
     const resizeHandleLeft = document.createElement("div"); resizeHandleLeft.className = "handle resize-handle-base resize-handle-left"; resizeHandleLeft.title = "Resize Font Size"; textEl.appendChild(resizeHandleLeft);
 
@@ -726,10 +619,7 @@ function addText() {
     container.appendChild(textEl);
     requestAnimationFrame(() => {
         if (textEl && container.contains(textEl)) {
-            const initialWidth = textEl.offsetWidth;
-            textEl.style.width = `${Math.max(initialWidth, 30)}px`;
-            textEl.style.whiteSpace = 'nowrap'; // Initial state is nowrap
-            textEl.style.overflow = 'hidden';
+            const initialWidth = textEl.offsetWidth; textEl.style.width = `${Math.max(initialWidth, 30)}px`; textEl.style.whiteSpace = 'normal'; textEl.style.overflow = 'visible';
             setActiveElement(textEl);
         }
     });
@@ -740,8 +630,6 @@ function addImage() {
     if (currentSignMode !== 'custom') { nftStatusEl.textContent = "Switch to Custom Sign mode."; nftStatusEl.className = 'error'; return; }
     if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { nftStatusEl.textContent = "Load NFT first."; nftStatusEl.className = 'error'; return; }
     if (!imageUpload || !imageUpload.files || imageUpload.files.length === 0) { nftStatusEl.textContent = "Please select an image file."; nftStatusEl.className = 'error'; return; }
-
-    hideHelpTooltip();
     const file = imageUpload.files[0]; if (!file.type.startsWith('image/')) { nftStatusEl.textContent = "Invalid file type. Please select an image."; nftStatusEl.className = 'error'; imageUpload.value = ''; return; }
     const reader = new FileReader();
     reader.onload = function (e) {
@@ -755,12 +643,11 @@ function addImage() {
          };
         img.onerror = ()=>{ console.error("Error loading added image data."); nftStatusEl.textContent="Error displaying uploaded image."; nftStatusEl.className='error'; wrapper.remove(); };
         wrapper.appendChild(img);
-        const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = '↻'; wrapper.appendChild(rotateHandle);
-        const resizeHandle = document.createElement("div"); resizeHandle.className = "handle resize-handle-base resize-handle-right"; resizeHandle.title = "Resize Image"; wrapper.appendChild(resizeHandle);
-
+        const rotateHandle = document.createElement("div"); rotateHandle.className = "handle rotation-handle"; rotateHandle.innerHTML = 'â»'; wrapper.appendChild(rotateHandle);
+        const resizeHandleRight = document.createElement("div"); resizeHandleRight.className = "handle resize-handle-base resize-handle-right"; resizeHandleRight.title = "Resize Image"; wrapper.appendChild(resizeHandleRight);
         wrapper.addEventListener("mousedown", handleImageDragStart); wrapper.addEventListener("touchstart", handleImageDragStart, { passive: true });
         rotateHandle.addEventListener("mousedown", handleImageRotateStart); rotateHandle.addEventListener("touchstart", handleImageRotateStart, { passive: true });
-        resizeHandle.addEventListener("mousedown", handleImageResizeStart); resizeHandle.addEventListener("touchstart", handleImageResizeStart, { passive: true });
+        resizeHandleRight.addEventListener("mousedown", handleImageResizeStart); resizeHandleRight.addEventListener("touchstart", handleImageResizeStart, { passive: true });
         container.appendChild(wrapper); nftStatusEl.textContent = "Image added."; nftStatusEl.className = 'success'; imageUpload.value = '';
     };
     reader.onerror = function (err) { console.error("FileReader error:",err); nftStatusEl.textContent="Error reading image file."; nftStatusEl.className='error'; }
@@ -768,13 +655,10 @@ function addImage() {
 }
 
 // ===========================================================
-// setActiveElement - UPDATED TO FIX TEXT INPUT POPULATION
+// setActiveElement - Revised Logic (FIX APPLIED)
 // ===========================================================
 function setActiveElement(el) {
     const previouslyActiveElement = activeElement;
-    if (previouslyActiveElement !== el) {
-         hideHelpTooltip(); // Hide tooltip when selection changes
-    }
 
     // Deselect Previous
     if (previouslyActiveElement && previouslyActiveElement !== el) {
@@ -782,9 +666,8 @@ function setActiveElement(el) {
             previouslyActiveElement.classList.remove("active");
             previouslyActiveElement.style.zIndex = previouslyActiveElement.classList.contains('imgOverlay') ? '20' : '10';
         }
-        // If deselecting something, restore general text value to input
-        if (currentSignMode === 'custom' && textInput) {
-            textInput.value = lastCustomTextInputValue;
+         if (currentSignMode === 'custom' && textInput) {
+            textInput.value = lastCustomTextInputValue; // Restore general text value
         }
     }
 
@@ -795,23 +678,18 @@ function setActiveElement(el) {
         el.style.zIndex = el.classList.contains('imgOverlay') ? '101' : '100';
 
         if (el.classList.contains('textOverlay')) {
-            // --- Corrected Text Fetching & Control Update ---
+            // Set controls FROM selected TEXT element
             let textNode = el.childNodes[0];
             while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
-            let currentTextValue = textNode ? textNode.nodeValue : '';
+            let currentTextValue = textNode ? textNode.nodeValue : (el.textContent || '');
 
-            textInput.value = currentTextValue; // <<< THIS IS THE FIX
+            textInput.value = currentTextValue; // Set input field FROM the element
 
-            // Update other controls based on the selected text element's style
             textColor.value = rgb2hex(el.style.color || '#ffffff');
-            if (fontSize) {
-                 fontSize.value = parseInt(el.style.fontSize) || DEFAULT_FONT_SIZE;
-            }
             const currentFont = (el.style.fontFamily || 'Arial').split(',')[0].replace(/['"]/g, "").trim();
             let foundFont = false;
             for (let option of fontFamily.options) { if (option.value.includes(currentFont)) { fontFamily.value = option.value; foundFont = true; break; } }
             if (!foundFont) fontFamily.value = 'Arial';
-            // --- End Correction ---
 
         } else if (el.classList.contains('imgOverlay')) {
              // If selecting an IMAGE overlay, ensure input shows general value
@@ -821,7 +699,7 @@ function setActiveElement(el) {
         }
 
     } else {
-        // Deselecting Completely (clicked outside, or 'el' is null)
+        // Deselecting Completely
         activeElement = null;
         if (currentSignMode === 'custom' && textInput) {
             textInput.value = lastCustomTextInputValue; // Restore general text value
@@ -832,26 +710,30 @@ function setActiveElement(el) {
 
 
 // ===========================================================
-// removeActiveElement - Function to remove selected element (CORRECTED VERSION)
+// removeActiveElement - Adjust text input handling (FIX APPLIED)
 // ===========================================================
 function removeActiveElement(event) {
-    if (event) {
-        event.stopPropagation(); // Prevent triggering other listeners like handleOutsideClick
-    }
-    hideHelpTooltip(); // Hide tooltip if open
+    if (event) { event.stopPropagation(); }
 
-    if (activeElement && container.contains(activeElement)) {
+    if (activeElement && container.contains(activeElement) && currentSignMode === 'custom') {
         const elementType = activeElement.classList.contains('textOverlay') ? 'Text' : 'Image';
-        activeElement.remove(); // Remove the element from the DOM
-        setActiveElement(null); // Clear the active selection state and update UI/buttons
-
-        if (nftStatusEl) {
-             nftStatusEl.textContent = `${elementType} element removed.`;
-             nftStatusEl.className = '';
-        }
+        activeElement.remove();
+        setActiveElement(null); // Deselect and restore general text value
+        nftStatusEl.textContent = `${elementType} element removed.`;
+        nftStatusEl.className = '';
+    } else if (currentSignMode !== 'custom') {
+        nftStatusEl.textContent = "Delete only works in Custom Sign mode.";
+        nftStatusEl.className = 'error';
+        console.warn("Delete clicked outside custom mode.");
+    } else if (!activeElement) {
+        nftStatusEl.textContent = "No element selected to delete.";
+        nftStatusEl.className = 'error';
+        console.warn("Delete clicked with no active element.");
     } else {
-        console.warn("removeActiveElement called but no valid activeElement found or it's not in the container.");
-        setActiveElement(null);
+         console.warn("Attempted to delete an element not in container or invalid state.", activeElement);
+         setActiveElement(null);
+         nftStatusEl.textContent = "Could not delete element.";
+         nftStatusEl.className = 'error';
     }
 }
 
@@ -859,16 +741,15 @@ function removeActiveElement(event) {
 // --- Interaction Handlers ---
 function getEventCoordinates(event) { let x,y; if(event.touches&&event.touches.length>0){x=event.touches[0].clientX;y=event.touches[0].clientY;}else if(event.changedTouches&&event.changedTouches.length>0){x=event.changedTouches[0].clientX;y=event.changedTouches[0].clientY;}else{x=event.clientX;y=event.clientY;} return{x,y}; }
 function getRotationRad(element) { if(!element||!element.style)return 0; const transform=element.style.transform; const rotateMatch=transform.match(/rotate\((-?\d+(\.\d+)?)deg\)/); const rotationDeg=rotateMatch?parseFloat(rotateMatch[1]):0; return rotationDeg*(Math.PI/180); }
-function handleTextDragStart(event) { if (event.target.classList.contains('handle') || currentSignMode !== 'custom') return; hideHelpTooltip(); const el = event.currentTarget; setActiveElement(el); textInteractionState.isDragging = true; textInteractionState.isRotating = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); textInteractionState.startX = coords.x - contRect.left; textInteractionState.startY = coords.y - contRect.top; textInteractionState.startLeft = parseFloat(el.style.left || "0"); textInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
-function handleTextRotateStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isRotating = true; textInteractionState.isDragging = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); textInteractionState.rotateCenterX = rect.left + rect.width / 2; textInteractionState.rotateCenterY = rect.top + rect.height / 2; const dx = coords.x - textInteractionState.rotateCenterX; const dy = coords.y - textInteractionState.rotateCenterY; let startAngle = Math.atan2(dy, dx); const currentRotationRad = getRotationRad(el); textInteractionState.rotateStartAngle = startAngle - currentRotationRad; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
-function handleTextResizeWidthStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isResizingWidth = true; textInteractionState.isResizingFontSize = false; textInteractionState.isRotating = false; textInteractionState.isDragging = false; document.body.style.cursor = 'ew-resize'; const coords = getEventCoordinates(event); textInteractionState.startX = coords.x; textInteractionState.startY = coords.y; textInteractionState.startWidth = el.offsetWidth; textInteractionState.currentRotationRad = getRotationRad(el); el.style.whiteSpace = 'normal'; el.style.overflow = 'visible'; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
-function handleTextResizeFontSizeStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isResizingFontSize = true; textInteractionState.isResizingWidth = false; textInteractionState.isRotating = false; textInteractionState.isDragging = false; document.body.style.cursor = 'ns-resize'; const coords = getEventCoordinates(event); textInteractionState.startX = coords.x; textInteractionState.startY = coords.y; textInteractionState.startFontSize = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
-function handleTextInteractionMove(event) { if (!activeElement || !activeElement.classList.contains('textOverlay') || (!textInteractionState.isDragging && !textInteractionState.isRotating && !textInteractionState.isResizingWidth && !textInteractionState.isResizingFontSize)) return; if (event.type === 'touchmove') event.preventDefault(); const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); if (textInteractionState.isDragging) { const currentX = coords.x - contRect.left; const currentY = coords.y - contRect.top; activeElement.style.left = `${textInteractionState.startLeft + (currentX - textInteractionState.startX)}px`; activeElement.style.top = `${textInteractionState.startTop + (currentY - textInteractionState.startY)}px`; } else if (textInteractionState.isRotating) { const dx = coords.x - textInteractionState.rotateCenterX; const dy = coords.y - textInteractionState.rotateCenterY; let angle = Math.atan2(dy, dx); let rotationRad = angle - textInteractionState.rotateStartAngle; let rotationDeg = rotationRad * (180 / Math.PI); activeElement.style.transform = `translate(-50%, -50%) rotate(${rotationDeg}deg)`; } else if (textInteractionState.isResizingWidth) { const dx = coords.x - textInteractionState.startX; const dy = coords.y - textInteractionState.startY; const rotation = textInteractionState.currentRotationRad; const cosR = Math.cos(rotation); const sinR = Math.sin(rotation); const projectedDx = dx * cosR + dy * sinR; let newWidth = textInteractionState.startWidth + projectedDx; activeElement.style.width = `${Math.max(30, newWidth)}px`; activeElement.style.whiteSpace = 'normal'; activeElement.style.overflow = 'visible';} else if (textInteractionState.isResizingFontSize) { const dy = coords.y - textInteractionState.startY; let newSize = textInteractionState.startFontSize - (dy * FONT_SIZE_SENSITIVITY); newSize = Math.max(MIN_FONT_SIZE, newSize); activeElement.style.fontSize = `${newSize}px`; if(fontSize) fontSize.value = Math.round(newSize); } } // Added fontSize update
-function handleTextInteractionEnd(event) { if (activeElement && activeElement.classList.contains('textOverlay')) { activeElement.style.cursor = 'grab'; if (textInteractionState.isResizingWidth) { activeElement.style.overflow = 'visible'; activeElement.style.whiteSpace = 'normal'; } else if (!activeElement.style.width || activeElement.style.width === 'auto') { activeElement.style.whiteSpace = 'nowrap'; activeElement.style.overflow = 'hidden';}} document.body.style.cursor = 'default'; textInteractionState.isDragging = false; textInteractionState.isRotating = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; document.removeEventListener("mousemove", handleTextInteractionMove); document.removeEventListener("mouseup", handleTextInteractionEnd); document.removeEventListener("touchmove", handleTextInteractionMove); document.removeEventListener("touchend", handleTextInteractionEnd); document.removeEventListener("touchcancel", handleTextInteractionEnd); }
-function handleImageDragStart(event) { if (event.target.classList.contains('handle') || currentSignMode !== 'custom') return; hideHelpTooltip(); const el = event.currentTarget; setActiveElement(el); imageInteractionState.isDragging = true; imageInteractionState.isRotating = false; imageInteractionState.isResizing = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); imageInteractionState.startX = coords.x - contRect.left; imageInteractionState.startY = coords.y - contRect.top; imageInteractionState.startLeft = parseFloat(el.style.left || "0"); imageInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
-function handleImageRotateStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isRotating = true; imageInteractionState.isDragging = false; imageInteractionState.isResizing = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let startAngle = Math.atan2(dy, dx); imageInteractionState.currentRotationRad = getRotationRad(el); imageInteractionState.startAngle = startAngle - imageInteractionState.currentRotationRad; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
-function handleImageResizeStart(event) { if (currentSignMode !== 'custom') return; hideHelpTooltip(); event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isResizing = true; imageInteractionState.isRotating = false; imageInteractionState.isDragging = false; document.body.style.cursor = 'nwse-resize'; // Corner resize cursor
-    const coords = getEventCoordinates(event); imageInteractionState.startX = coords.x; imageInteractionState.startY = coords.y; imageInteractionState.startWidth = el.offsetWidth; imageInteractionState.startHeight = el.offsetHeight; imageInteractionState.aspectRatio = imageInteractionState.startHeight > 0 ? imageInteractionState.startWidth / imageInteractionState.startHeight : 1; imageInteractionState.currentRotationRad = getRotationRad(el); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextDragStart(event) { if (event.target.classList.contains('handle') || currentSignMode !== 'custom') return; const el = event.currentTarget; setActiveElement(el); textInteractionState.isDragging = true; textInteractionState.isRotating = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); textInteractionState.startX = coords.x - contRect.left; textInteractionState.startY = coords.y - contRect.top; textInteractionState.startLeft = parseFloat(el.style.left || "0"); textInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextRotateStart(event) { if (currentSignMode !== 'custom') return; event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isRotating = true; textInteractionState.isDragging = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); textInteractionState.rotateCenterX = rect.left + rect.width / 2; textInteractionState.rotateCenterY = rect.top + rect.height / 2; const dx = coords.x - textInteractionState.rotateCenterX; const dy = coords.y - textInteractionState.rotateCenterY; let startAngle = Math.atan2(dy, dx); const currentRotationRad = getRotationRad(el); textInteractionState.rotateStartAngle = startAngle - currentRotationRad; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextResizeWidthStart(event) { if (currentSignMode !== 'custom') return; event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isResizingWidth = true; textInteractionState.isResizingFontSize = false; textInteractionState.isRotating = false; textInteractionState.isDragging = false; document.body.style.cursor = 'ew-resize'; const coords = getEventCoordinates(event); textInteractionState.startX = coords.x; textInteractionState.startY = coords.y; textInteractionState.startWidth = el.offsetWidth; textInteractionState.currentRotationRad = getRotationRad(el); el.style.whiteSpace = 'normal'; el.style.overflow = 'hidden'; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextResizeFontSizeStart(event) { if (currentSignMode !== 'custom') return; event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); textInteractionState.isResizingFontSize = true; textInteractionState.isResizingWidth = false; textInteractionState.isRotating = false; textInteractionState.isDragging = false; document.body.style.cursor = 'ns-resize'; const coords = getEventCoordinates(event); textInteractionState.startX = coords.x; textInteractionState.startY = coords.y; textInteractionState.startFontSize = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE; document.addEventListener("mousemove", handleTextInteractionMove); document.addEventListener("mouseup", handleTextInteractionEnd); document.addEventListener("touchmove", handleTextInteractionMove, { passive: false }); document.addEventListener("touchend", handleTextInteractionEnd); document.addEventListener("touchcancel", handleTextInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleTextInteractionMove(event) { if (!activeElement || !activeElement.classList.contains('textOverlay') || (!textInteractionState.isDragging && !textInteractionState.isRotating && !textInteractionState.isResizingWidth && !textInteractionState.isResizingFontSize)) return; if (event.type === 'touchmove') event.preventDefault(); const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); if (textInteractionState.isDragging) { const currentX = coords.x - contRect.left; const currentY = coords.y - contRect.top; activeElement.style.left = `${textInteractionState.startLeft + (currentX - textInteractionState.startX)}px`; activeElement.style.top = `${textInteractionState.startTop + (currentY - textInteractionState.startY)}px`; } else if (textInteractionState.isRotating) { const dx = coords.x - textInteractionState.rotateCenterX; const dy = coords.y - textInteractionState.rotateCenterY; let angle = Math.atan2(dy, dx); let rotationRad = angle - textInteractionState.rotateStartAngle; let rotationDeg = rotationRad * (180 / Math.PI); activeElement.style.transform = `translate(-50%, -50%) rotate(${rotationDeg}deg)`; } else if (textInteractionState.isResizingWidth) { const dx = coords.x - textInteractionState.startX; const dy = coords.y - textInteractionState.startY; const rotation = textInteractionState.currentRotationRad; const cosR = Math.cos(rotation); const sinR = Math.sin(rotation); const projectedDx = dx * cosR + dy * sinR; let newWidth = textInteractionState.startWidth + projectedDx; activeElement.style.width = `${Math.max(30, newWidth)}px`; } else if (textInteractionState.isResizingFontSize) { const dy = coords.y - textInteractionState.startY; let newSize = textInteractionState.startFontSize - (dy * FONT_SIZE_SENSITIVITY); activeElement.style.fontSize = `${Math.max(MIN_FONT_SIZE, newSize)}px`; } }
+function handleTextInteractionEnd(event) { if (activeElement && activeElement.classList.contains('textOverlay')) { activeElement.style.cursor = 'grab'; if (textInteractionState.isResizingWidth || textInteractionState.isResizingFontSize) { activeElement.style.overflow = 'visible'; } } document.body.style.cursor = 'default'; textInteractionState.isDragging = false; textInteractionState.isRotating = false; textInteractionState.isResizingWidth = false; textInteractionState.isResizingFontSize = false; document.removeEventListener("mousemove", handleTextInteractionMove); document.removeEventListener("mouseup", handleTextInteractionEnd); document.removeEventListener("touchmove", handleTextInteractionMove); document.removeEventListener("touchend", handleTextInteractionEnd); document.removeEventListener("touchcancel", handleTextInteractionEnd); }
+function handleImageDragStart(event) { if (event.target.classList.contains('handle') || currentSignMode !== 'custom') return; const el = event.currentTarget; setActiveElement(el); imageInteractionState.isDragging = true; imageInteractionState.isRotating = false; imageInteractionState.isResizing = false; el.style.cursor = 'grabbing'; document.body.style.cursor = 'grabbing'; const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); imageInteractionState.startX = coords.x - contRect.left; imageInteractionState.startY = coords.y - contRect.top; imageInteractionState.startLeft = parseFloat(el.style.left || "0"); imageInteractionState.startTop = parseFloat(el.style.top || "0"); document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleImageRotateStart(event) { if (currentSignMode !== 'custom') return; event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isRotating = true; imageInteractionState.isDragging = false; imageInteractionState.isResizing = false; document.body.style.cursor = 'alias'; const coords = getEventCoordinates(event); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let startAngle = Math.atan2(dy, dx); imageInteractionState.currentRotationRad = getRotationRad(el); imageInteractionState.startAngle = startAngle - imageInteractionState.currentRotationRad; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
+function handleImageResizeStart(event) { if (currentSignMode !== 'custom') return; event.stopPropagation(); const el = event.currentTarget.parentElement; setActiveElement(el); imageInteractionState.isResizing = true; imageInteractionState.isRotating = false; imageInteractionState.isDragging = false; document.body.style.cursor = 'nwse-resize'; const coords = getEventCoordinates(event); imageInteractionState.startX = coords.x; imageInteractionState.startY = coords.y; imageInteractionState.startWidth = el.offsetWidth; imageInteractionState.startHeight = el.offsetHeight; imageInteractionState.aspectRatio = imageInteractionState.startHeight > 0 ? imageInteractionState.startWidth / imageInteractionState.startHeight : 1; imageInteractionState.currentRotationRad = getRotationRad(el); const rect = el.getBoundingClientRect(); imageInteractionState.centerX = rect.left + rect.width / 2; imageInteractionState.centerY = rect.top + rect.height / 2; document.addEventListener("mousemove", handleImageInteractionMove); document.addEventListener("mouseup", handleImageInteractionEnd); document.addEventListener("touchmove", handleImageInteractionMove, { passive: false }); document.addEventListener("touchend", handleImageInteractionEnd); document.addEventListener("touchcancel", handleImageInteractionEnd); if (event.type === 'mousedown') event.preventDefault(); }
 function handleImageInteractionMove(event) { if (!activeElement || !activeElement.classList.contains('imgOverlay') || (!imageInteractionState.isDragging && !imageInteractionState.isRotating && !imageInteractionState.isResizing)) return; if (event.type === 'touchmove') event.preventDefault(); const coords = getEventCoordinates(event); const contRect = container.getBoundingClientRect(); if (imageInteractionState.isDragging) { const currentX = coords.x - contRect.left; const currentY = coords.y - contRect.top; activeElement.style.left = `${imageInteractionState.startLeft + (currentX - imageInteractionState.startX)}px`; activeElement.style.top = `${imageInteractionState.startTop + (currentY - imageInteractionState.startY)}px`; } else if (imageInteractionState.isRotating) { const dx = coords.x - imageInteractionState.centerX; const dy = coords.y - imageInteractionState.centerY; let angle = Math.atan2(dy, dx); let rotationRad = angle - imageInteractionState.startAngle; let rotationDeg = rotationRad * (180 / Math.PI); activeElement.style.transform = `translate(-50%, -50%) rotate(${rotationDeg}deg)`; } else if (imageInteractionState.isResizing) { const startDist = Math.hypot(imageInteractionState.startX - imageInteractionState.centerX, imageInteractionState.startY - imageInteractionState.centerY); const currentDist = Math.hypot(coords.x - imageInteractionState.centerX, coords.y - imageInteractionState.centerY); const scaleFactor = startDist > 0 ? currentDist / startDist : 1; let newWidth = imageInteractionState.startWidth * scaleFactor; let newHeight = imageInteractionState.aspectRatio > 0 ? newWidth / imageInteractionState.aspectRatio : newWidth; activeElement.style.width = `${Math.max(30, newWidth)}px`; activeElement.style.height = `${Math.max(30 / (imageInteractionState.aspectRatio || 1), newHeight)}px`; } }
 function handleImageInteractionEnd(event) { if (activeElement && activeElement.classList.contains('imgOverlay')) { activeElement.style.cursor = 'grab'; } document.body.style.cursor = 'default'; imageInteractionState.isDragging = false; imageInteractionState.isRotating = false; imageInteractionState.isResizing = false; document.removeEventListener("mousemove", handleImageInteractionMove); document.removeEventListener("mouseup", handleImageInteractionEnd); document.removeEventListener("touchmove", handleImageInteractionMove); document.removeEventListener("touchend", handleImageInteractionEnd); document.removeEventListener("touchcancel", handleImageInteractionEnd); }
 
@@ -881,231 +762,110 @@ function getWrappedTextLines(text, maxWidthPx, fontStyle) { if (!text || maxWidt
 
 
 // --- Save Functionality ---
-function saveImage(mode = 'full') {
+function saveImage() {
     const currentNftId = nftTokenIdInput.value || 'unknown';
     const currentCollection = nftCollectionSelect.value || 'unknown';
-    hideHelpTooltip();
 
-    let hasContentToSave = false;
-    if (mode === 'full') {
-        hasContentToSave = baseImage.src && baseImage.complete && baseImage.naturalWidth > 0;
-        if (!hasContentToSave) {
-            alert("Load a valid NFT first to save the full image!");
-            nftStatusEl.className = 'error';
-            nftStatusEl.textContent = "NFT not loaded for full save.";
-            return;
-        }
-    } else if (mode === 'sign') {
-        const hasOverlays = container.querySelector(".textOverlay:not(.hidden-overlay), .imgOverlay:not(.hidden-overlay)") !== null;
-        const hasSignColor = overlayColorInput && overlayColorInput.value !== '#000000'; // Basic check
-        hasContentToSave = hasOverlays || hasSignColor;
-         if (!hasContentToSave) {
-             alert("Add at least a sign color or some text/image before saving the sign only.");
-             nftStatusEl.className = 'error';
-             nftStatusEl.textContent = "No sign elements to save.";
-             return;
-        }
-    }
+    if (!baseImage.src || !baseImage.complete || baseImage.naturalWidth === 0) { alert("Load a valid NFT first!"); nftStatusEl.className = 'error'; nftStatusEl.textContent = "NFT not loaded for saving."; return; }
+    if (currentSignMode === 'prefix' && !appliedPrefixSignImage) { alert("Select a sign from the gallery before saving."); nftStatusEl.className = 'error'; nftStatusEl.textContent = "No sign selected from gallery."; return; }
 
-    nftStatusEl.textContent = `Generating ${mode === 'full' ? 'full' : 'sign'} image...`;
-    nftStatusEl.className = '';
+    nftStatusEl.textContent = `Generating final image...`; nftStatusEl.className = '';
     const previouslyActive = activeElement; if (activeElement) setActiveElement(null); // Deselect for clean save
 
-    const saveCanvas = document.createElement('canvas');
-    saveCanvas.width = canvasWidth;
-    saveCanvas.height = canvasHeight;
-    const saveCtx = saveCanvas.getContext('2d');
+    // Start Drawing
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    drawBaseImage();
 
+    if (currentSignMode === 'prefix' && appliedPrefixSignImage && appliedPrefixSignImage.complete) {
+        try { ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight); } catch (e) { console.error("Error drawing prefix sign during save:", e); }
+    } else if (currentSignMode === 'custom') {
+        drawSignPolygonOnly(); // Draw custom color polygon
 
-    if (mode === 'full') {
-        if(baseImage.src && baseImage.complete && baseImage.naturalWidth > 0) {
-            const canvasAspect = saveCanvas.width / saveCanvas.height;
-            const imageAspect = baseImage.naturalWidth / baseImage.naturalHeight;
-            let drawWidth, drawHeight, x, y;
-            if (imageAspect > canvasAspect) { drawWidth = saveCanvas.width; drawHeight = drawWidth / imageAspect; x = 0; y = (saveCanvas.height - drawHeight) / 2; }
-            else { drawHeight = saveCanvas.height; drawWidth = drawHeight * imageAspect; y = 0; x = (saveCanvas.width - drawWidth) / 2; }
-            try { saveCtx.drawImage(baseImage, x, y, drawWidth, drawHeight); } catch(e) { console.error("Error drawing base image to save canvas:", e); }
-        }
-        const signColor = overlayColorInput.value;
-        const signPolygon = getPolygonForSelectedCollection();
-        if (signPolygon && signPolygon.length >= 3) {
-            saveCtx.save();
-            saveCtx.beginPath(); saveCtx.moveTo(signPolygon[0].x, signPolygon[0].y);
-            for (let i = 1; i < signPolygon.length; i++) { saveCtx.lineTo(signPolygon[i].x, signPolygon[i].y); }
-            saveCtx.closePath(); saveCtx.fillStyle = signColor; saveCtx.fill();
-            saveCtx.lineJoin = "round"; saveCtx.lineWidth = 14; saveCtx.strokeStyle = "black"; saveCtx.stroke();
-            saveCtx.restore();
-        }
+        const containerRect = container.getBoundingClientRect();
+        if (!containerRect || containerRect.width === 0 || containerRect.height === 0) { console.error("Error getting container rect during save"); nftStatusEl.className='error'; nftStatusEl.textContent="Save Error: Container rect invalid."; if(previouslyActive && container.contains(previouslyActive)) setActiveElement(previouslyActive); return; }
+        const scaleX = canvasWidth / containerRect.width;
+        const scaleY = canvasHeight / containerRect.height;
 
-    } else if (mode === 'sign') {
-        saveCtx.clearRect(0, 0, saveCanvas.width, saveCanvas.height);
-        const signColor = overlayColorInput.value;
-        const signPolygon = getPolygonForSelectedCollection();
-         if (signPolygon && signPolygon.length >= 3) {
-            saveCtx.save();
-            saveCtx.beginPath(); saveCtx.moveTo(signPolygon[0].x, signPolygon[0].y);
-            for (let i = 1; i < signPolygon.length; i++) { saveCtx.lineTo(signPolygon[i].x, signPolygon[i].y); }
-            saveCtx.closePath(); saveCtx.fillStyle = signColor; saveCtx.fill();
-            saveCtx.lineJoin = "round"; saveCtx.lineWidth = 14; saveCtx.strokeStyle = "black"; saveCtx.stroke();
-            saveCtx.restore();
-        }
-    }
+        const allOverlays = Array.from(container.querySelectorAll(".textOverlay, .imgOverlay"));
+        allOverlays.sort((a, b) => (parseInt(window.getComputedStyle(a).zIndex) || 0) - (parseInt(window.getComputedStyle(b).zIndex) || 0));
 
-    const displayContainerRect = container.getBoundingClientRect();
-    if(!displayContainerRect || displayContainerRect.width === 0 || displayContainerRect.height === 0) {
-         alert("Error: Could not get container dimensions for saving overlays.");
-         nftStatusEl.className='error';
-         nftStatusEl.textContent="Save Error: Container rect invalid.";
-         if(previouslyActive && container.contains(previouslyActive)) setActiveElement(previouslyActive);
-         return;
-    }
-    const scaleX = saveCanvas.width / displayContainerRect.width;
-    const scaleY = saveCanvas.height / displayContainerRect.height;
+        allOverlays.forEach(el => {
+            if (!container.contains(el)) return;
 
-    const allOverlays = Array.from(container.querySelectorAll(".textOverlay, .imgOverlay"));
-    allOverlays.sort((a, b) => (parseInt(window.getComputedStyle(a).zIndex) || 0) - (parseInt(window.getComputedStyle(b).zIndex) || 0));
+            const elRect = el.getBoundingClientRect(); const rotationRad = getRotationRad(el);
+            const relativeCenterX = (elRect.left + elRect.width / 2) - containerRect.left;
+            const relativeCenterY = (elRect.top + elRect.height / 2) - containerRect.top;
+            const canvasX = Math.round(relativeCenterX * scaleX); const canvasY = Math.round(relativeCenterY * scaleY);
 
-    allOverlays.forEach(el => {
-        if (!container.contains(el) || el.classList.contains('hidden-overlay')) return;
+            ctx.save(); ctx.translate(canvasX, canvasY); ctx.rotate(rotationRad);
 
-        const elRect = el.getBoundingClientRect();
-        const rotationRad = getRotationRad(el);
-        const relativeCenterX = (elRect.left + elRect.width / 2) - displayContainerRect.left;
-        const relativeCenterY = (elRect.top + elRect.height / 2) - displayContainerRect.top;
-        const canvasX = Math.round(relativeCenterX * scaleX);
-        const canvasY = Math.round(relativeCenterY * scaleY);
-
-        saveCtx.save();
-        saveCtx.translate(canvasX, canvasY);
-        saveCtx.rotate(rotationRad);
-
-        if(el.classList.contains('textOverlay')){
-            let textNode = el.childNodes[0]; while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
-            const text = textNode ? textNode.nodeValue : (el.textContent || '').replace(/[↻⇦⇨]/g, '').trim();
-            const color = el.style.color || '#ffffff'; const size = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE; const font = el.style.fontFamily || 'Arial'; const domWidth = el.offsetWidth;
-            const canvasFontSize = Math.round(size * scaleY); // Use Y scale for font size generally
-            const canvasMaxWidth = Math.round(domWidth * scaleX);
-
-            if (canvasFontSize >= 1 && text) {
-                const fontStyle = `${canvasFontSize}px ${font}`;
-                saveCtx.font = fontStyle;
-                saveCtx.fillStyle = color;
-                saveCtx.textAlign = "center";
-                saveCtx.textBaseline = "middle";
-                const lines = getWrappedTextLinesForContext(saveCtx, text, canvasMaxWidth, fontStyle); // Use helper for specific context
-                const lineHeight = canvasFontSize * 1.2;
-                const totalTextHeight = lines.length * lineHeight;
-                let currentY = -(totalTextHeight / 2) + (lineHeight / 2);
-
-                lines.forEach(line => {
-                    saveCtx.fillText(line, 0, currentY);
-                    currentY += lineHeight;
-                });
+            if (el.classList.contains('textOverlay')) {
+                let textNode = el.childNodes[0]; while (textNode && textNode.nodeType !== Node.TEXT_NODE) { textNode = textNode.nextSibling; }
+                const text = textNode ? textNode.nodeValue : (el.textContent || '');
+                const color = el.style.color || '#ffffff'; const size = parseFloat(el.style.fontSize) || DEFAULT_FONT_SIZE; const font = el.style.fontFamily || 'Arial'; const domWidth = el.offsetWidth;
+                const canvasFontSize = Math.round(size * scaleY); const canvasMaxWidth = Math.round(domWidth * scaleX);
+                if (canvasFontSize >= 1 && text) {
+                    const fontStyle = `${canvasFontSize}px ${font}`; ctx.font = fontStyle; ctx.fillStyle = color; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    const lines = getWrappedTextLines(text, canvasMaxWidth, fontStyle); const lineHeight = canvasFontSize * 1.2; const totalTextHeight = lines.length * lineHeight; let currentY = -(totalTextHeight / 2) + (lineHeight / 2);
+                    lines.forEach(line => { ctx.fillText(line, 0, currentY); currentY += lineHeight; });
+                }
+            } else if (el.classList.contains('imgOverlay')) {
+                const imgElement = el.querySelector('img');
+                if (imgElement && imgElement.complete && imgElement.naturalWidth > 0) {
+                    const domWidth = el.offsetWidth; const domHeight = el.offsetHeight;
+                    const canvasDrawWidth = Math.round(domWidth * scaleX); const canvasDrawHeight = Math.round(domHeight * scaleY);
+                    if (canvasDrawWidth > 0 && canvasDrawHeight > 0) { try { ctx.drawImage(imgElement, -canvasDrawWidth / 2, -canvasDrawHeight / 2, canvasDrawWidth, canvasDrawHeight); } catch (e) { console.error("Error drawing image overlay during save:", e); } }
+                } else { console.warn("Skipping unloaded/invalid image overlay during save:", imgElement?.src); }
             }
-        } else if(el.classList.contains('imgOverlay')){
-            const imgElement=el.querySelector('img');
-            if(imgElement&&imgElement.complete&&imgElement.naturalWidth>0){
-                 const domWidth = el.offsetWidth; const domHeight = el.offsetHeight;
-                 const canvasDrawWidth = Math.round(domWidth * scaleX);
-                 const canvasDrawHeight = Math.round(domHeight * scaleY);
-                 if (canvasDrawWidth > 0 && canvasDrawHeight > 0) {
-                     try {
-                         saveCtx.drawImage(imgElement, -canvasDrawWidth / 2, -canvasDrawHeight / 2, canvasDrawWidth, canvasDrawHeight);
-                     } catch(e) {
-                         console.error("Error drawing image overlay to save canvas:", e);
-                     }
-                 }
-            } else {
-                console.warn("Skipping unloaded/invalid image overlay during save:", imgElement?.src);
-            }
-        }
-        saveCtx.restore();
-    });
+            ctx.restore();
+        });
+    }
+    // End Drawing
 
-
+    // Generate Download Link
     try {
-        const dataURL = saveCanvas.toDataURL("image/png");
-        const link = document.createElement("a");
-        let filename;
-        if (mode === 'full') {
-            filename = `signed-${currentCollection}-${currentNftId}.png`;
-        } else {
-            filename = `sign-${currentCollection}-${currentNftId}.png`;
-        }
-        link.download = filename;
-        link.href = dataURL;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        nftStatusEl.textContent = `${mode === 'full' ? 'Full image' : 'Sign'} saved as ${filename}!`;
-        nftStatusEl.className = 'success';
+        const dataURL = canvas.toDataURL("image/png"); const link = document.createElement("a");
+        let filename = ""; const safeCollection = currentCollection.replace(/[^a-z0-9]/gi, '_').toLowerCase(); const safeNftId = currentNftId.replace(/[^a-z0-9]/gi, '_');
+        if (currentSignMode === 'prefix' && appliedPrefixSignImage) {
+            const signName = appliedPrefixSignImage.alt || 'sign'; const safeSignName = signName.replace(/[^a-z0-9]/gi, '_').toLowerCase(); filename = `signed-${safeCollection}-${safeNftId}-${safeSignName}.png`;
+        } else { filename = `custom-${safeCollection}-${safeNftId}.png`; }
+        link.download = filename; link.href = dataURL; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        nftStatusEl.textContent = `Image saved as ${filename}!`; nftStatusEl.className = 'success';
     } catch (e) {
-        console.error("Error saving image:", e);
-        if (e.name === "SecurityError") {
-            alert("Save Error: Cannot save canvas due to cross-origin image security restrictions. Ensure NFT images allow cross-origin use (CORS).");
-            nftStatusEl.textContent = "Save Error: Cross-origin issue.";
-        } else {
-            alert("An error occurred while saving the image.");
-            nftStatusEl.textContent = "Save Error.";
-        }
-         nftStatusEl.className = 'error';
+        console.error("Error saving image:", e); nftStatusEl.className = 'error';
+        if (e.name === "SecurityError") { alert("Save Error: Cannot save due to cross-origin image security restrictions (CORS). Ensure NFT/Sign images allow anonymous access."); nftStatusEl.textContent = "Save Error: CORS issue."; }
+        else { alert("An error occurred saving the image. Check console."); nftStatusEl.textContent = "Save Error. Check console."; }
     }
 
-    // Restore active element selection *after* download logic
-    if (previouslyActive && container.contains(previouslyActive)) {
-       setActiveElement(previouslyActive);
-    } else {
-        updateCustomActionButtons();
-    }
-
-} // End saveImage function
-
-// Helper for text wrapping specific to a given canvas context
-function getWrappedTextLinesForContext(targetCtx, text, maxWidthPx, fontStyle) {
-     if (!text || maxWidthPx <= 0) return [];
-     targetCtx.font = fontStyle;
-     const words = text.split(' ');
-     const lines = [];
-     let currentLine = '';
-     for (let i = 0; i < words.length; i++) {
-         const word = words[i];
-         const testLine = currentLine ? currentLine + " " + word : word;
-         const testWidth = targetCtx.measureText(testLine).width;
-         if (testWidth <= maxWidthPx || !currentLine) {
-             currentLine = testLine;
+     // Restore Canvas View & Active Element
+     setTimeout(() => {
+         if (baseImage.src && baseImage.complete) {
+             if (currentSignMode === 'prefix' && appliedPrefixSignImage) { drawBaseImage(); ctx.drawImage(appliedPrefixSignImage, 0, 0, canvasWidth, canvasHeight); }
+             else if (currentSignMode === 'custom') { applyOverlay(false); }
+             else { drawBaseImage(); }
+         } else { clearCanvas(); }
+         if (previouslyActive && container.contains(previouslyActive)) {
+             setActiveElement(previouslyActive);
          } else {
-             lines.push(currentLine);
-             currentLine = word;
-             if (targetCtx.measureText(currentLine).width > maxWidthPx) {
-                 let tempLine = '';
-                 for (let char of currentLine) {
-                     if (targetCtx.measureText(tempLine + char).width > maxWidthPx && tempLine) {
-                         lines.push(tempLine);
-                         tempLine = char;
-                     } else {
-                         tempLine += char;
-                     }
-                 }
-                 currentLine = tempLine;
+             if (currentSignMode === 'custom' && textInput) {
+                 textInput.value = lastCustomTextInputValue;
              }
+             updateCustomActionButtons();
          }
-     }
-     if (currentLine) {
-         lines.push(currentLine);
-     }
-     return lines;
- }
+     }, 100);
+}
 
 
 // --- Donation Modal Functions ---
 function openDonateModal() {
     if (!donateModal) return;
-    hideHelpTooltip();
+    // Reset view
     donateNetworkChoiceDiv.classList.remove('hidden');
     donateAddressDisplayDiv.classList.add('hidden');
     donateAddressCode.textContent = '';
     copyAddressBtn.textContent = 'Copy';
     copyAddressBtn.classList.remove('copied');
+    // Show modal
     document.body.classList.add('modal-open');
     isModalOpen = true;
 }
@@ -1123,13 +883,14 @@ function showDonationAddress(network) {
     donateAddressCode.textContent = address;
     donateNetworkChoiceDiv.classList.add('hidden');
     donateAddressDisplayDiv.classList.remove('hidden');
-    copyAddressBtn.textContent = 'Copy';
+    copyAddressBtn.textContent = 'Copy'; // Reset copy button text
     copyAddressBtn.classList.remove('copied');
 }
 
 function copyDonationAddress() {
     const address = donateAddressCode.textContent;
     if (!address || !navigator.clipboard) {
+        // Fallback for older browsers or insecure contexts
         try {
             const tempInput = document.createElement('textarea');
             tempInput.value = address;
@@ -1146,6 +907,7 @@ function copyDonationAddress() {
         }
         return;
     }
+    // Use Clipboard API
     navigator.clipboard.writeText(address).then(() => {
         copyAddressBtn.textContent = 'Copied!';
         copyAddressBtn.classList.add('copied');
@@ -1157,64 +919,59 @@ function copyDonationAddress() {
 }
 
 
-// --- Help Tooltip Functions (CLICK BASED) ---
-
-function handleHelpClick(event) {
-    event.stopPropagation();
+// --- Help Tooltip Functions ---
+function showHelpTooltip(event) {
     const btn = event.currentTarget;
-    if (btn.disabled) return;
-
-    if (btn === activeHelpButton) {
-        hideHelpTooltip();
-    } else {
-        hideHelpTooltip();
-        displayHelpTooltip(btn);
-    }
-}
-
-function displayHelpTooltip(btn) {
     const helpKey = btn.dataset.helpKey;
     const text = HELP_TEXTS[helpKey];
 
     if (!text || !helpTooltip || !helpTooltipText) return;
 
-    helpTooltipText.innerHTML = text.replace(/\n/g, '<br>');
+    helpTooltipText.textContent = text;
 
     const btnRect = btn.getBoundingClientRect();
-    helpTooltip.style.visibility = 'hidden';
-    helpTooltip.style.display = 'block';
+    // Get tooltip dimensions *before* displaying it to calculate position correctly
+    helpTooltip.style.display = 'block'; // Temporarily show to measure
+    helpTooltip.style.visibility = 'hidden'; // But keep invisible
     const tooltipRect = helpTooltip.getBoundingClientRect();
-    helpTooltip.style.display = 'none';
-    helpTooltip.style.visibility = 'visible';
+    helpTooltip.style.display = 'none'; // Hide again immediately
+    helpTooltip.style.visibility = 'visible'; // Make visible for actual display later
 
     const spaceAbove = btnRect.top;
+    const spaceBelow = window.innerHeight - btnRect.bottom;
     const tooltipHeight = tooltipRect.height;
     const tooltipWidth = tooltipRect.width;
     let top, left;
 
-    if (spaceAbove > tooltipHeight + 10) {
-        top = btnRect.top - tooltipHeight - 8;
+    // Decide vertical position (prefer above if enough space)
+    if (spaceAbove > tooltipHeight + 10 && spaceAbove > spaceBelow) {
+        top = btnRect.top - tooltipHeight - 8; // Position above button + arrow space
         helpTooltip.classList.remove('point-down');
     } else {
-        top = btnRect.bottom + 8;
+        top = btnRect.bottom + 8; // Position below button + arrow space
         helpTooltip.classList.add('point-down');
     }
 
+    // Calculate initial horizontal position (centered on button)
     left = btnRect.left + (btnRect.width / 2) - (tooltipWidth / 2);
 
-    if (left < 5) { left = 5; }
-    if (left + tooltipWidth > window.innerWidth - 5) { left = window.innerWidth - tooltipWidth - 5; }
+    // Prevent going off left edge
+    if (left < 5) {
+        left = 5;
+    }
+    // Prevent going off right edge
+    if (left + tooltipWidth > window.innerWidth - 5) {
+        left = window.innerWidth - tooltipWidth - 5;
+    }
 
     helpTooltip.style.left = `${left}px`;
     helpTooltip.style.top = `${top}px`;
-    helpTooltip.style.display = 'block';
-    activeHelpButton = btn;
+    helpTooltip.style.display = 'block'; // Now display it
 }
 
 function hideHelpTooltip() {
     if (!helpTooltip) return;
     helpTooltip.style.display = 'none';
-    activeHelpButton = null;
 }
 
 
