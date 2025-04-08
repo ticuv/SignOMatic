@@ -1,0 +1,26 @@
+{
+  "githubUser": "ticuv",
+  "githubRepo": "SignOMatic",
+  "githubBranch": "main",
+  "imageBasePath": "signs",
+  "categories": {
+    "GHN": [
+      {
+        "fileName": "GHN/duko.png",
+        "name": "Duko Sign"
+      },
+      {
+        "fileName": "GHN/narrative.PNG",
+        "name": "Narrative Sign"
+      }
+    ],
+    "AHC": [
+      {
+        "fileName": "AHC/j.png",
+        "name": "J Sign"
+      }
+      
+    ]
+   
+  }
+}
