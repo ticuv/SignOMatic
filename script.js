@@ -803,39 +803,58 @@ function setActiveElement(el) {
 
 
 // ===========================================================
-// removeActiveElement - FIXED VERSION (Bug 1)
+// removeActiveElement - REVISED FIX ATTEMPT (Bug 1)
 // ===========================================================
 function removeActiveElement(event) {
-    if (event) { event.stopPropagation(); }
-    hideHelpTooltip(); // Hide tooltip if removing element
+    if (event) {
+        event.stopPropagation(); // Prevent event bubbling if needed
+    }
+    hideHelpTooltip(); // Hide any open help tooltip
 
+    // Check if there is an element selected, it's within the container, and we are in custom mode
     if (activeElement && container.contains(activeElement) && currentSignMode === 'custom') {
-        const elementType = activeElement.classList.contains('textOverlay') ? 'Text' : 'Image';
-        const elementToRemove = activeElement; // Store reference before deselecting
 
-        // Deselect FIRST to update UI state (like text input field) correctly
+        const elementType = activeElement.classList.contains('textOverlay') ? 'Text' : 'Image';
+
+        // Store a reference to the element that needs to be removed *before* deselecting
+        const elementToRemove = activeElement;
+
+        // --- Step 1: Deselect the element ---
+        // This updates the UI (disables the button, etc.) by setting activeElement to null.
         setActiveElement(null);
 
-        // Now remove the element from the DOM
-        elementToRemove.remove(); // <<< --- FIX: Added this line to actually remove the element
+        // --- Step 2: Remove the stored element from the DOM ---
+        // Double-check the reference is valid before attempting removal
+        if (elementToRemove) {
+            elementToRemove.remove(); // Use the direct .remove() method to delete the element from the DOM
+            nftStatusEl.textContent = `${elementType} element removed.`;
+            nftStatusEl.className = '';
+        } else {
+            // This case should ideally not happen if activeElement was valid initially
+            console.error("Error removing element: Reference to element was lost before removal.");
+            nftStatusEl.textContent = `Error removing ${elementType}. Check console.`;
+            nftStatusEl.className = 'error';
+        }
 
-        nftStatusEl.textContent = `${elementType} element removed.`;
-        nftStatusEl.className = '';
-        // updateCustomActionButtons() is called within setActiveElement(null), no need to call again
     } else if (currentSignMode !== 'custom') {
+        // Inform user if delete is attempted in the wrong mode
         nftStatusEl.textContent = "Delete only works in Custom Sign mode.";
         nftStatusEl.className = 'error';
         console.warn("Delete clicked outside custom mode.");
     } else if (!activeElement) {
+        // Inform user if delete is attempted with nothing selected
         nftStatusEl.textContent = "No element selected to delete.";
         nftStatusEl.className = 'error';
         console.warn("Delete clicked with no active element.");
     } else {
-         console.warn("Attempted to delete an element not in container or invalid state.", activeElement);
-         setActiveElement(null); // Ensure deselection even if removal fails unexpectedly
+         // Catch-all for other unexpected states
+         console.warn("Attempted to delete an element in an invalid state.", activeElement);
+         setActiveElement(null); // Ensure deselection
          nftStatusEl.textContent = "Could not delete element.";
          nftStatusEl.className = 'error';
     }
+    // The updateCustomActionButtons() function is called within setActiveElement(null),
+    // so the button state is correctly handled after deselection.
 }
 
 
@@ -864,7 +883,7 @@ function getWrappedTextLines(text, maxWidthPx, fontStyle) { if (!text || maxWidt
 
 
 // ===========================================================
-// saveImage - FIXED VERSION (Bug 2)
+// saveImage - FIXED VERSION (Bug 2 - Alignment)
 // ===========================================================
 function saveImage() {
     const currentNftId = nftTokenIdInput.value || 'unknown';
